@@ -6,7 +6,9 @@
 # https://hosting.analythium.io/containerizing-shiny-for-python-and-shinylive-applications/
 # This migtht be how to deploy https://github.com/posit-dev/py-shinylive
 # Can write a python script to download and launch the app locally
-# PyInstaller desktop app (could do as github action) https://github.com/marketplace/actions/pyinstaller-action, Electron / Tauri wrapper (advanced)
+# PyInstaller desktop app (could do as github action)
+# https://github.com/marketplace/actions/pyinstaller-action
+# Electron / Tauri wrapper (advanced)
 
 import folium
 import matplotlib.pyplot as plt
