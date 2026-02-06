@@ -9,7 +9,6 @@
 # PyInstaller desktop app (could do as github action)
 # https://github.com/marketplace/actions/pyinstaller-action
 # Electron / Tauri wrapper (advanced)
-
 import folium
 import matplotlib.pyplot as plt
 from shiny import App

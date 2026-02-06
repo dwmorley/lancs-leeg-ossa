@@ -1,21 +1,33 @@
-import pystac_client
-from typing import Union, Tuple
+from typing import Tuple
+from typing import Union
+
 import numpy as np
 import pandas as pd
 import planetary_computer
+import pystac_client
 import stackstac
-import matplotlib
 import xarray
 
-from src.covariates.spatial_aoi import BoundingBox
-
-matplotlib.use("TkAgg")  # or 'Qt5Agg' or 'MacOSX'
+from src.covariates.bounding_box import BoundingBox
 
 
 def get_lulc(
     aoi: Union[Tuple[float, float, float, float], list, np.ndarray, pd.DataFrame],
     year: int = 2023,
 ) -> xarray.DataArray:
+    """
+    Impact Observatory, Microsoft, and Esri. (2023). Global Land Use Land Cover (LULC) Dataset, 10m Resolution (2017-2023).
+    ESA Sentinel-2 Imagery. Available at: https://planetarycomputer.microsoft.com/
+
+    https://planetarycomputer.microsoft.com/dataset/io-lulc-annual-v02
+
+    :param aoi: The BoundingBox can be initialized with four bounds (xmin, ymin, xmax, ymax) or from coordinates (tuple/list of 4 bounds or numpy array/pandas DataFrame with coordinates).
+    :param year: Has to be between 2017 and 2023.
+    :return: a land use land cover (LULC) raster for the specified area of interest (AOI) and year.
+    """
+
+    if 2017 > year > 2023:
+        raise ValueError("Year must be between 2017 and 2023.")
 
     bbox = BoundingBox(*aoi)
 
@@ -46,6 +58,13 @@ def get_lulc(
     )
 
     da_raster = stack.squeeze().compute()
+
+    # Set class names as attributes
+    collection = catalog.get_collection("io-lulc-9-class")
+    x = collection.item_assets["data"]
+    class_names = {x["values"][0]: x["summary"] for x in x.properties["file:values"]}
+    da_raster.attrs["class"] = class_names
+
     return da_raster
 
 
