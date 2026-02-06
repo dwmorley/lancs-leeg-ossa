@@ -1,8 +1,6 @@
-from typing import Tuple
 from typing import Union
 
 import numpy as np
-import pandas as pd
 import planetary_computer
 import pystac_client
 import stackstac
@@ -10,14 +8,14 @@ import xarray as xr
 
 from src.covariates.bounding_box import BoundingBox
 
+# TODO: aggregate rasters over time dimension when needed
+
 
 def get_modis(
-    aoi: Union[Tuple[float, float, float, float], list, np.ndarray, pd.DataFrame],
+    bbox: BoundingBox,
     variable: str,
     date_range: str,
 ) -> xr.DataArray:
-
-    bbox = BoundingBox(*aoi)
 
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -28,7 +26,7 @@ def get_modis(
 
     search = catalog.search(
         collections=[collection],
-        bbox=[bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax],
+        bbox=bbox.to_list(),
         datetime=date_range,
     )
     items = search.item_collection()
@@ -40,11 +38,19 @@ def get_modis(
 
     stack = stackstac.stack(
         items,
+        dtype=np.float64,
+        fill_value=np.nan,
         assets=[variable],
         epsg=4326,
-        bounds=(bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax),
+        bounds=bbox.to_tuple(),
+        rescale=True,
         chunksize="auto",
     )
+
+    # HACK: Dealing with Int16 nodata values that are not properly masked by stackstac.
+    # TODO: Need conditions depending on asset
+    stack = stack.where(stack < 6553, np.nan)
+
     da_raster = stackstac.mosaic(stack, dim="time")
     return da_raster
 
@@ -75,7 +81,7 @@ def get_collection(var: str) -> Union[str, None]:
 
 if __name__ == "__main__":
     get_modis(
-        aoi=[1.5, 6.0, 2.1, 7.0],
+        bbox=BoundingBox([1.5, 6.0, 2.1, 7.0]),
         variable="ET_500m",
         date_range="2019-01-01/2019-01-31",
     )

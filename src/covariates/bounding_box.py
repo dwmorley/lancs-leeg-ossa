@@ -70,10 +70,17 @@ class BoundingBox:
         """String representation of BoundingBox."""
         return f"BoundingBox(xmin={self.xmin}, ymin={self.ymin}, xmax={self.xmax}, ymax={self.ymax})"
 
-    def to_list(self) -> list:
+    def to_list(self) -> list[float]:
         """Convert to list format [xmin, ymin, xmax, ymax]."""
         return [self.xmin, self.ymin, self.xmax, self.ymax]
 
-    def to_tuple(self) -> tuple:
+    def to_tuple(self) -> tuple[float, float, float, float]:
         """Convert to tuple format (xmin, ymin, xmax, ymax)."""
         return (self.xmin, self.ymin, self.xmax, self.ymax)
+
+    def sampling_grid(self, nx: int = 70, ny: int = 70) -> np.ndarray:
+        x = np.linspace(self.xmin, self.xmax, nx)
+        y = np.linspace(self.ymin, self.ymax, ny)
+        X, Y = np.meshgrid(x, y)
+
+        return np.column_stack([X.flatten(), Y.flatten()])
