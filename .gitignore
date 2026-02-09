@@ -139,3 +139,5 @@ Thumbs.db
 #GIS things
 *.tif
 *.gpkg
+*.csv
+*.tif.aux.xml
