@@ -23,6 +23,8 @@ cartopy = "^0.25.0"
 dask = "^2026.1.2"
 geopandas = "^1.1.2"
 scikit-learn = "^1.8.0"
+statsmodels = "^0.14.6"
+rpy2 = "^3.6.4"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = ">=4.5.0,<5.0.0"

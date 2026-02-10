@@ -55,6 +55,8 @@ def go():
 
     stack = xr.concat(cleaned_rasters, dim="band")
 
+    # TODO: save the stack as an artefact
+
     # Sampling
     xyz = bbox.sampling_grid(nx=70, ny=70)
 

@@ -2,13 +2,18 @@ import warnings
 from typing import Any
 from typing import Dict
 from typing import Union
+from typing import List
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from scipy import linalg
+from shapely.geometry import Point
 
 """
 QUESTIONS:
+- Merging of LC classes before QDA (is this manual?)
+- What is the difference between the 2 RData qda functions?
 - What is 'test' actually doing? test in not an int but should be a list?
 - err2 = 1 - sum(diag(conf2)) ??
 - Wilks, is R reporting where the largest drop is actually happening?
@@ -16,7 +21,7 @@ QUESTIONS:
 TODO:
 - Maybe as a class, model.fit()
 - Correctly name variables and functions
-- 'all' is a strange global
+- 'all' as a dataclass
 
 """
 
@@ -171,9 +176,7 @@ def luqdaloop(
                 prior2[u] = prior2.iloc[:, a[i]] / 2
                 prior2.iloc[:, a[i]] = prior2.iloc[:, a[i]] / 2
                 ng2 = ng2 + 1
-                all[f"{ng2}cluster"] = ls_da(
-                    X=XX, y=y2, prior=prior2.values, test=test
-                )  # CALL TO LSDA
+                all[f"{ng2}cluster"] = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
                 tb2 = np.append(tb2, len(half_indices))
                 tb2[a[i]] = tb2[a[i]] - len(half_indices)
                 g2 = np.append(g2, u + str(g2[a[i]]))
@@ -251,7 +254,7 @@ def luqdaloop(
 
     # Find index where the biggest change occurs
     best_idx = int(np.argmax(wilks_diff))
-    best = best_idx + 2
+    best = best_idx + 2  # TODO: check this compared to R output
 
     if np.sum(N2) == 0:
         print(f"\nBest number of classes found: {best}")
@@ -290,16 +293,15 @@ def luqdaloop(
 
 
 def ls_da(
-    X: np.ndarray, y: np.ndarray, prior: np.ndarray, test: Union[int, None] = None
+    X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None] = None
 ) -> dict:
     """
-    Linear discriminant analysis with localized priors.
+    Linear discriminant analysis with localised priors.
 
     Performs LDA using QR decomposition and computes classification scores
     based on Mahalanobis distances with local prior probabilities.
     """
 
-    # TODO: Clarify what test iis doing
     # Split into train/validation if test indices provided
     # if test is not None:
     #     XV = X[test, :]
@@ -341,7 +343,7 @@ def ls_da(
             raise ValueError(f"Rank deficiency in group {g[k]}")
 
     # Compute discriminant scores for training set
-    Disc = np.zeros((n, ng))
+    disc = np.zeros((n, ng))
     for k in range(ng):
         # Deviation from group mean
         Xk = np.tile(gm[k], (n, 1))
@@ -349,13 +351,13 @@ def ls_da(
         # Discriminant function: Mahalanobis distance + log determinant - log prior
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
-            Disc[:, k] = (
+            disc[:, k] = (
                 0.5 * np.sum(dev**2, axis=1) + 0.5 * ldet[k] - np.log(prior[:, k])
             )
 
     # Convert to probabilities
-    Disc = np.exp(-(Disc - np.min(Disc, axis=1, keepdims=True)))
-    pred = Disc / np.sum(Disc, axis=1, keepdims=True)
+    disc = np.exp(-(disc - np.min(disc, axis=1, keepdims=True)))
+    pred = disc / np.sum(disc, axis=1, keepdims=True)
     pred_class = g[np.argmax(pred, axis=1)]
 
     # Confusion matrix and error rate
@@ -371,7 +373,7 @@ def ls_da(
         "gm": [gm.copy() for gm in gm],
         "ldet": ldet.copy(),
         "prior": prior.copy(),
-        "scores": Disc.copy(),
+        "scores": disc.copy(),
         "classification": pred_class.copy(),
         "confusion": conf.copy(),
         "error_rate": err,
@@ -453,25 +455,40 @@ def Wilks_test(X, y):
 if __name__ == "__main__":
     # Generate sample data
     # np.random.seed(42)
-    # n_samples = 4900
+    # n_samples = 70 * 70
     # n_features = 6
     #
     # X = np.random.randn(n_samples, n_features)
-    # y = np.random.choice(['A', 'B', 'C', 'D'], n_samples)
+    # y = np.random.choice(["A", "B", "C", "D"], n_samples)
     # grid = np.random.rand(n_samples, 2)
-    #
-    # df_grid = pd.DataFrame(grid, columns=['x', 'y'])
+    # df_grid = pd.DataFrame(grid, columns=["x", "y"])
     # df_grid.to_csv("grid.csv")
-    #
     # df_X = pd.DataFrame(X)
     # df_X.to_csv("X.csv")
-    #
     # df_y = pd.DataFrame(y)
     # df_y.to_csv("y.csv")
+    # df_grid = pd.read_csv("grid.csv", index_col=0)
+    # grid = df_grid.values
 
-    X = pd.read_csv("X.csv", index_col=0).values
-    y = pd.read_csv("y.csv", index_col=0).values.flatten()
-    grid = pd.read_csv("grid.csv", index_col=0).values
+    from src.covariates.bounding_box import BoundingBox
+
+    BBOX = [1.5, 6.0, 2.1, 7.0]
+    bbox = BoundingBox(*BBOX)
+    grid = bbox.sampling_grid(nx=70, ny=70)
+
+    df_X = pd.read_csv("X.csv", index_col=0)
+    df_y = pd.read_csv("y.csv", index_col=0)
+
+    X = df_X.values
+    y = df_y.values.flatten()
 
     # Run analysis
     results = luqdaloop(X, y, grid)
+
+    # Create raster from results
+    df = results["NewData"]
+    # TODO: make xarray
+
+    geometry = [Point(xy) for xy in zip(df["grid1"], df["grid2"])]
+    gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
+    gdf.to_file("gridout.gpkg", driver="GPKG")
