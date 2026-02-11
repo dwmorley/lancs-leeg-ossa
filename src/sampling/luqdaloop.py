@@ -6,9 +6,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-import geopandas as gpd
 from scipy import linalg
-from shapely.geometry import Point
 
 """
 QUESTIONS:
@@ -464,20 +462,20 @@ if __name__ == "__main__":
     # df_grid = pd.DataFrame(grid, columns=["x", "y"])
     # df_grid.to_csv("grid.csv")
     # df_X = pd.DataFrame(X)
-    # df_X.to_csv("X.csv")
+    # df_X.to_csv("../../test_data/X.csv")
     # df_y = pd.DataFrame(y)
-    # df_y.to_csv("y.csv")
-    # df_grid = pd.read_csv("grid.csv", index_col=0)
+    # df_y.to_csv("../../test_data/y.csv")
+    # df_grid = pd.read_csv("../../test_data/grid.csv", index_col=0)
     # grid = df_grid.values
 
-    from src.covariates.bounding_box import BoundingBox
+    from src.gis.bounding_box import BoundingBox
 
     BBOX = [1.5, 6.0, 2.1, 7.0]
     bbox = BoundingBox(*BBOX)
     grid = bbox.sampling_grid(nx=70, ny=70)
 
-    df_X = pd.read_csv("X.csv", index_col=0)
-    df_y = pd.read_csv("y.csv", index_col=0)
+    df_X = pd.read_csv("../../test_data/X.csv", index_col=0)
+    df_y = pd.read_csv("../../test_data/y.csv", index_col=0)
 
     X = df_X.values
     y = df_y.values.flatten()
@@ -489,6 +487,6 @@ if __name__ == "__main__":
     df = results["NewData"]
     # TODO: make xarray
 
-    geometry = [Point(xy) for xy in zip(df["grid1"], df["grid2"])]
-    gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
-    gdf.to_file("gridout.gpkg", driver="GPKG")
+    # geometry = [Point(xy) for xy in zip(df["grid1"], df["grid2"])]
+    # gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
+    # gdf.to_file("gridout.gpkg", driver="GPKG")

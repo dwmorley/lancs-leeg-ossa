@@ -5,17 +5,26 @@ import planetary_computer
 import pystac_client
 import stackstac
 import xarray as xr
+import rioxarray  # noqa: F401
 
-from src.covariates.bounding_box import BoundingBox
+from src.gis.bounding_box import BoundingBox
 
-# TODO: aggregate rasters over time dimension when needed
+
+MODIS_CONFIGS = {
+    "ET_500m": {"aggregation": ["mean"], "date_range": "{year}", "nodata": 6553},
+    "LST_Day_1KM": {
+        "aggregation": ["mean", "min", "max"],
+        "date_range": "{year}",
+        "nodata": None,
+    },
+}
 
 
 def get_modis(
     bbox: BoundingBox,
     variable: str,
-    date_range: str,
-) -> xr.DataArray:
+    year: int,
+) -> dict[str, xr.DataArray]:
 
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -23,6 +32,8 @@ def get_modis(
     )
 
     collection = get_collection(variable)
+
+    date_range = MODIS_CONFIGS[variable]["date_range"].format(year=year)
 
     search = catalog.search(
         collections=[collection],
@@ -47,12 +58,46 @@ def get_modis(
         chunksize="auto",
     )
 
-    # HACK: Dealing with Int16 nodata values that are not properly masked by stackstac.
-    # TODO: Need conditions depending on asset
-    stack = stack.where(stack < 6553, np.nan)
+    # Mask nodata values
+    nodata_value = MODIS_CONFIGS[variable]["nodata"]
+    if nodata_value is not None:
+        stack = stack.where(stack < nodata_value, np.nan)
 
-    da_raster = stackstac.mosaic(stack, dim="time")
-    return da_raster
+    # Mosaic the stack into a single raster on spatial dimensions.
+    da_raster = stackstac.mosaic(stack, dim="band", nodata=np.nan)
+
+    # Perform temporal aggregation if needed
+    rasters = {}
+    aggregation_methods = MODIS_CONFIGS[variable]["aggregation"]
+    if aggregation_methods:
+        for method in aggregation_methods:
+            rasters[f"{variable}_{method}"] = aggregate_ts(da_raster, method=method)
+    else:
+        rasters[f"{variable}"] = da_raster
+
+    return rasters
+
+
+def aggregate_ts(
+    da_raster: xr.DataArray, method: str = "mean"
+) -> Union[xr.DataArray, None]:
+
+    if "time" not in da_raster.coords or len(da_raster.time) <= 1:
+        return None
+
+    methods = {
+        "mean": lambda da: da.mean(dim="time", skipna=True),
+        "min": lambda da: da.min(dim="time", skipna=True),
+        "max": lambda da: da.max(dim="time", skipna=True),
+    }
+
+    if method not in methods:
+        raise ValueError(
+            f"Unsupported aggregation method: {method}. "
+            f"Choose from {list(methods.keys())}"
+        )
+
+    return methods[method](da_raster)
 
 
 def get_collection(var: str) -> Union[str, None]:
@@ -80,8 +125,4 @@ def get_collection(var: str) -> Union[str, None]:
 
 
 if __name__ == "__main__":
-    get_modis(
-        bbox=BoundingBox([1.5, 6.0, 2.1, 7.0]),
-        variable="ET_500m",
-        date_range="2019-01-01/2019-01-31",
-    )
+    pass

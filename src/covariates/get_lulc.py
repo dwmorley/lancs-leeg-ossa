@@ -4,7 +4,7 @@ import pystac_client
 import stackstac
 import xarray
 
-from src.covariates.bounding_box import BoundingBox
+from src.gis.bounding_box import BoundingBox
 
 
 def get_lulc(
@@ -66,5 +66,3 @@ if __name__ == "__main__":
         bbox=BoundingBox([1.5, 6.0, 2.1, 7.0]),
         year=2020,
     )
-
-#  transform:      | 0.00, 0.00, 1.50|\n| 0.00,-0.00, 7.00|\n| 0.00, 0.00, 1...

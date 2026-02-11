@@ -1,4 +1,5 @@
 import pandas as pd
+from typing import Literal
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
@@ -7,13 +8,18 @@ import numpy as np
 import xarray as xr
 import rioxarray  # noqa: F401
 import matplotlib.pyplot as plt
+from matplotlib.colors import BoundaryNorm
 
 
-def glmmPQL_via_rpy2(formulaf, formular, data, area, target, total, delta):
-
-    rpy2_version = ro.__version__
-    if int(rpy2_version.split(".")[0]) < 3:
-        pandas2ri.activate()
+def glmmPQL_via_rpy2(
+    formulaf: str,
+    formular: str,
+    data: pd.DataFrame,
+    area: pd.DataFrame,
+    target: Literal["H", "U"],
+    total: float = 15,
+    delta: float = 0.01,
+) -> tuple[xr.DataArray, pd.DataFrame]:
 
     # TODO: fix imports
     importr("MASS")
@@ -25,7 +31,6 @@ def glmmPQL_via_rpy2(formulaf, formular, data, area, target, total, delta):
         ro.globalenv["data"] = data
         ro.globalenv["area"] = area
 
-        # Modelling
         ro.r(
             f"""
             model <- glmmPQL(
@@ -38,7 +43,6 @@ def glmmPQL_via_rpy2(formulaf, formular, data, area, target, total, delta):
         """
         )
 
-        # Finding locations
         ro.r(
             """
             modelse <- predictSE(model, newdata=area)
@@ -80,12 +84,33 @@ def glmmPQL_via_rpy2(formulaf, formular, data, area, target, total, delta):
                 x <- x[order(x[,3],x[,4],decreasing=T),]
             """
             )
+            the_raster = "modelgridX"
             colnames = """colnames(x)=c("x","y","Fit","Uncertainty")"""
+            plot_title = "Targeting Hotspot"
 
         if target == "U":
-            # TODO:
+            ro.r(
+                """
+                x <- cbind(
+                    expand.grid(modelgrid[[1]], modelgrid[[2]]),
+                    c(modelgrid[[3]])
+                )
+            """
+            )
+            ro.r(
+                """
+                 xx <- sort(x[,3],decreasing=T,index.return=T)$ix
+            """
+            )
+            ro.r(
+                """
+                x <- x[xx,]
+            """
+            )
 
+            the_raster = "modelgrid"
             colnames = """colnames(x)=c("x","y","Uncertainty")"""
+            plot_title = "Targeting Uncertainty"
 
     ro.r("""xx <- dist(x[, 1:2])""")
     ro.r("""xx <- as.matrix(xx)""")
@@ -98,38 +123,34 @@ def glmmPQL_via_rpy2(formulaf, formular, data, area, target, total, delta):
     ro.r(colnames)
 
     ro.r(
-        """
+        f"""
         image <- setNames(
-            data.frame(modelgridX$x, modelgridX$y, modelgridX$z),
+            data.frame({the_raster}$x, {the_raster}$y, {the_raster}$z),
             c("x", "y", "z")
         )
     """
     )
 
+    # sample point locations
     x_df = ro.globalenv["x"]
     with localconverter(pandas2ri.converter):
         x_df = pandas2ri.rpy2py(x_df)
 
-    x_array = np.array(ro.r("modelgridX$x")).flatten()
-    y_array = np.array(ro.r("modelgridX$y")).flatten()
-    z_array = np.array(ro.r("modelgridX$z"))
+    x_array = np.array(ro.r(f"{the_raster}$x")).flatten()
+    y_array = np.array(ro.r(f"{the_raster}$y")).flatten()
+    z_array = np.array(ro.r(f"{the_raster}$z"))
     z_grid = z_array.reshape(len(x_array), len(y_array)).T
 
     da = xr.DataArray(z_grid, coords={"y": y_array, "x": x_array}, dims=["y", "x"])
 
     # # Assign CRS and save
-    da.rio.write_crs("EPSG:4326", inplace=True)
-    da.rio.to_raster("adaptive_sampling.tif")  # VERIFIED THE SAME
-
-    # TODO: TUES - overlay the 15 points
-    # TODO: TUES - for U as well
-
-    from matplotlib.colors import BoundaryNorm
-    from matplotlib.cm import get_cmap
+    # da.rio.write_crs("EPSG:4326", inplace=True)
+    # da.rio.to_raster("adaptive_sampling.tif")
 
     vmin, vmax = z_grid.min(), z_grid.max()
     bounds = np.linspace(vmin, vmax, 12)
-    norm = BoundaryNorm(bounds, get_cmap("viridis").N)
+    cmap = plt.get_cmap("hot")
+    norm = BoundaryNorm(bounds, cmap.N)
     fig, ax = plt.subplots(figsize=(10, 8))
     im = ax.imshow(
         z_grid,
@@ -140,19 +161,23 @@ def glmmPQL_via_rpy2(formulaf, formular, data, area, target, total, delta):
     )
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
-    ax.set_title("Adaptive Sampling Raster (EPSG:4326)")
+
+    ax.set_title(plot_title)
     cbar = plt.colorbar(im, ax=ax, boundaries=bounds, ticks=bounds)
     cbar.set_label("Value")
+
+    ax.plot(x_df["x"], x_df["y"], "x", color="blue", markersize=10, markeredgewidth=2)
+
     plt.tight_layout()
     plt.show()
 
-    return x_df  # Output is raster and points
+    return da, x_df
 
 
 if __name__ == "__main__":
 
-    data = pd.read_csv("benin.csv")
-    area = pd.read_csv("beningrid.csv")
+    data = pd.read_csv("../../test_data/benin.csv")
+    area = pd.read_csv("../../test_data/beningrid.csv")
 
     model1 = glmmPQL_via_rpy2(
         formulaf="AnGam~Week+Elev+Soil",
@@ -163,12 +188,3 @@ if __name__ == "__main__":
         total=15,
         delta=0.01,
     )
-
-    #
-    # adaptiveSites = asd(
-    #     Data=benin[, -5],
-    # area = beningrid,
-    # formulaf = as.formula("AnGam~Week+Elev+Soil"),
-    # formular = as.formula("~1|LCD"),
-    # target = "H", total = 15, delta = 0.01
-    # )

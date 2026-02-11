@@ -372,7 +372,7 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(10, 8))
     plt.imshow(
-        classification, extent=[x.min(), x.max(), y.min(), y.max()], origin="lower"
+        classification, extent=(x.min(), x.max(), y.min(), y.max()), origin="lower"
     )
     grid_samples = results[results["type"] == "G"]
     inhibitory_samples = results[results["type"] == "I"]
