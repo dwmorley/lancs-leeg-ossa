@@ -1,8 +1,5 @@
 import warnings
-from typing import Any
-from typing import Dict
-from typing import Union
-from typing import List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -20,6 +17,7 @@ TODO:
 - Maybe as a class, model.fit()
 - Correctly name variables and functions
 - 'all' as a dataclass
+- Plot the Wilkes graph
 
 """
 
@@ -252,7 +250,7 @@ def luqdaloop(
 
     # Find index where the biggest change occurs
     best_idx = int(np.argmax(wilks_diff))
-    best = best_idx + 2  # TODO: check this compared to R output
+    best = best_idx + 3
 
     if np.sum(N2) == 0:
         print(f"\nBest number of classes found: {best}")
@@ -460,7 +458,7 @@ if __name__ == "__main__":
     # y = np.random.choice(["A", "B", "C", "D"], n_samples)
     # grid = np.random.rand(n_samples, 2)
     # df_grid = pd.DataFrame(grid, columns=["x", "y"])
-    # df_grid.to_csv("grid.csv")
+    # df_grid.to_csv("../../test_data/grid.csv")
     # df_X = pd.DataFrame(X)
     # df_X.to_csv("../../test_data/X.csv")
     # df_y = pd.DataFrame(y)
@@ -472,16 +470,22 @@ if __name__ == "__main__":
 
     BBOX = [1.5, 6.0, 2.1, 7.0]
     bbox = BoundingBox(*BBOX)
-    grid = bbox.sampling_grid(nx=70, ny=70)
+    # grid = bbox.sampling_grid(nx=70, ny=70)
 
     df_X = pd.read_csv("../../test_data/X.csv", index_col=0)
     df_y = pd.read_csv("../../test_data/y.csv", index_col=0)
+    grid = pd.read_csv("../../test_data/grid.csv", index_col=0).values
 
     X = df_X.values
     y = df_y.values.flatten()
 
     # Run analysis
     results = luqdaloop(X, y, grid)
+
+    xxx = results["7cluster"]["Classes"]
+    yyy = results["7cluster"]["confusion"]
+
+    b = 0
 
     # Create raster from results
     df = results["NewData"]
@@ -490,3 +494,5 @@ if __name__ == "__main__":
     # geometry = [Point(xy) for xy in zip(df["grid1"], df["grid2"])]
     # gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
     # gdf.to_file("gridout.gpkg", driver="GPKG")
+
+    b = 0

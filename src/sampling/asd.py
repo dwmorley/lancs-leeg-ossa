@@ -1,14 +1,15 @@
-import pandas as pd
 from typing import Literal
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rioxarray  # noqa: F401
+import rpy2.robjects as ro
+import xarray as xr
+from matplotlib.colors import BoundaryNorm
+from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
-from rpy2.robjects import pandas2ri
-import rpy2.robjects as ro
-import numpy as np
-import xarray as xr
-import rioxarray  # noqa: F401
-import matplotlib.pyplot as plt
-from matplotlib.colors import BoundaryNorm
 
 
 def glmmPQL_via_rpy2(

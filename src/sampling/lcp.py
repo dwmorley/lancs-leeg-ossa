@@ -10,8 +10,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy.spatial.distance import pdist
-from scipy.spatial.distance import squareform
+from scipy.spatial.distance import pdist, squareform
 
 
 def lcp(

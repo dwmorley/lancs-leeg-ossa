@@ -11,9 +11,7 @@
 # Electron / Tauri wrapper (advanced)
 import folium
 import matplotlib.pyplot as plt
-from shiny import App
-from shiny import render
-from shiny import ui
+from shiny import App, render, ui
 
 app_ui = ui.page_fluid(
     ui.h2("Hello Shiny!"),

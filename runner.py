@@ -1,8 +1,13 @@
+import numpy as np
 import pandas as pd
-from src.gis.bounding_box import BoundingBox
+import rioxarray  # noqa: F401
+import xarray as xr
+
 from src.covariates.get_lulc import get_lulc
 from src.covariates.get_modis import get_modis
+from src.gis.bounding_box import BoundingBox
 from src.gis.make_stack import stack
+from src.sampling.luqdaloop import luqdaloop
 from src.sampling.raster_to_grid import extract
 
 SKIP_RS = True
@@ -46,11 +51,43 @@ if not SKIP_RS:
     xyz = extract(stack, grid)
     xyz.to_csv("output/xyz.csv")
 else:
-    xyz = pd.read_csv("output/xyz.csv")  #
+    xyz = pd.read_csv("output/xyz.csv", index_col=0)
+
+# Possibly OK TO HERE!!!
 
 # STEP 2: Ecological classification
 
-classanalysis = 0
+X = xyz.drop(columns=["lulc", "longitude", "latitude"]).values
+y = xyz["lulc"].values.astype(int).astype(str)
+grid = xyz[["longitude", "latitude"]].values
+
+class_analysis = luqdaloop(X, y, grid)
+
+best_n_cluster = 3
+df = class_analysis["NewData"]
+
+# Create raster from dataframe
+x_coords = np.sort(df["grid1"].unique())
+y_coords = np.sort(df["grid2"].unique())
+z_grid = np.full((len(y_coords), len(x_coords)), np.nan)
+x_idx = np.searchsorted(x_coords, df["grid1"].values)
+y_idx = np.searchsorted(y_coords, df["grid2"].values)
+
+# Convert unique BestClass values to sequential integers
+unique_classes = np.sort(df["BestClass"].unique())
+class_map = {cls: i for i, cls in enumerate(unique_classes)}
+z_values = df["BestClass"].map(class_map).values
+
+z_grid[y_idx, x_idx] = z_values
+raster = xr.DataArray(z_grid, coords={"y": y_coords, "x": x_coords}, dims=["y", "x"])
+raster.rio.write_crs("EPSG:4326", inplace=True)
+raster.rio.to_raster("output/best_class.tif")
+
+
+# - The number of classes, best_idx to extract from 'class_analysis'
+# - The confusion matrix
+# - The NewData
+# - The Wilkes Lambda graph
 
 
 b = 0

@@ -3,12 +3,11 @@ from typing import Union
 import numpy as np
 import planetary_computer
 import pystac_client
+import rioxarray  # noqa: F401
 import stackstac
 import xarray as xr
-import rioxarray  # noqa: F401
 
 from src.gis.bounding_box import BoundingBox
-
 
 MODIS_CONFIGS = {
     "ET_500m": {"aggregation": ["mean"], "date_range": "{year}", "nodata": 6553},
