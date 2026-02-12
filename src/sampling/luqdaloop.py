@@ -1,8 +1,10 @@
 import warnings
 from typing import Any, Dict, List, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import xarray as xr
 from scipy import linalg
 
 """
@@ -10,8 +12,6 @@ QUESTIONS:
 - Merging of LC classes before QDA (is this manual?)
 - What is the difference between the 2 RData qda functions?
 - What is 'test' actually doing? test in not an int but should be a list?
-- err2 = 1 - sum(diag(conf2)) ??
-- Wilks, is R reporting where the largest drop is actually happening?
 
 TODO:
 - Maybe as a class, model.fit()
@@ -125,8 +125,6 @@ def luqdaloop(
     g = np.sort(np.unique(yy))
     ng = len(g)
 
-    print(f"Doing n classes {ng}")
-
     if np.sum(N2) > 0:
         cluster_keys = [f"{i + int(np.sum(G2))}cluster" for i in range(2, nx + 1)]
         all: Dict[str, Any] = {
@@ -154,10 +152,10 @@ def luqdaloop(
     prior2 = pd.DataFrame(prior_cleaned.copy())
     tb2 = tb.copy()
     g2 = g.copy()
-    split = None
+    split = False
     u = "S"
 
-    while split is None:
+    while not split:
         u = u + "C"
         a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"])) / tb2
         a = np.argsort(a)[::-1]  # Sort in decreasing order and get indices
@@ -178,12 +176,10 @@ def luqdaloop(
                 g2 = np.append(g2, u + str(g2[a[i]]))
                 break
             elif i >= ng2 - 1:
-                split = 1
+                split = True
 
         if ng2 >= nx:
-            split = 1
-
-        print(f"Doing n classes {ng2}")
+            split = True
 
     # ===== MERGING PHASE =====
     print("Merging")
@@ -192,10 +188,10 @@ def luqdaloop(
     prior2 = prior_cleaned.copy()
     tb2 = tb.copy()
     g2 = g.copy()
-    merge = None
+    merge = False
     u = "M"
 
-    while merge is None:
+    while not merge:
         u = u + "C"
         a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
         a = np.argsort(a)[::-1]  # Sort in decreasing order and get indices
@@ -217,9 +213,7 @@ def luqdaloop(
         g2 = np.delete(g2, a[1])
 
         if ng2 == 2:
-            merge = 1
-
-        print(f"Doing {ng2} classes")
+            merge = True
 
     # ===== PERFORMANCE SUMMARY =====
     # Create summary matrix of Wilks' Lambda and error rates
@@ -255,7 +249,7 @@ def luqdaloop(
     if np.sum(N2) == 0:
         print(f"\nBest number of classes found: {best}")
     else:
-        print(f"\nBest number of classes found: {best + int(np.sum(G2))})")
+        print(f"\nBest number of classes found: {best + int(np.sum(G2))}")
 
     # ===== CREATE FINAL OUTPUT =====
     # Combine all data with final classifications
@@ -447,7 +441,53 @@ def Wilks_test(X, y):
     return lambda_stat
 
 
-# Example usage
+def plot_wilks_lambda(wilks: pd.Series, opt_classes: int):
+
+    # Plot Wilks' Lambda
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(
+        np.arange(2, len(wilks) + 2),
+        wilks.values,
+        marker="o",
+        linewidth=2,
+        markersize=6,
+    )
+    ax.axvline(
+        x=opt_classes,
+        color="red",
+        linestyle="--",
+        linewidth=2,
+        label=f"Selected classes (n={opt_classes})",
+    )
+    ax.set_title("Wilks' Lambda", fontsize=14, fontweight="bold")
+    ax.set_xlabel("N classes", fontsize=12)
+    ax.set_ylabel("Lambda", fontsize=12)
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=11)
+    plt.tight_layout()
+    plt.show()
+
+
+def newdata_to_raster(new_data: pd.DataFrame) -> xr.DataArray:
+    map_data = new_data[["x", "y", "id"]].copy()
+    map_data = map_data.sort_values(by=["x", "y"]).reset_index(drop=True)
+    x_coords = sorted(map_data["x"].unique())
+    y_coords = sorted(map_data["y"].unique())
+    raster_array = np.full((len(y_coords), len(x_coords)), np.nan)
+    x_indices = np.searchsorted(x_coords, map_data["x"].values)
+    y_indices = np.searchsorted(y_coords, map_data["y"].values)
+    raster_array[y_indices, x_indices] = map_data["id"].values
+
+    map_raster = xr.DataArray(
+        raster_array, coords={"y": y_coords, "x": x_coords}, dims=["y", "x"], name="id"
+    )
+    map_raster.coords["x"] = map_raster.coords["x"].astype(float)
+    map_raster.coords["y"] = map_raster.coords["y"].astype(float)
+    map_raster = map_raster.rio.write_crs("EPSG:4326")
+
+    return map_raster
+
+
 if __name__ == "__main__":
     # Generate sample data
     # np.random.seed(42)
@@ -482,17 +522,5 @@ if __name__ == "__main__":
     # Run analysis
     results = luqdaloop(X, y, grid)
 
-    xxx = results["7cluster"]["Classes"]
-    yyy = results["7cluster"]["confusion"]
-
-    b = 0
-
-    # Create raster from results
-    df = results["NewData"]
-    # TODO: make xarray
-
-    # geometry = [Point(xy) for xy in zip(df["grid1"], df["grid2"])]
-    # gdf = gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
-    # gdf.to_file("gridout.gpkg", driver="GPKG")
-
-    b = 0
+    # xxx = results["7cluster"]["Classes"]
+    # yyy = results["7cluster"]["confusion"]

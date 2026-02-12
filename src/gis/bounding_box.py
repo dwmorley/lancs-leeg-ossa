@@ -78,9 +78,21 @@ class BoundingBox:
         """Convert to tuple format (xmin, ymin, xmax, ymax)."""
         return (self.xmin, self.ymin, self.xmax, self.ymax)
 
-    def sampling_grid(self, nx: int = 70, ny: int = 70) -> np.ndarray:
-        x = np.linspace(self.xmin, self.xmax, nx)
-        y = np.linspace(self.ymin, self.ymax, ny)
+    # def sampling_grid(self, nx: int = 70, ny: int = 70) -> np.ndarray:
+    #     x = np.linspace(self.xmin, self.xmax, nx)
+    #     y = np.linspace(self.ymin, self.ymax, ny)
+    #     X, Y = np.meshgrid(x, y)
+    #
+    #     return np.column_stack([X.flatten(), Y.flatten()])
+
+    def sampling_grid(self, n: int = 5000) -> np.ndarray:
+        area = (self.xmax - self.xmin) * (self.ymax - self.ymin)
+        point_density = n / area
+        spacing = np.sqrt(1.0 / point_density)
+        x = np.arange(self.xmin, self.xmax + spacing, spacing)
+        y = np.arange(self.ymin, self.ymax + spacing, spacing)
+        x = x[x <= self.xmax]
+        y = y[y <= self.ymax]
         X, Y = np.meshgrid(x, y)
 
         return np.column_stack([X.flatten(), Y.flatten()])

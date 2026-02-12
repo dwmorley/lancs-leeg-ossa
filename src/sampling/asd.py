@@ -17,7 +17,7 @@ def glmmPQL_via_rpy2(
     formular: str,
     data: pd.DataFrame,
     area: pd.DataFrame,
-    target: Literal["H", "U"],
+    target: str = Literal["H", "U"],
     total: float = 15,
     delta: float = 0.01,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
@@ -87,7 +87,6 @@ def glmmPQL_via_rpy2(
             )
             the_raster = "modelgridX"
             colnames = """colnames(x)=c("x","y","Fit","Uncertainty")"""
-            plot_title = "Targeting Hotspot"
 
         if target == "U":
             ro.r(
@@ -111,7 +110,6 @@ def glmmPQL_via_rpy2(
 
             the_raster = "modelgrid"
             colnames = """colnames(x)=c("x","y","Uncertainty")"""
-            plot_title = "Targeting Uncertainty"
 
     ro.r("""xx <- dist(x[, 1:2])""")
     ro.r("""xx <- as.matrix(xx)""")
@@ -143,10 +141,23 @@ def glmmPQL_via_rpy2(
     z_grid = z_array.reshape(len(x_array), len(y_array)).T
 
     da = xr.DataArray(z_grid, coords={"y": y_array, "x": x_array}, dims=["y", "x"])
+    da.rio.write_crs("EPSG:4326", inplace=True)
 
-    # # Assign CRS and save
-    # da.rio.write_crs("EPSG:4326", inplace=True)
     # da.rio.to_raster("adaptive_sampling.tif")
+
+    return da, x_df
+
+
+def asd_plot(
+    plot_title: str, da: xr.DataArray, x_df: pd.DataFrame, z_grid: np.ndarray
+) -> None:
+
+    extent = (
+        float(da.x.min().values),
+        float(da.x.max().values),
+        float(da.y.min().values),
+        float(da.y.max().values),
+    )
 
     vmin, vmax = z_grid.min(), z_grid.max()
     bounds = np.linspace(vmin, vmax, 12)
@@ -155,14 +166,11 @@ def glmmPQL_via_rpy2(
     fig, ax = plt.subplots(figsize=(10, 8))
     im = ax.imshow(
         z_grid,
-        extent=(x_array.min(), x_array.max(), y_array.min(), y_array.max()),
+        extent=extent,
         origin="lower",
         cmap="hot",
         norm=norm,
     )
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-
     ax.set_title(plot_title)
     cbar = plt.colorbar(im, ax=ax, boundaries=bounds, ticks=bounds)
     cbar.set_label("Value")
@@ -172,15 +180,13 @@ def glmmPQL_via_rpy2(
     plt.tight_layout()
     plt.show()
 
-    return da, x_df
-
 
 if __name__ == "__main__":
 
     data = pd.read_csv("../../test_data/benin.csv")
     area = pd.read_csv("../../test_data/beningrid.csv")
 
-    model1 = glmmPQL_via_rpy2(
+    da, x_df = glmmPQL_via_rpy2(
         formulaf="AnGam~Week+Elev+Soil",
         formular="~1|LCD",
         data=data,
