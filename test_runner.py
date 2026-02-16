@@ -1,18 +1,18 @@
 import geopandas as gpd  # noqa: F401
 import pandas as pd
 
+from covariates.raster_to_grid import extract
+from src.covariates.get_dem import get_dem
 from src.covariates.get_lulc import get_lulc
-from src.covariates.get_modis import get_modis
+from src.covariates.make_stack import stack
 from src.gis.bounding_box import BoundingBox
-from src.gis.make_stack import stack
 from src.sampling.asd import asd_plot, glmmPQL_via_rpy2
 from src.sampling.lcp import lcp, plot_lcp
 from src.sampling.luqdaloop import luqdaloop, newdata_to_raster, plot_wilks_lambda
-from src.sampling.raster_to_grid import extract
 
 SKIP_RS = False
-SKIP_QDA_LCP = False
-SKIP_ASD = False
+SKIP_QDA_LCP = True
+SKIP_ASD = True
 
 # =========================================
 # STEP 0: User defined input
@@ -32,21 +32,28 @@ if not SKIP_RS:
     # Get the LCLU raster as template for alignment
     print("getting LULC raster...")
     rasters = {
-        "lulc": get_lulc(
+        "landcover": get_lulc(
             bbox=bbox,
             year=year,
         )
     }
 
+    # Get the DEM raster
+    print("getting DEM raster...")
+    rasters["dem"] = get_dem(
+        bbox=bbox,
+        res=30,
+    )
+
     # Get the MODIS rasters
     for variable in modis_variables:
         print(f"getting {variable} raster...")
-        da_dict = get_modis(
-            bbox=bbox,
-            variable=variable,
-            year=year,
-        )
-        rasters.update(da_dict)
+        # da_dict = get_modis(
+        #     bbox=bbox,
+        #     variable=variable,
+        #     year=year,
+        # )
+        # rasters.update(da_dict)
 
     # Raster stack of all covariates
     stack = stack(rasters)
@@ -63,8 +70,8 @@ else:
 
 if not SKIP_QDA_LCP:
 
-    X = xyz.drop(columns=["lulc", "longitude", "latitude"]).values
-    y = xyz["lulc"].values.astype(int).astype(str)
+    X = xyz.drop(columns=["landcover", "longitude", "latitude"]).values
+    y = xyz["landcover"].values.astype(int).astype(str)
     grid = xyz[["longitude", "latitude"]].values
 
     # Do QDA

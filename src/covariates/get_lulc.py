@@ -56,7 +56,7 @@ def get_lulc(
     da_raster.attrs["class"] = class_names
     da_raster.attrs["start_time"] = f"{year}-01-01T00:00:00Z"
     da_raster.attrs["end_time"] = f"{year}-12-31T00:00:00Z"
-    da_raster["band"] = "lulc"
+    da_raster["band"] = "landcover"
 
     return da_raster
 

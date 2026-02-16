@@ -19,7 +19,7 @@ def stack(rasters: dict) -> xr.DataArray:
         Stacked DataArray with dimensions (band, y, x) where band contains layer names
     """
     # Use LULC as reference for grid alignment
-    reference = rasters["lulc"]
+    reference = rasters["landcover"]
 
     # Ensure reference is in EPSG:4326
     if reference.rio.crs != "EPSG:4326":
@@ -68,8 +68,9 @@ def stack(rasters: dict) -> xr.DataArray:
     stacked.rio.write_crs(reference.rio.crs, inplace=True)
 
     # DEBUG:
-    # import rioxarray
-    # stack = stacked.rio.write_crs("EPSG:4326")
+    # stacked_ds = stacked.to_dataset(dim="band")
+    # stacked_ds.rio.to_raster("stacked.tif", compress="deflate", COMPRESS_LEVEL=9)
+
     # for band_name in stack.band.values:
     #     band_data = stack.sel(band=band_name)
     #     band_data.rio.to_raster(f'{band_name}.tif', compress='lzw')

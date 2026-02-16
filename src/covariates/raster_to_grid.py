@@ -20,6 +20,6 @@ def extract(
 
     # Remove rows with missing values or where LULC is 0
     df = df.dropna()
-    df = df[df["lulc"] != 0]
+    df = df[df["landcover"] != 0]
 
     return df

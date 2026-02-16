@@ -1,0 +1,200 @@
+html, body {
+    font-size: 14px;
+}
+.header-bar {
+    background-color: #F5F5F5;
+    color: white;
+    padding: 15px 15px;
+    margin: 15px -15px 15px -15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.app-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #696969;
+    margin: 0;
+}
+.logo-container {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+.logo-img {
+    height: 40px;
+    width: auto;
+}
+.footer-bar {
+    background-color: #f5f7f9;
+    color: #2c3e50;
+    padding: 12px 20px;
+    margin: 20px -15px -15px -15px;
+    border-top: 1px solid #e1e6ea;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+.footer-text {
+    font-size: 13px;
+    line-height: 1.4;
+}
+.footer-logos {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.footer-logo {
+    height: 28px;
+    width: auto;
+}
+.footer-icon svg {
+    height: 84px;
+    width: 84px;
+}
+.footer-icon-button {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
+}
+.footer-icon-button:focus {
+    outline: 2px solid #2c3e50;
+    outline-offset: 2px;
+}
+#progress-bar {
+    height: 3px;
+    background-color: #0066cc;
+    transition: width 0.3s ease;
+    width: 100%;
+    margin: 12px -15px -15px -15px;
+    padding: 0 15px;
+    box-sizing: border-box;
+}
+.left-column {
+    height: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.top-card {
+    flex: 0 0 auto;
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+}
+.middle-card {
+    flex: 1 0 0;
+    min-height: 0;
+}
+.bottom-card {
+    flex: 1 0 0;
+    min-height: 0;
+}
+.bottom-card .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.bottom-card .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+.bottom-card .nav-tabs {
+    flex: 0 0 auto;
+}
+.bottom-card .tab-content {
+    flex: 1 1 auto;
+    overflow: hidden;
+    min-height: 0;
+}
+.bottom-card .tab-pane {
+    height: 100%;
+    overflow: auto;
+}
+.map-container {
+    height: 803px;
+}
+.map-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.map-card .card-body {
+    flex: 1;
+    padding: 0 !important;
+    overflow: hidden;
+}
+.bounds-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    margin: 0;
+    padding: 4px 0;
+}
+.bounds-cell {
+    background: #f5f7f9;
+    border: 1px solid #e1e6ea;
+    border-radius: 6px;
+    padding: 4px 6px;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.2;
+    color: #2c3e50;
+}
+.bounds-cell label {
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    display: block;
+}
+.bounds-cell input[type="text"] {
+    font-size: 11px;
+    padding: 2px 4px;
+    text-align: center;
+    border: 1px solid #d1d6da;
+    border-radius: 4px;
+    width: 100%;
+    margin-bottom: 0;
+}
+.checkbox-scroll {
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid #e1e6ea;
+    border-radius: 6px;
+    padding: 8px 6px 4px 6px;
+    background: #ffffff;
+    width: 100%;
+}
+.checkbox-scroll .form-check {
+    margin-bottom: 1px;
+    padding-left: 16px;
+}
+.checkbox-scroll .form-check-input {
+    margin-top: 1px;
+    transform: scale(0.8);
+    transform-origin: top left;
+}
+.checkbox-scroll .form-check-label {
+    font-size: 10px;
+    line-height: 0.95;
+}
+#map {
+    height: 100% !important;
+    width: 100% !important;
+}
+#map iframe {
+    border: none;
+    height: 100% !important;
+    width: 100% !important;
+}
+iframe {
+    border: none;
+}
