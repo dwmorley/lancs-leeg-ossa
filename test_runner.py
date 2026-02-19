@@ -1,17 +1,17 @@
 import geopandas as gpd  # noqa: F401
 import pandas as pd
 
-from covariates.raster_to_grid import extract
 from src.covariates.get_dem import get_dem
 from src.covariates.get_lulc import get_lulc
 from src.covariates.make_stack import stack
+from src.covariates.raster_to_grid import extract
 from src.gis.bounding_box import BoundingBox
 from src.sampling.asd import asd_plot, glmmPQL_via_rpy2
 from src.sampling.lcp import lcp, plot_lcp
 from src.sampling.luqdaloop import luqdaloop, newdata_to_raster, plot_wilks_lambda
 
-SKIP_RS = False
-SKIP_QDA_LCP = True
+SKIP_RS = True
+SKIP_QDA_LCP = False
 SKIP_ASD = True
 
 # =========================================
@@ -62,7 +62,8 @@ if not SKIP_RS:
     xyz = extract(stack, grid)
     xyz.to_csv("output/xyz.csv")
 else:
-    xyz = pd.read_csv("output/xyz.csv", index_col=0)
+    # xyz = pd.read_csv("output/xyz.csv", index_col=0)
+    xyz = pd.read_csv("/Users/david/Downloads/ossa_extracted_XwithSEA.csv")
 
 # =========================================
 # STEP 2: Ecological classification
@@ -72,10 +73,12 @@ if not SKIP_QDA_LCP:
 
     X = xyz.drop(columns=["landcover", "longitude", "latitude"]).values
     y = xyz["landcover"].values.astype(int).astype(str)
+    # X = xyz.drop(columns=["lulc", "longitude", "latitude"]).values
+    # y = xyz["lulc"].values.astype(int).astype(str)
     grid = xyz[["longitude", "latitude"]].values
 
     # Do QDA
-    class_analysis = luqdaloop(X=X, y=y, grid=grid)
+    class_analysis = luqdaloop(X=X, y=y, grid=grid, nx=10)
 
     best_n_classes = class_analysis["NewData"]["BestClass"].nunique()
     new_data = class_analysis["NewData"][["grid1", "grid2", "BestClass"]].rename(

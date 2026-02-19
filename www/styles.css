@@ -46,26 +46,7 @@ html, body {
     gap: 12px;
     align-items: center;
 }
-.footer-logo {
-    height: 28px;
-    width: auto;
-}
-.footer-icon svg {
-    height: 84px;
-    width: 84px;
-}
-.footer-icon-button {
-    background: transparent;
-    border: none;
-    padding: 0;
-    margin: 0;
-    line-height: 0;
-}
-.footer-icon-button:focus {
-    outline: 2px solid #2c3e50;
-    outline-offset: 2px;
-}
-#progress-bar {
+/* #progress-bar {
     height: 3px;
     background-color: #0066cc;
     transition: width 0.3s ease;
@@ -73,25 +54,87 @@ html, body {
     margin: 12px -15px -15px -15px;
     padding: 0 15px;
     box-sizing: border-box;
+} */
+.ui-row {
+    display: flex;
+    align-items: stretch;
+    min-height: 0;
+    height: 100vh;
 }
-.left-column {
-    height: 800px;
+.left-column, .right-column {
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    flex: 1 1 0;
+}
+.map-card .card-body {
+    flex: 1;
+    padding: 0 !important;
+    overflow: hidden;
+}
+.data-container {
+    flex: 1 1 auto;
+    min-height: 760px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.map-container {
+    flex: 1 1 auto;
+    min-height: 760px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.graphs-container {
+    flex: 1 1 auto;
+    min-height: 760px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 .top-card {
     flex: 0 0 auto;
     min-height: 0;
     display: flex;
     align-items: flex-start;
+    padding-bottom: 15px;
 }
 .middle-card {
-    flex: 1 0 0;
+    flex: 2 0 0;
+    display: flex;
+    flex-direction: column;
     min-height: 0;
 }
+.middle-card .card {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+.middle-card .card-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+.middle-card .tab-content {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+.middle-card .tab-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+}
 .bottom-card {
-    flex: 1 0 0;
+    flex: 2 0 0;
     min-height: 0;
 }
 .bottom-card .card {
@@ -118,26 +161,13 @@ html, body {
     height: 100%;
     overflow: auto;
 }
-.map-container {
-    height: 803px;
-}
-.map-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-.map-card .card-body {
-    flex: 1;
-    padding: 0 !important;
-    overflow: hidden;
-}
 .bounds-row {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
     width: 100%;
     margin: 0;
-    padding: 4px 0;
+    padding: 0;
 }
 .bounds-cell {
     background: #f5f7f9;
@@ -197,4 +227,7 @@ html, body {
 }
 iframe {
     border: none;
+}
+.progress.shiny-file-input-progress {
+    visibility: hidden !important;
 }

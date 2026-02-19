@@ -47,7 +47,11 @@ def get_lulc(
         epsg=4326,
     )
 
-    da_raster = stack.squeeze().compute()
+    # Mosaic overlapping tiles: use mode across time dimension for each pixel
+    da_raster = stack.max(dim="time").compute().squeeze()
+
+    # Set values 1 - water and 0 - no data to np.nan
+    da_raster = da_raster.where(~da_raster.isin([0, 1]), np.nan)
 
     # Set class names as attributes
     collection = catalog.get_collection("io-lulc-9-class")
@@ -63,6 +67,7 @@ def get_lulc(
 
 if __name__ == "__main__":
     get_lulc(
+        # bbox=BoundingBox([-5, 31.0, 8.2968, 32.0]),
         bbox=BoundingBox([1.5, 6.0, 2.1, 7.0]),
         year=2020,
     )

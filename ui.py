@@ -1,10 +1,11 @@
-from faicons import icon_svg
 from shiny import ui
 from shinywidgets import output_widget
 
 from constants import (
     ASD_OPTIONS,
     COVARIATE_OPTIONS,
+    EXPORT_CSV,
+    EXPORT_RASTER,
     GRID_SAMPLE_SIZE,
     LCP_OPTIONS,
     QDA_OPTIONS,
@@ -12,7 +13,9 @@ from constants import (
 )
 
 app_ui = ui.page_fluid(
-    ui.tags.head(ui.tags.link(rel="stylesheet", type="text/css", href="styles.css")),
+    ui.tags.head(
+        ui.tags.link(rel="stylesheet", type="text/css", href="styles.css"),
+    ),
     ui.div(
         {"class": "header-bar"},
         ui.div({"class": "app-title"}, "OSSA - Optimal Spatial Sampling Algorithm"),
@@ -25,11 +28,11 @@ app_ui = ui.page_fluid(
             ),
         ),
     ),
-    # Main content area with two columns
+    # Main content area with two column
     ui.row(
-        # Left column - divided into two cards
+        # Left column - divided into three cards
         ui.column(
-            6,
+            7,
             {"class": "left-column"},
             # Top card
             ui.div(
@@ -99,7 +102,7 @@ app_ui = ui.page_fluid(
                                     },
                                     ui.div(
                                         ui.p(
-                                            "Date Range",
+                                            "Date range",
                                             {
                                                 "style": "margin: 0 0 4px 0; font-size: 14px; font-weight: 500;"
                                             },
@@ -108,17 +111,42 @@ app_ui = ui.page_fluid(
                                             "covariate_dates",
                                             "",
                                         ),
-                                        ui.input_numeric(
-                                            "sample_size",
-                                            "Sample size",
-                                            value=GRID_SAMPLE_SIZE,
-                                            min=1,
-                                            step=1,
+                                        ui.div(
+                                            {
+                                                "style": "display: flex; gap: 10px; align-items: flex-end;"
+                                            },
+                                            ui.input_numeric(
+                                                "sample_size",
+                                                "Sample size",
+                                                value=GRID_SAMPLE_SIZE,
+                                                min=1,
+                                                step=1,
+                                                width="120px",
+                                            ),
+                                            ui.div(
+                                                {
+                                                    "style": "display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 90px;"
+                                                },
+                                                ui.span("Grid resolution"),
+                                                ui.output_text_verbatim(
+                                                    "sample_resolution",
+                                                ),
+                                            ),
                                         ),
-                                        ui.input_checkbox(
-                                            "export_rasters",
-                                            "Export covariate rasters",
-                                            value=False,
+                                        ui.div(
+                                            {
+                                                "style": "display: flex; gap: 10px; align-items: center; margin-bottom: 8px;"
+                                            },
+                                            ui.input_checkbox(
+                                                "export_rasters",
+                                                "Export rasters",
+                                                value=EXPORT_RASTER,
+                                            ),
+                                            ui.input_checkbox(
+                                                "export_csv",
+                                                "Export CSV",
+                                                value=EXPORT_CSV,
+                                            ),
                                         ),
                                     ),
                                     ui.div(
@@ -142,19 +170,16 @@ app_ui = ui.page_fluid(
                                         "style": "display: flex; gap: 12px; align-items: flex-start;"
                                     },
                                     ui.div(
-                                        {"style": "flex: 1;"},
+                                        {
+                                            "style": "flex: 1;",
+                                            "class": "hide-file-progress",
+                                        },
                                         ui.input_file(
                                             "data_file",
-                                            "Choose .tif file",
-                                            accept=[".tif"],
+                                            "Choose .csv file",
+                                            accept=[".csv"],
                                             multiple=False,
-                                        ),
-                                    ),
-                                    ui.div(
-                                        {"style": "padding-top: 27px;"},
-                                        ui.input_action_button(
-                                            "import_data",
-                                            "Import",
+                                            width="100%",
                                         ),
                                     ),
                                 ),
@@ -169,10 +194,10 @@ app_ui = ui.page_fluid(
                 ui.card(
                     ui.navset_tab(
                         ui.nav_panel(
-                            "QDA",
+                            "QDA + LCP",
                             ui.div(
                                 {"style": "padding: 15px;"},
-                                ui.h4("Qudradic Discriminant Analysis"),
+                                ui.h4("Header goes here"),
                                 ui.div(
                                     {
                                         "style": "display: flex; gap: 12px; align-items: flex-start;"
@@ -180,36 +205,18 @@ app_ui = ui.page_fluid(
                                     ui.div(
                                         ui.input_numeric(
                                             "qda_nx",
-                                            "Maximum classes allowed (nx)",
+                                            "Maximum QDA classes allowed (nx)",
                                             value=QDA_OPTIONS["nx"],
                                             min=1,
                                             step=1,
                                         ),
                                         ui.input_numeric(
                                             "qda_nn",
-                                            "Local frequency prior distance (nn)",
+                                            "QDA Local frequency prior distance (nn)",
                                             value=QDA_OPTIONS["nn"],
                                             step=0.1,
                                         ),
                                     ),
-                                ),
-                                ui.div(
-                                    {
-                                        "style": "margin-top: auto; display: flex; justify-content: flex-end;"
-                                    },
-                                    ui.input_action_button("run_qda", "Run"),
-                                ),
-                            ),
-                        ),
-                        ui.nav_panel(
-                            "LCP",
-                            ui.div(
-                                {"style": "padding: 15px;"},
-                                ui.h4("Lattice Close Pairs"),
-                                ui.div(
-                                    {
-                                        "style": "display: flex; gap: 12px; align-items: flex-start;"
-                                    },
                                     ui.div(
                                         ui.input_numeric(
                                             "lcp_delta",
@@ -242,7 +249,7 @@ app_ui = ui.page_fluid(
                                     {
                                         "style": "margin-top: auto; display: flex; justify-content: flex-end;"
                                     },
-                                    ui.input_action_button("run_lcp", "Run"),
+                                    ui.input_action_button("run_qda", "Run"),
                                 ),
                             ),
                         ),
@@ -304,13 +311,46 @@ app_ui = ui.page_fluid(
         ),
         # Right column - leaflet map
         ui.column(
-            6,
-            {"class": "map-container"},
-            ui.card(
-                ui.card_body(
-                    output_widget("map"),
-                ),
+            5,
+            {"class": "right-column"},
+            ui.div(
                 {"class": "map-card"},
+                ui.card(
+                    ui.navset_tab(
+                        ui.nav_panel(
+                            "Map",
+                            ui.div(
+                                {"class": "map-container"},
+                                output_widget("map"),
+                            ),
+                        ),
+                        ui.nav_panel(
+                            "Data",
+                            ui.div(
+                                {"class": "data-container"},
+                                ui.p("Data tab content."),
+                            ),
+                        ),
+                        ui.nav_panel(
+                            "Graphs",
+                            ui.div(
+                                {"class": "graphs-container"},
+                                ui.p("Graphs tab content."),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            ui.div(
+                {"class": "control-card"},
+                ui.div(
+                    {
+                        "style": "display: flex; flex-direction: row; justify-content: flex-end; gap: 8px;"
+                    },
+                    ui.input_action_button("export_btn", "Export"),
+                    ui.input_action_button("reset_btn", "Reset"),
+                    ui.input_action_button("help_btn", "Help"),
+                ),
             ),
         ),
     ),
@@ -323,14 +363,13 @@ app_ui = ui.page_fluid(
             ui.br(),
             ui.span("Attribution text and project info can go here."),
         ),
-        ui.div(
-            {"class": "footer-logos"},
-            ui.input_action_button(
-                "help_btn",
-                "",
-                icon=icon_svg("circle-question", height="20px", width="20px"),
-                class_="footer-icon footer-icon-button",
-            ),
-        ),
+    ),
+    # Force a reset
+    ui.tags.script(
+        """
+        Shiny.addCustomMessageHandler('refresh', function(message) {
+            window.location.reload();
+        });
+    """
     ),
 )

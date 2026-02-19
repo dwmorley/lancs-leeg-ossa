@@ -38,7 +38,7 @@ def stack(rasters: dict) -> xr.DataArray:
         if raster.rio.crs is None:
             raster = raster.rio.write_crs("EPSG:4326")
 
-        # Reproject to match reference grid
+        # Reproject using reference's exact transform and shape
         aligned = raster.rio.reproject_match(
             reference, resampling=rasterio.enums.Resampling.bilinear
         )

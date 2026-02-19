@@ -1,5 +1,4 @@
 import platform
-from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -15,15 +14,15 @@ from src.gis.bounding_box import BoundingBox
 
 
 def run_extraction(
-    bbox: List[float],
+    bbox: BoundingBox,
     variables: List[str],
     date_range: str,
     sample_size: int,
     save_stack: bool,
+    save_csv: bool,
     progress=None,
 ) -> pd.DataFrame:
 
-    bbox = BoundingBox(bbox)
     year = 2021  # TODO: IS HARDTYPED
 
     total_steps = len(variables)
@@ -57,15 +56,17 @@ def run_extraction(
     grid = bbox.sampling_grid(sample_size)
     xyz = extract(stacked, grid)
 
+    # ts = datetime.now().strftime("%d%m%y_%H%M")
+    ts = "XXXXXXX"
     if save_stack:
-        # Save to Downloads folder (cross-platform)
-        progress.set(value=100, message="Saving rasters...")
-        ts = datetime.now().strftime("%d%m%y_%H%M")
-        downloads_path = get_downloads_folder() / f"ossa_rasters_{ts}.tif"
+        progress.set(value=100, message="Saving...")
+        fn = get_downloads_folder() / f"ossa_rasters_{ts}.tif"
         stacked_ds = stacked.to_dataset(dim="band")
-        stacked_ds.rio.to_raster(
-            str(downloads_path), compress="deflate", COMPRESS_LEVEL=9
-        )
+        stacked_ds.rio.to_raster(str(fn), compress="deflate", COMPRESS_LEVEL=9)
+    if save_csv:
+        fn = get_downloads_folder() / f"ossa_extracted_{ts}.csv"
+        xyz.to_csv(fn, index=False)
+
     else:
         progress.set(value=100, message="Finalising...")
 

@@ -146,7 +146,6 @@ def luqdaloop(
 
     # ===== SPLITTING PHASE =====
     # Iteratively split the class with the highest misclassification rate
-    print("Splitting")
     ng2 = ng
     y2 = yy.copy()
     prior2 = pd.DataFrame(prior_cleaned.copy())
@@ -157,7 +156,7 @@ def luqdaloop(
 
     while not split:
         u = u + "C"
-        a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"])) / tb2
+        a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
         a = np.argsort(a)[::-1]  # Sort in decreasing order and get indices
 
         for i in range(ng2):
@@ -182,13 +181,12 @@ def luqdaloop(
             split = True
 
     # ===== MERGING PHASE =====
-    print("Merging")
     ng2 = ng
     y2 = yy.copy()
     prior2 = prior_cleaned.copy()
     tb2 = tb.copy()
     g2 = g.copy()
-    merge = False
+    merge = True if ng2 == 2 else False  # Cannot merge if only 2 classes left (?)
     u = "M"
 
     while not merge:
@@ -351,7 +349,12 @@ def ls_da(
     pred_class = g[np.argmax(pred, axis=1)]
 
     # Confusion matrix and error rate
-    conf = pd.crosstab(y, pred_class, rownames=["original"], colnames=["predicted"])
+    classes = sorted(set(y) | set(pred_class))
+    y_cat = pd.Categorical(y, categories=classes)
+    pred_cat = pd.Categorical(pred_class, categories=classes)
+    conf = pd.crosstab(
+        y_cat, pred_cat, rownames=["original"], colnames=["predicted"], dropna=False
+    )
     err = 1 - np.trace(conf.values)
 
     # Wilks' Lambda test statistic
@@ -465,24 +468,42 @@ def plot_wilks_lambda(wilks: pd.Series, opt_classes: int):
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=11)
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    return fig
 
 
-def newdata_to_raster(new_data: pd.DataFrame) -> xr.DataArray:
-    map_data = new_data[["x", "y", "id"]].copy()
-    map_data = map_data.sort_values(by=["x", "y"]).reset_index(drop=True)
-    x_coords = sorted(map_data["x"].unique())
-    y_coords = sorted(map_data["y"].unique())
-    raster_array = np.full((len(y_coords), len(x_coords)), np.nan)
-    x_indices = np.searchsorted(x_coords, map_data["x"].values)
-    y_indices = np.searchsorted(y_coords, map_data["y"].values)
-    raster_array[y_indices, x_indices] = map_data["id"].values
+def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataArray:
+
+    df = new_data[["x", "y", "id"]].copy()
+
+    df["x"] = df["x"].astype(float)
+    df["y"] = df["y"].astype(float)
+
+    if round_coords is not None:
+        df["x"] = df["x"].round(round_coords)
+        df["y"] = df["y"].round(round_coords)
+
+    xs = np.sort(df["x"].unique())
+    ys = np.sort(df["y"].unique())
+    dx = np.diff(xs).min()
+    dy = np.diff(ys).min()
+    n_x = round((xs.max() - xs.min()) / dx) + 1
+    n_y = round((ys.max() - ys.min()) / dy) + 1
+    xs_full = np.linspace(xs.min(), xs.max(), n_x).round(round_coords)
+    ys_full = np.linspace(ys.min(), ys.max(), n_y).round(round_coords)
+
+    pivoted = df.pivot(index="y", columns="x", values="id")
+    pivoted.index = pivoted.index.round(round_coords)
+    pivoted.columns = pivoted.columns.round(round_coords)
+    pivoted = pivoted.reindex(
+        index=ys_full, columns=xs_full, tolerance=1e-5, method="nearest"
+    )
 
     map_raster = xr.DataArray(
-        raster_array, coords={"y": y_coords, "x": x_coords}, dims=["y", "x"], name="id"
+        pivoted.values,
+        coords={"y": ys_full, "x": xs_full},
+        dims=["y", "x"],
     )
-    map_raster.coords["x"] = map_raster.coords["x"].astype(float)
-    map_raster.coords["y"] = map_raster.coords["y"].astype(float)
     map_raster = map_raster.rio.write_crs("EPSG:4326")
 
     return map_raster
@@ -512,13 +533,21 @@ if __name__ == "__main__":
     bbox = BoundingBox(*BBOX)
     # grid = bbox.sampling_grid(nx=70, ny=70)
 
-    df_X = pd.read_csv("../../test_data/X.csv", index_col=0)
-    df_y = pd.read_csv("../../test_data/y.csv", index_col=0)
-    grid = pd.read_csv("../../test_data/grid.csv", index_col=0).values
+    # df_X = pd.read_csv("../../test_data/X.csv", index_col=0)
+    # df_y = pd.read_csv("../../test_data/y.csv", index_col=0)
+    # grid = pd.read_csv("../../test_data/grid.csv", index_col=0).values
+    # X = df_X.values
+    # y = df_y.values.flatten()
 
-    X = df_X.values
-    y = df_y.values.flatten()
+    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_gives_error.csv")
+    X = df[["dem"]].values
+    y = df["landcover"].values.astype(int).astype(str)
+    grid = df[["longitude", "latitude"]].values
+    b = 0
 
+    # X = df_X.values
+    # y = df_y.values.flatten()
+    #
     # Run analysis
     results = luqdaloop(X, y, grid)
 

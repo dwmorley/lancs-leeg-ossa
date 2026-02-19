@@ -3,10 +3,13 @@ from typing import Literal
 import numpy as np
 import planetary_computer
 import pystac_client
+import rioxarray  # noqa: F401
 import stackstac
 import xarray
 
 from src.gis.bounding_box import BoundingBox
+
+# TODO: This dataset has a known issue with 1 pixel wide NaN edge artefacts
 
 
 def get_dem(
@@ -34,11 +37,14 @@ def get_dem(
     )
     da_raster = stack.mean(dim=["time"]).compute()
 
+    da_raster.rio.write_crs("epsg:4326")
+    # da_raster.rio.to_raster(f"dem_{res}m.tif", compress="deflate", COMPRESS_LEVEL=9)
+
     return da_raster
 
 
 if __name__ == "__main__":
     get_dem(
-        bbox=BoundingBox([1.5, 6.0, 2.1, 7.0]),
+        bbox=BoundingBox([-2.502, 42.698, -2.2, 43.0850]),
         res=30,
     )

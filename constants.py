@@ -2,7 +2,10 @@ URLS = {
     "lms": "https://www.lancaster.ac.uk/lms/",
 }
 
-GRID_SAMPLE_SIZE = 5000
+EXPORT_RASTER = False
+EXPORT_CSV = True
+
+GRID_SAMPLE_SIZE = 500
 
 COVARIATE_OPTIONS = {
     "landcover": "Land Cover",
@@ -23,7 +26,7 @@ COVARIATE_OPTIONS = {
 
 QDA_OPTIONS = {
     "nx": 10,
-    "nn": 0.5,
+    "nn": 0.001,
 }
 
 LCP_OPTIONS = {
