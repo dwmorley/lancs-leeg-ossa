@@ -1,3 +1,5 @@
+import ast
+
 import numpy as np
 import pandas as pd
 from pyproj import Transformer
@@ -6,8 +8,6 @@ from pyproj import Transformer
 class BoundingBox:
     """
     Bounding box for spatial queries.
-
-    Can be initialized with four bounds or from coordinates.
     """
 
     xmin: float
@@ -26,6 +26,7 @@ class BoundingBox:
                 - Four numbers: xmin, ymin, xmax, ymax
                 - Single tuple/list of 4 bounds
                 - Single numpy array or DataFrame with coordinates
+                - JSON-like dict with 'bounds' key containing north/south/east/west
             buffer: Buffer distance in degrees (only for coordinate inputs)
         """
         if len(args) == 4:
@@ -52,15 +53,27 @@ class BoundingBox:
                 self.ymin = coords[:, 1].min() - buffer
                 self.xmax = coords[:, 0].max() + buffer
                 self.ymax = coords[:, 1].max() + buffer
+            elif isinstance(ast.literal_eval(str(arg[0])), dict):
+                extents = ast.literal_eval(str(arg[0])).get("bounds", {})
+                north = extents["north"]
+                south = extents["south"]
+                east = extents["east"]
+                west = extents["west"]
+                self.xmin = min(west, east)
+                self.ymin = min(south, north)
+                self.xmax = max(west, east)
+                self.ymax = max(south, north)
             else:
                 raise ValueError(
                     "Single argument must be a tuple/list of 4 bounds or "
                     "a numpy array/pandas DataFrame with coordinates"
+                    "or a JSON-like dict with 'bounds' key containing north/south/east/west"
                 )
         else:
             raise ValueError(
                 "BoundingBox requires either 4 arguments (xmin, ymin, xmax, ymax) "
                 "or 1 argument (bounds tuple/list or coordinates)"
+                "or a JSON-like dict with 'bounds' key containing north/south/east/west"
             )
 
         # Validate bounds

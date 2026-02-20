@@ -1,11 +1,14 @@
 html, body {
     font-size: 14px;
 }
+.bslib-page-fill {
+    padding-top: 0;
+}
 .header-bar {
     background-color: #F5F5F5;
     color: white;
-    padding: 15px 15px;
-    margin: 15px -15px 15px -15px;
+    padding: 10px 10px;
+    margin: 0px -15px -10px -15px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -29,12 +32,11 @@ html, body {
     background-color: #f5f7f9;
     color: #2c3e50;
     padding: 12px 20px;
-    margin: 20px -15px -15px -15px;
+    margin: -10px -15px -15px -15px;
     border-top: 1px solid #e1e6ea;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 15px;
     flex-wrap: wrap;
 }
 .footer-text {
@@ -46,120 +48,12 @@ html, body {
     gap: 12px;
     align-items: center;
 }
-/* #progress-bar {
-    height: 3px;
-    background-color: #0066cc;
-    transition: width 0.3s ease;
-    width: 100%;
-    margin: 12px -15px -15px -15px;
-    padding: 0 15px;
-    box-sizing: border-box;
-} */
-.ui-row {
-    display: flex;
-    align-items: stretch;
-    min-height: 0;
-    height: 100vh;
-}
-.left-column, .right-column {
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 0;
-}
-.map-card .card-body {
-    flex: 1;
-    padding: 0 !important;
-    overflow: hidden;
-}
-.data-container {
-    flex: 1 1 auto;
-    min-height: 760px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-.map-container {
-    flex: 1 1 auto;
-    min-height: 760px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-.graphs-container {
-    flex: 1 1 auto;
-    min-height: 760px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-.top-card {
-    flex: 0 0 auto;
-    min-height: 0;
-    display: flex;
-    align-items: flex-start;
-    padding-bottom: 15px;
-}
-.middle-card {
-    flex: 2 0 0;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-.middle-card .card {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    height: 100%;
-}
-.middle-card .card-body {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    height: 100%;
-}
-.middle-card .tab-content {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    height: 100%;
-}
-.middle-card .tab-pane {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
-    overflow: auto;
-}
-.bottom-card {
-    flex: 2 0 0;
-    min-height: 0;
-}
-.bottom-card .card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-.bottom-card .card-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-}
-.bottom-card .nav-tabs {
-    flex: 0 0 auto;
-}
-.bottom-card .tab-content {
-    flex: 1 1 auto;
-    overflow: hidden;
-    min-height: 0;
-}
-.bottom-card .tab-pane {
-    height: 100%;
-    overflow: auto;
+.page-main {
+  grid-area: main;
+  transition: opacity .5s ease;
+  visibility: none;
+  z-index: -1;
+  opacity: 0;
 }
 .bounds-row {
     display: grid;
@@ -194,40 +88,43 @@ html, body {
     width: 100%;
     margin-bottom: 0;
 }
+.progress.shiny-file-input-progress {
+    visibility: hidden !important;
+}
 .checkbox-scroll {
-    max-height: 220px;
-    overflow: auto;
+    flex-direction: column;
+    gap: 20px;
+    min-height: auto;
     border: 1px solid #e1e6ea;
     border-radius: 6px;
     padding: 8px 6px 4px 6px;
     background: #ffffff;
-    width: 100%;
+    max-height: 40vh;
+    overflow-y: auto;
 }
-.checkbox-scroll .form-check {
-    margin-bottom: 1px;
-    padding-left: 16px;
+.right-card .card-body {
+    padding: 0;
 }
-.checkbox-scroll .form-check-input {
-    margin-top: 1px;
-    transform: scale(0.8);
-    transform-origin: top left;
+.jupyter-widgets {
+    margin: 0;
 }
-.checkbox-scroll .form-check-label {
-    font-size: 10px;
-    line-height: 0.95;
+.footer-logos {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
-#map {
-    height: 100% !important;
-    width: 100% !important;
+.footer-icon svg {
+    height: 84px;
+    width: 84px;
 }
-#map iframe {
+.footer-icon-button {
+    background: transparent;
     border: none;
-    height: 100% !important;
-    width: 100% !important;
+    padding: 0;
+    margin: 0;
+    line-height: 0;
 }
-iframe {
-    border: none;
-}
-.progress.shiny-file-input-progress {
-    visibility: hidden !important;
+.footer-icon-button:hover {
+    background-color: transparent;
+    color: #007bff;
 }

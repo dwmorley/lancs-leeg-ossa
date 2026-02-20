@@ -3,6 +3,7 @@ import pandas as pd
 
 from src.covariates.get_dem import get_dem
 from src.covariates.get_lulc import get_lulc
+from src.covariates.get_modis import get_modis
 from src.covariates.make_stack import stack
 from src.covariates.raster_to_grid import extract
 from src.gis.bounding_box import BoundingBox
@@ -10,7 +11,7 @@ from src.sampling.asd import asd_plot, glmmPQL_via_rpy2
 from src.sampling.lcp import lcp, plot_lcp
 from src.sampling.luqdaloop import luqdaloop, newdata_to_raster, plot_wilks_lambda
 
-SKIP_RS = True
+SKIP_RS = False
 SKIP_QDA_LCP = False
 SKIP_ASD = True
 
@@ -19,8 +20,8 @@ SKIP_ASD = True
 # =========================================
 extents = [1.5, 6.2, 1.7, 6.5]
 year = 2021
-modis_variables = ["ET_500m", "LST_Day_1KM"]
-sample_size = 5000
+modis_variables = ["ET_500m"]  # "LST_Day_1KM"
+sample_size = 500
 
 bbox = BoundingBox(extents)
 
@@ -48,12 +49,12 @@ if not SKIP_RS:
     # Get the MODIS rasters
     for variable in modis_variables:
         print(f"getting {variable} raster...")
-        # da_dict = get_modis(
-        #     bbox=bbox,
-        #     variable=variable,
-        #     year=year,
-        # )
-        # rasters.update(da_dict)
+        da_dict = get_modis(
+            bbox=bbox,
+            variable=variable,
+            year=year,
+        )
+        rasters.update(da_dict)
 
     # Raster stack of all covariates
     stack = stack(rasters)

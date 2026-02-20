@@ -13,15 +13,12 @@ COVARIATE_OPTIONS = {
     "slope": "Slope",
     "ndvi": "NDVI",
     "rainfall": "Rainfall",
-    "temperature": "Temperature",
-    "soil_moisture": "Soil Moisture",
-    "population": "Population",
-    "roads": "Road Distance",
-    "settlements": "Settlements",
-    "river_dist": "River Distance",
-    "aspect": "Aspect",
-    "curvature": "Curvature",
-    "twi": "Topographic Wetness Index",
+    "roands": "Road Distance",
+    "setnntlements": "Settlements",
+    "rivner_dist": "River Distance",
+    "aspenct": "Aspect",
+    "curvnature": "Curvature",
+    "twnni": "Topographic Wetness Index",
 }
 
 QDA_OPTIONS = {

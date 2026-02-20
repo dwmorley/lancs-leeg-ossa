@@ -156,7 +156,12 @@ def luqdaloop(
 
     while not split:
         u = u + "C"
-        a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
+        # try:
+        a = (
+            tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)
+        ) / tb2  # TODO: SOMETIMES, operands could not be broadcast together with shapes (8,) (7,)
+        # except:
+        #     pass
         a = np.argsort(a)[::-1]  # Sort in decreasing order and get indices
 
         for i in range(ng2):
@@ -169,12 +174,16 @@ def luqdaloop(
                 prior2[u] = prior2.iloc[:, a[i]] / 2
                 prior2.iloc[:, a[i]] = prior2.iloc[:, a[i]] / 2
                 ng2 = ng2 + 1
+
+                # counts_pd = pd.Series(y2).value_counts()
+                # print(counts_pd)
+
                 all[f"{ng2}cluster"] = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
                 tb2 = np.append(tb2, len(half_indices))
                 tb2[a[i]] = tb2[a[i]] - len(half_indices)
                 g2 = np.append(g2, u + str(g2[a[i]]))
                 break
-            elif i >= ng2 - 1:
+            elif i >= ng2:
                 split = True
 
         if ng2 >= nx:
@@ -196,12 +205,13 @@ def luqdaloop(
 
         # Merge the two classes with the highest error rates
         y2[np.isin(y2, [g2[a[0]], g2[a[1]]])] = f"{u}{g2[a[0]]}.{g2[a[1]]}"
-
-        # Combine prior probabilities
         prior2[:, a[0]] = prior2[:, a[0]] + prior2[:, a[1]]
         prior2 = np.delete(prior2, a[1], axis=1)
-
         ng2 -= 1
+
+        # counts_pd = pd.Series(y2).value_counts()
+        # print(counts_pd)
+
         all[f"{ng2}cluster"] = ls_da(X=XX, y=y2, prior=prior2, test=test)
 
         # Update tracking variables
@@ -352,6 +362,7 @@ def ls_da(
     classes = sorted(set(y) | set(pred_class))
     y_cat = pd.Categorical(y, categories=classes)
     pred_cat = pd.Categorical(pred_class, categories=classes)
+
     conf = pd.crosstab(
         y_cat, pred_cat, rownames=["original"], colnames=["predicted"], dropna=False
     )
@@ -539,8 +550,13 @@ if __name__ == "__main__":
     # X = df_X.values
     # y = df_y.values.flatten()
 
-    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_gives_error.csv")
-    X = df[["dem"]].values
+    # df = pd.read_csv("/Users/david/Downloads/ossa_extracted_XXX__GIVES _ERROR_XXXX.csv")
+    # X = df[["dem"]].values
+    # y = df["landcover"].values.astype(int).astype(str)
+    # grid = df[["longitude", "latitude"]].values
+
+    df = pd.read_csv("/Users/david/Downloads/ossa_with_two_vars.csv")
+    X = df[["dem", "lst"]].values
     y = df["landcover"].values.astype(int).astype(str)
     grid = df[["longitude", "latitude"]].values
     b = 0
@@ -549,7 +565,7 @@ if __name__ == "__main__":
     # y = df_y.values.flatten()
     #
     # Run analysis
-    results = luqdaloop(X, y, grid)
+    results = luqdaloop(X, y, grid, nx=10)
 
     # xxx = results["7cluster"]["Classes"]
     # yyy = results["7cluster"]["confusion"]
