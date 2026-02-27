@@ -5,21 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy import linalg
-
-"""
-QUESTIONS:
-- Merging of LC classes before QDA (is this manual?)
-- What is the difference between the 2 RData qda functions?
-- What is 'test' actually doing? test in not an int but should be a list?
-
-TODO:
-- Maybe as a class, model.fit()
-- Correctly name variables and functions
-- 'all' as a dataclass
-- Plot the Wilkes graph
-
-"""
+from scipy.linalg import LinAlgError, det, qr, solve_triangular
 
 
 def luqdaloop(
@@ -64,6 +50,7 @@ def luqdaloop(
         - 'NewData': final classification results with spatial coordinates
     """
 
+    y = y.astype(int)
     n = X.shape[0]
     p = X.shape[1]
     g = np.sort(np.unique(y))
@@ -95,21 +82,22 @@ def luqdaloop(
     for k in range(ng):
         nkk = np.where(y == g[k])[0]
         nk = len(nkk) - 1
-        Xcen = X[y == g[k], :] - gm[k]
+        if nk != 0:
+            Xcen = (X[y == g[k], :] - gm[k]) / np.sqrt(nk)
+            Q, R = qr(Xcen)
+            qx = R
+            try:
+                np.linalg.solve(qx[:p, :p], np.eye(p))
+                success = True
+            except np.linalg.LinAlgError:
+                success = False
+        else:
+            success = False
 
-        try:
-            Q, R = linalg.qr(Xcen / np.sqrt(nk), mode="economic")
-            linalg.solve_triangular(R[:p, :], np.eye(p))
-        except (linalg.LinAlgError, ValueError):
-            print(f"Rank deficiency in group {g[k]}, this group will stay unchanged")
+        if not success:
+            # print(f"rank deficiency in group {g[k]}, this group will stay unchanged")
             N2[nkk] = 1
             G2[k] = 1
-
-    #     if test is not None:
-    #         L2.append(np.random.choice(nkk, test, replace=False))
-    #
-    # if test is not None:
-    #     test = np.concatenate(L2)
 
     # Exclude rank-deficient groups
     if np.sum(N2) > 0:
@@ -122,7 +110,7 @@ def luqdaloop(
         prior_cleaned = prior.copy()
 
     p = XX.shape[1]
-    g = np.sort(np.unique(yy))
+    g = np.sort(np.unique(yy.astype(int)))
     ng = len(g)
 
     if np.sum(N2) > 0:
@@ -142,10 +130,12 @@ def luqdaloop(
 
     # ===== INITIAL LDA =====
     all[f"{ng}cluster"] = ls_da(X=XX, y=yy, prior=prior_cleaned, test=test)
-    tb = np.array([np.sum(yy == group) for group in g])
+    tb = np.array([len(np.where(yy == g[i])[0]) for i in range(ng)])
 
     # ===== SPLITTING PHASE =====
     # Iteratively split the class with the highest misclassification rate
+
+    yy = yy.copy().astype(str)
     ng2 = ng
     y2 = yy.copy()
     prior2 = pd.DataFrame(prior_cleaned.copy())
@@ -156,19 +146,14 @@ def luqdaloop(
 
     while not split:
         u = u + "C"
-        # try:
-        a = (
-            tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)
-        ) / tb2  # TODO: SOMETIMES, operands could not be broadcast together with shapes (8,) (7,)
-        # except:
-        #     pass
-        a = np.argsort(a)[::-1]  # Sort in decreasing order and get indices
+        a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
+        a = np.argsort(-a)
 
         for i in range(ng2):
             half = round(tb2[a[i]] / 2)
             if half > (p * 3):
                 # Get indices where y2 equals g2[a[i]], take first 'half' elements
-                half_indices = np.where(y2 == g2[a[i]])[0][:half]
+                half_indices = np.where(y2 == g2[a[i]].astype(str))[0][:half]
                 y2[half_indices] = u + str(g2[a[i]])
                 prior2[u] = 0
                 prior2[u] = prior2.iloc[:, a[i]] / 2
@@ -185,7 +170,6 @@ def luqdaloop(
                 break
             elif i >= ng2:
                 split = True
-
         if ng2 >= nx:
             split = True
 
@@ -194,14 +178,14 @@ def luqdaloop(
     y2 = yy.copy()
     prior2 = prior_cleaned.copy()
     tb2 = tb.copy()
-    g2 = g.copy()
+    g2 = g.copy().astype(str)
     merge = True if ng2 == 2 else False  # Cannot merge if only 2 classes left (?)
     u = "M"
 
     while not merge:
         u = u + "C"
         a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
-        a = np.argsort(a)[::-1]  # Sort in decreasing order and get indices
+        a = np.argsort(-a)
 
         # Merge the two classes with the highest error rates
         y2[np.isin(y2, [g2[a[0]], g2[a[1]]])] = f"{u}{g2[a[0]]}.{g2[a[1]]}"
@@ -253,11 +237,6 @@ def luqdaloop(
     # Find index where the biggest change occurs
     best_idx = int(np.argmax(wilks_diff))
     best = best_idx + 3
-
-    if np.sum(N2) == 0:
-        print(f"\nBest number of classes found: {best}")
-    else:
-        print(f"\nBest number of classes found: {best + int(np.sum(G2))}")
 
     # ===== CREATE FINAL OUTPUT =====
     # Combine all data with final classifications
@@ -332,12 +311,12 @@ def ls_da(
     for k in range(ng):
         nk = np.sum(y == g[k]) - 1
         Xcen = X[y == g[k], :] - gm[k]
-        Q, R = linalg.qr(Xcen / np.sqrt(nk), mode="economic")
+        Q, R = qr(Xcen / np.sqrt(nk), mode="economic")
         try:
-            qx1 = linalg.solve_triangular(R[:p, :], np.eye(p))
+            qx1 = solve_triangular(R[:p, :], np.eye(p))
             WMqr.append(qx1)
             ldet[k] = 2 * np.sum(np.log(np.abs(np.diag(R))))
-        except linalg.LinAlgError:
+        except LinAlgError:
             raise ValueError(f"Rank deficiency in group {g[k]}")
 
     # Compute discriminant scores for training set
@@ -448,8 +427,8 @@ def Wilks_test(X, y):
 
     # Wilks' Lambda = |W| / |T|
     try:
-        lambda_stat = linalg.det(W) / linalg.det(T)
-    except (linalg.LinAlgError, ZeroDivisionError, ValueError):
+        lambda_stat = det(W) / det(T)
+    except (LinAlgError, ZeroDivisionError, ValueError):
         lambda_stat = np.nan
 
     return lambda_stat
@@ -521,51 +500,18 @@ def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataA
 
 
 if __name__ == "__main__":
-    # Generate sample data
-    # np.random.seed(42)
-    # n_samples = 70 * 70
-    # n_features = 6
-    #
-    # X = np.random.randn(n_samples, n_features)
-    # y = np.random.choice(["A", "B", "C", "D"], n_samples)
-    # grid = np.random.rand(n_samples, 2)
-    # df_grid = pd.DataFrame(grid, columns=["x", "y"])
-    # df_grid.to_csv("../../test_data/grid.csv")
-    # df_X = pd.DataFrame(X)
-    # df_X.to_csv("../../test_data/X.csv")
-    # df_y = pd.DataFrame(y)
-    # df_y.to_csv("../../test_data/y.csv")
-    # df_grid = pd.read_csv("../../test_data/grid.csv", index_col=0)
-    # grid = df_grid.values
 
-    from src.gis.bounding_box import BoundingBox
+    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_4vars.csv")
+    # df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260227_164418.csv")
 
-    BBOX = [1.5, 6.0, 2.1, 7.0]
-    bbox = BoundingBox(*BBOX)
-    # grid = bbox.sampling_grid(nx=70, ny=70)
-
-    # df_X = pd.read_csv("../../test_data/X.csv", index_col=0)
-    # df_y = pd.read_csv("../../test_data/y.csv", index_col=0)
-    # grid = pd.read_csv("../../test_data/grid.csv", index_col=0).values
-    # X = df_X.values
-    # y = df_y.values.flatten()
-
-    # df = pd.read_csv("/Users/david/Downloads/ossa_extracted_XXX__GIVES _ERROR_XXXX.csv")
-    # X = df[["dem"]].values
-    # y = df["landcover"].values.astype(int).astype(str)
-    # grid = df[["longitude", "latitude"]].values
-
-    df = pd.read_csv("/Users/david/Downloads/ossa_with_two_vars.csv")
-    X = df[["dem", "lst"]].values
-    y = df["landcover"].values.astype(int).astype(str)
+    X = df[["dem", "wp_1km_unadj", "grip0"]].values
+    y = df["landcover"].values.astype(int)
     grid = df[["longitude", "latitude"]].values
-    b = 0
 
-    # X = df_X.values
-    # y = df_y.values.flatten()
-    #
-    # Run analysis
-    results = luqdaloop(X, y, grid, nx=10)
+    results = luqdaloop(X, y, grid, nx=8)
 
-    # xxx = results["7cluster"]["Classes"]
-    # yyy = results["7cluster"]["confusion"]
+    opt_classes = len(results["NewData"]["BestClass"].unique())
+    print("opt_classes: ", opt_classes)
+
+    wilks = results["WilksSummary"].loc["Wilks"][1::]
+    plot_wilks_lambda(wilks, opt_classes)

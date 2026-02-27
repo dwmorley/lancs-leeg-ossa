@@ -1,3 +1,4 @@
+from faicons import icon_svg
 from shiny import module, reactive, ui
 
 from constants import ASD_OPTIONS
@@ -8,47 +9,74 @@ from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 @module.ui
 def asd_ui():
     return ui.div(
-        ui.h4("Adaptive Spatial Design"),
-        ui.div(
-            ui.input_text(
-                "asd_formulaf",
-                "Fixed effects formula",
-                value=ASD_OPTIONS["formulaf"],
-                placeholder="e.g. AnGam~Week+Elev+Soil",
-            ),
-            ui.input_text(
-                "asd_formular",
-                "Random effects formula",
-                value=ASD_OPTIONS["formular"],
-                placeholder="e.g. ~1|LCD",
-            ),
-            ui.input_numeric(
-                "asd_total",
-                "Adaptive sampling locations to allocate",
-                value=ASD_OPTIONS["total"],
-                min=1,
-                step=1,
-            ),
-            ui.input_numeric(
-                "asd_delta",
-                "Inhibition distance (delta)",
-                value=ASD_OPTIONS["delta"],
-                step=0.01,
-            ),
-            ui.div(
-                {"style": "padding-top: 12px;"},
-                ui.input_radio_buttons(
-                    "asd_target",
-                    None,
-                    choices={
-                        "H": "Targeting Hotspots",
-                        "U": "Targeting Uncertainty",
-                    },
-                    selected=ASD_OPTIONS["target"],
+        ui.tags.div(
+            [
+                # Left column
+                ui.tags.div(
+                    [
+                        ui.h4("Adaptive Sampling Design", class_="column-header"),
+                        ui.div(
+                            ui.input_text(
+                                "asd_formulaf",
+                                "Fixed effects formula",
+                                value=ASD_OPTIONS["formulaf"],
+                                placeholder="e.g. AnGam~Week+Elev+Soil",
+                            ),
+                            ui.input_text(
+                                "asd_formular",
+                                "Random effects formula",
+                                value=ASD_OPTIONS["formular"],
+                                placeholder="e.g. ~1|LCD",
+                            ),
+                            ui.input_numeric(
+                                "asd_total",
+                                "Adaptive sampling locations to allocate",
+                                value=ASD_OPTIONS["total"],
+                                min=1,
+                                step=1,
+                            ),
+                            ui.input_numeric(
+                                "asd_delta",
+                                "Inhibition distance (delta)",
+                                value=ASD_OPTIONS["delta"],
+                                step=0.01,
+                            ),
+                            ui.div(
+                                {"style": "padding-top: 12px;"},
+                                ui.input_radio_buttons(
+                                    "asd_target",
+                                    None,
+                                    choices={
+                                        "H": "Targeting Hotspots",
+                                        "U": "Targeting Uncertainty",
+                                    },
+                                    selected=ASD_OPTIONS["target"],
+                                ),
+                            ),
+                        ),
+                    ],
+                    class_="column-content text-inputs-column",
                 ),
-            ),
+                # Right column (empty for now)
+            ],
+            class_="content-columns",
         ),
-        ui.div({"class": "qda-actions"}, ui.input_action_button("run_asd", "Run")),
+        ui.tags.div(
+            [
+                ui.input_action_button(
+                    "save_asd",
+                    ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
+                    class_="action-button",
+                ),
+                ui.input_action_button(
+                    "run_asd",
+                    ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
+                    class_="action-button",
+                ),
+            ],
+            class_="button-container",
+        ),
+        class_="tab-content",
     )
 
 

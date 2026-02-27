@@ -1,3 +1,8 @@
+import base64
+from io import BytesIO
+
+import matplotlib.pyplot as plt
+from faicons import icon_svg
 from shiny import module, reactive, ui
 
 from constants import LCP_OPTIONS, QDA_OPTIONS
@@ -8,53 +13,79 @@ from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 @module.ui
 def qda_ui():
     return ui.div(
-        ui.h4("Header goes here"),
-        ui.div(
-            {"class": "qda-row"},
-            ui.div(
-                ui.input_numeric(
-                    "qda_nx",
-                    "Maximum QDA classes allowed (nx)",
-                    value=QDA_OPTIONS["nx"],
-                    min=1,
-                    step=1,
+        ui.tags.div(
+            [
+                # Left column
+                ui.tags.div(
+                    [
+                        ui.h4("Discriminant Analysis", class_="column-header"),
+                        ui.input_numeric(
+                            "qda_nx",
+                            "Maximum QDA classes allowed (nx)",
+                            value=QDA_OPTIONS["nx"],
+                            min=1,
+                            step=1,
+                        ),
+                        ui.input_numeric(
+                            "qda_nn",
+                            "QDA Local frequency prior distance (nn)",
+                            value=QDA_OPTIONS["nn"],
+                            step=0.1,
+                        ),
+                    ],
+                    class_="column-content text-inputs-column",
                 ),
-                ui.input_numeric(
-                    "qda_nn",
-                    "QDA Local frequency prior distance (nn)",
-                    value=QDA_OPTIONS["nn"],
-                    step=0.1,
+                # Right column
+                ui.tags.div(
+                    [
+                        ui.h4("Lattice Close Pairs", class_="column-header"),
+                        ui.input_numeric(
+                            "lcp_delta",
+                            "Inhibition distance (delta)",
+                            value=LCP_OPTIONS["delta"],
+                            step=0.01,
+                        ),
+                        ui.input_numeric(
+                            "lcp_zeta",
+                            "Allocation radius (zeta)",
+                            value=LCP_OPTIONS["zeta"],
+                            step=0.1,
+                        ),
+                        ui.input_numeric(
+                            "lcp_total",
+                            "Number of locations to optimise",
+                            value=LCP_OPTIONS["total"],
+                            min=1,
+                            step=1,
+                        ),
+                        ui.input_numeric(
+                            "lcp_grid",
+                            "Proportion of grid locations (to close pairs)",
+                            value=LCP_OPTIONS["grid"],
+                            step=0.01,
+                        ),
+                    ],
+                    class_="column-content text-inputs-column",
                 ),
-            ),
-            ui.div(
-                ui.input_numeric(
-                    "lcp_delta",
-                    "Inhibition distance (delta)",
-                    value=LCP_OPTIONS["delta"],
-                    step=0.01,
-                ),
-                ui.input_numeric(
-                    "lcp_zeta",
-                    "Allocation radius (zeta)",
-                    value=LCP_OPTIONS["zeta"],
-                    step=0.1,
-                ),
-                ui.input_numeric(
-                    "lcp_total",
-                    "Number of locations to optimise",
-                    value=LCP_OPTIONS["total"],
-                    min=1,
-                    step=1,
-                ),
-                ui.input_numeric(
-                    "lcp_grid",
-                    "Proportion of grid locations (to close pairs)",
-                    value=LCP_OPTIONS["grid"],
-                    step=0.01,
-                ),
-            ),
+            ],
+            class_="content-columns",
         ),
-        ui.div({"class": "qda-actions"}, ui.input_action_button("run_qda", "Run")),
+        ui.tags.div(
+            [
+                ui.input_action_button(
+                    "save_qda",
+                    ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
+                    class_="action-button",
+                ),
+                ui.input_action_button(
+                    "run_qda",
+                    ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
+                    class_="action-button",
+                ),
+            ],
+            class_="button-container",
+        ),
+        class_="tab-content",
     )
 
 
@@ -90,19 +121,21 @@ def qda_server(input, output, session, reactive_values):
         my_ossa_layers.set([overlay, points])
 
         # Show Wilks plot in modal
-        # fig = results["wilks_plot"]
-        # buf = BytesIO()
-        # fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
-        # buf.seek(0)
-        # img_base64 = base64.b64encode(buf.read()).decode('utf-8')
-        # plt.close(fig)
-        # ui.modal_show(
-        #     ui.modal(
-        #         ui.h4("Wilks' Lambda Analysis"),
-        #         ui.HTML(f'<img src="data:image/png;base64,{img_base64}" style="width:100%; max-width:800px;">'),
-        #         ui.p(f"Found {results['best_n_classes']} optimal classes"),
-        #         easy_close=True,
-        #         size="l",
-        #         footer=None,
-        #     )
-        # )
+        fig = results["wilks_plot"]
+        buf = BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.read()).decode("utf-8")
+        plt.close(fig)
+        ui.modal_show(
+            ui.modal(
+                ui.h4("Wilks' Lambda Analysis"),
+                ui.HTML(
+                    f'<img src="data:image/png;base64,{img_base64}" style="width:100%; max-width:800px;">'
+                ),
+                ui.p(f"Found {results['best_n_classes']} optimal classes"),
+                easy_close=True,
+                size="l",
+                footer=None,
+            )
+        )

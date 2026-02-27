@@ -35,7 +35,6 @@ def aoi_server(input, output, session, reactive_values):
     @reactive.effect
     @reactive.event(drawn_shapes)
     def _on_drawn_shapes() -> None:
-
         # Don't react if the map is the source of the update
         if updating_from_map.get():
             return
@@ -44,11 +43,13 @@ def aoi_server(input, output, session, reactive_values):
         if not shapes:
             # Clear fields when there are no shapes
             updating_from_map.set(True)
-            ui.update_text("bounds_north", value="")
-            ui.update_text("bounds_south", value="")
-            ui.update_text("bounds_east", value="")
-            ui.update_text("bounds_west", value="")
-            updating_from_map.set(False)
+            try:
+                ui.update_text("bounds_north", value="")
+                ui.update_text("bounds_south", value="")
+                ui.update_text("bounds_east", value="")
+                ui.update_text("bounds_west", value="")
+            finally:
+                updating_from_map.set(False)
             return
 
         # Use the most-recent rectangle
@@ -76,7 +77,6 @@ def aoi_server(input, output, session, reactive_values):
         input.bounds_north, input.bounds_south, input.bounds_east, input.bounds_west
     )
     def _update_from_inputs() -> None:
-
         # Avoid reacting to updates that originated from the map
         if updating_from_map.get():
             return
@@ -91,22 +91,16 @@ def aoi_server(input, output, session, reactive_values):
             return
 
         # Flip if we are crossing meridian or equator
-        def _swap_if_less(val1, val2, id1, id2):
+        def _swap_if_less(val1, val2):
             if val1 is None or val2 is None:
                 return val1, val2
             if val1 < val2:
-                updating_from_map.set(True)
-                try:
-                    ui.update_text(id1, value=f"{val2:.4f}")
-                    ui.update_text(id2, value=f"{val1:.4f}")
-                finally:
-                    updating_from_map.set(False)
                 return val2, val1
             return val1, val2
 
         # Ensure east >= west and north >= south
-        east, west = _swap_if_less(east, west, "bounds_east", "bounds_west")
-        north, south = _swap_if_less(north, south, "bounds_north", "bounds_south")
+        east, west = _swap_if_less(east, west)
+        north, south = _swap_if_less(north, south)
 
         if not all(v is not None for v in [north, south, east, west]):
             drawn_shapes.set([])
@@ -136,52 +130,21 @@ def aoi_server(input, output, session, reactive_values):
             "bounds": {"north": north, "south": south, "east": east, "west": west},
         }
 
-        drawn_shapes.set([rectangle_data])
-
-    # Update rectangle on map when bounds inputs change
-    @reactive.effect
-    @reactive.event(
-        input.bounds_north, input.bounds_south, input.bounds_east, input.bounds_west
-    )
-    def _update_rectangle_from_inputs() -> None:
-
-        # Skip if we're updating from a map draw event
-        if updating_from_map.get():
-            return
-
-        # Skip if invalid numeric input
+        # Only update text fields and drawn_shapes if not updating_from_map
+        updating_from_map.set(True)
         try:
-            north = float(input.bounds_north()) if input.bounds_north() else None
-            south = float(input.bounds_south()) if input.bounds_south() else None
-            east = float(input.bounds_east()) if input.bounds_east() else None
-            west = float(input.bounds_west()) if input.bounds_west() else None
-        except ValueError:
-            return
-
-        # Only update if all bounds are set
-        if all(v is not None for v in [north, south, east, west]):
-            # Create GeoJSON for the rectangle
-            geo_json = {
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [west, south],
-                            [east, south],
-                            [east, north],
-                            [west, north],
-                            [west, south],
-                        ]
-                    ],
-                },
-                "properties": {},
-            }
-
-            # Update stored shapes
-            rectangle_data = {
-                "type": "rectangle",
-                "geometry": geo_json["geometry"],
-                "bounds": {"north": north, "south": south, "east": east, "west": west},
-            }
+            ui.update_text(
+                "bounds_north", value=f"{rectangle_data['bounds']['north']:.4f}"
+            )
+            ui.update_text(
+                "bounds_south", value=f"{rectangle_data['bounds']['south']:.4f}"
+            )
+            ui.update_text(
+                "bounds_east", value=f"{rectangle_data['bounds']['east']:.4f}"
+            )
+            ui.update_text(
+                "bounds_west", value=f"{rectangle_data['bounds']['west']:.4f}"
+            )
             drawn_shapes.set([rectangle_data])
+        finally:
+            updating_from_map.set(False)

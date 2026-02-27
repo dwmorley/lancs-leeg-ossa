@@ -1,7 +1,7 @@
 import ipyleaflet as L
 import leafmap
 from ipyleaflet import DrawControl, LayersControl, WidgetControl
-from shiny import module, reactive, ui
+from shiny import module, reactive
 from shinywidgets import output_widget, render_widget
 
 from src.plotting.maps import point_layer_legend
@@ -31,6 +31,13 @@ def map_server(input, output, session, reactive_values):
         edit=False,
         remove=False,
     )
+
+    def on_draw_remove(change) -> None:
+        # Clear drawn_shapes when a shape is removed
+        if change["new"]:
+            drawn_shapes.set([])
+
+    draw_control.observe(on_draw_remove, "last_remove")
 
     # Holder for the map widget so other effects or other modules can call methods
     m_ref = {"m": None}
@@ -86,24 +93,13 @@ def map_server(input, output, session, reactive_values):
         updating_from_map.set(True)
         try:
             draw_control.data = [geo]
-            # Also fit the map view to the rectangle bounds if the map is ready
-            try:
-                m = m_ref.get("m")
-                if m is not None:
-                    bounds = rectangle_data.get("bounds")
-                    if bounds:
-                        south = bounds["south"]
-                        west = bounds["west"]
-                        north = bounds["north"]
-                        east = bounds["east"]
-                        try:
-                            m.fit_bounds([[south, west], [north, east]])
-                        except Exception:
-                            pass
-            except Exception:
-                pass
         finally:
             updating_from_map.set(False)
+
+    @reactive.effect
+    @reactive.event(input.delete_button)
+    async def _():
+        await session.send_custom_message("refresh", "")
 
     @reactive.effect
     @reactive.event(my_ossa_layers)
@@ -146,6 +142,7 @@ def map_server(input, output, session, reactive_values):
 
     @render_widget
     def map():
+
         m = leafmap.Map(
             center=(1.5, 20.0),
             zoom=3,
@@ -155,10 +152,8 @@ def map_server(input, output, session, reactive_values):
         )
         m.layout.width = "100%"
         m.layout.height = "100%"
-
         m.add_basemap("Esri.WorldImagery")
         m.add(LayersControl(position="topright"))
-
         m.add(draw_control)
 
         # expose map instance for other modules
@@ -169,21 +164,3 @@ def map_server(input, output, session, reactive_values):
             pass
 
         return m
-
-
-SIZE_JS = ui.tags.script(
-    """
-(function() {
-    function sizeMap() {
-        var container = document.getElementById('map-container');
-        if (!container) return;
-        var h = container.getBoundingClientRect().height;
-        // The widget output div and its child iframe both need explicit px heights
-        var targets = container.querySelectorAll('.widget-subarea, iframe');
-        targets.forEach(function(el) { el.style.height = h + 'px'; });
-    }
-    $(document).ready(function() { setTimeout(sizeMap, 100); });
-    $(window).on('resize', sizeMap);
-})();
-"""
-)

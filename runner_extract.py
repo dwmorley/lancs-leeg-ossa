@@ -1,13 +1,16 @@
-import platform
-from pathlib import Path
+from datetime import datetime
 from typing import List
 
 import pandas as pd
+import xarray as xr
 
+from constants import COVARIATE_OPTIONS
 from src.covariates.get_dem import get_dem
 from src.covariates.get_lulc import get_lulc
-
-# from src.covariates.get_modis import get_modis
+from src.covariates.get_modis import get_modis
+from src.covariates.get_roaddensity import get_roaddensity
+from src.covariates.get_terraclimate import get_terraclimate
+from src.covariates.get_worldpop import get_worldpop
 from src.covariates.make_stack import stack
 from src.covariates.raster_to_grid import extract
 from src.gis.bounding_box import BoundingBox
@@ -16,73 +19,89 @@ from src.gis.bounding_box import BoundingBox
 def run_extraction(
     bbox: BoundingBox,
     variables: List[str],
-    date_range: str,
+    date_range: tuple[datetime, datetime],
     sample_size: int,
-    save_stack: bool,
-    save_csv: bool,
     progress=None,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, xr.DataArray]:
 
-    year = 2021  # TODO: IS HARDTYPED
+    # The maximum year from date_range
+    year = max(date_range[0].year, date_range[1].year)
 
     total_steps = len(variables)
     rasters = {}
 
+    year = 2020  # ################
+
+    variable_funcs = {
+        "landcover": lambda: get_lulc(bbox=bbox, year=year),
+        "dem": lambda: get_dem(bbox=bbox, res=30),
+        "wp_1km_unadj": lambda: get_worldpop(bbox=bbox, year=year),
+        "modis": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", year=year),
+        "grip0": lambda: get_roaddensity(bbox=bbox, road_type=0),
+        "grip1": lambda: get_roaddensity(bbox=bbox, road_type=1),
+        "grip2": lambda: get_roaddensity(bbox=bbox, road_type=2),
+        "grip3": lambda: get_roaddensity(bbox=bbox, road_type=3),
+        "grip4": lambda: get_roaddensity(bbox=bbox, road_type=4),
+        "grip5": lambda: get_roaddensity(bbox=bbox, road_type=5),
+        "terraclimate_aet": lambda: get_terraclimate(
+            bbox=bbox, variable="aet", year=year
+        ),
+        "terraclimate_def": lambda: get_terraclimate(
+            bbox=bbox, variable="def", year=year
+        ),
+        "terraclimate_pet": lambda: get_terraclimate(
+            bbox=bbox, variable="pet", year=year
+        ),
+        "terraclimate_ppt": lambda: get_terraclimate(
+            bbox=bbox, variable="ppt", year=year
+        ),
+        "terraclimate_q": lambda: get_terraclimate(bbox=bbox, variable="q", year=year),
+        "terraclimate_soil": lambda: get_terraclimate(
+            bbox=bbox, variable="soil", year=year
+        ),
+        "terraclimate_srad": lambda: get_terraclimate(
+            bbox=bbox, variable="srad", year=year
+        ),
+        "terraclimate_swe": lambda: get_terraclimate(
+            bbox=bbox, variable="swe", year=year
+        ),
+        "terraclimate_tmax": lambda: get_terraclimate(
+            bbox=bbox, variable="tmax", year=year
+        ),
+        "terraclimate_tmin": lambda: get_terraclimate(
+            bbox=bbox, variable="tmin", year=year
+        ),
+        "terraclimate_vap": lambda: get_terraclimate(
+            bbox=bbox, variable="vap", year=year
+        ),
+        "terraclimate_vpd": lambda: get_terraclimate(
+            bbox=bbox, variable="vpd", year=year
+        ),
+        "terraclimate_ws": lambda: get_terraclimate(
+            bbox=bbox, variable="ws", year=year
+        ),
+        "terraclimate_pdsi": lambda: get_terraclimate(
+            bbox=bbox, variable="pdsi", year=year
+        ),
+    }
+
     for i, var in enumerate(variables):
         if progress:
             progress.set(
-                value=int((i / total_steps) * 100), message=f"Processing {var}..."
+                value=int((i / total_steps) * 100),
+                message=f"Processing {COVARIATE_OPTIONS[var]}...",
             )
-
-        if var == "landcover":
-            rasters["landcover"] = get_lulc(
-                bbox=bbox,
-                year=year,
-            )
-        elif var == "dem":
-            rasters["dem"] = get_dem(
-                bbox=bbox,
-                res=30,
-            )
-        elif var == "modis":
-            pass
-
+        func = variable_funcs.get(var)
+        if func:
+            rasters[var] = func()
         else:
             raise ValueError(f"Unknown variable: {var}")
 
     stacked = stack(rasters)
 
-    # Sample
     grid = bbox.sampling_grid(sample_size)
     xyz = extract(stacked, grid)
 
-    # ts = datetime.now().strftime("%d%m%y_%H%M")
-    ts = "XXXXXXX"
-    if save_stack:
-        progress.set(value=100, message="Saving...")
-        fn = get_downloads_folder() / f"ossa_rasters_{ts}.tif"
-        stacked_ds = stacked.to_dataset(dim="band")
-        stacked_ds.rio.to_raster(str(fn), compress="deflate", COMPRESS_LEVEL=9)
-    if save_csv:
-        fn = get_downloads_folder() / f"ossa_extracted_{ts}.csv"
-        xyz.to_csv(fn, index=False)
+    progress.set(value=100, message="Finalising...")
 
-    else:
-        progress.set(value=100, message="Finalising...")
-
-    return xyz
-
-
-def get_downloads_folder():
-    """Get the Downloads folder path for the current platform."""
-    if platform.system() == "Windows":
-        import winreg
-
-        sub_key = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
-        downloads_guid = "{374DE290-123F-4565-9164-39C4925E467B}"
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
-            location = winreg.QueryValueEx(key, downloads_guid)[0]
-        return Path(location)
-    else:
-        # macOS and Linux
-        return Path.home() / "Downloads"
+    return xyz, stacked

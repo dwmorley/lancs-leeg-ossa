@@ -5,22 +5,36 @@ from shiny import module, reactive, ui
 @module.ui
 def footer_ui():
     return ui.tags.div(
-        ui.div(
-            ui.span("Data sources: Etc. "),
-            ui.br(),
-            ui.span("Attribution text and project info can go here."),
-            class_="footer-text",
+        ui.tags.div(
+            "© 2026 Lancaster University | Version 0.0.0", class_="footer-left"
         ),
-        ui.div(
-            ui.input_action_button(
-                "help_btn",
-                "",
-                icon=icon_svg("circle-question", height="20px", width="20px"),
-                class_="footer-icon footer-icon-button",
+        ui.tags.div(
+            ui.tags.span(
+                ui.input_action_button(
+                    "help_btn",
+                    "",
+                    icon=icon_svg("circle-question", height="20px", width="20px"),
+                    class_="footer-icon footer-icon-button",
+                ),
             ),
-            class_="footer-logos",
+            ui.tags.span(
+                ui.input_action_button(
+                    "info_btn",
+                    "",
+                    icon=icon_svg("circle-info", height="20px", width="20px"),
+                    class_="footer-icon footer-icon-button",
+                ),
+            ),
+            ui.tags.span(
+                ui.input_action_button(
+                    "github_btn",
+                    "",
+                    icon=icon_svg("github", height="20px", width="20px"),
+                    class_="footer-icon footer-icon-button",
+                ),
+            ),
         ),
-        class_="footer-bar",
+        class_="app-footer",
     )
 
 
@@ -34,6 +48,30 @@ def footer_server(input, output, session):
             ui.modal(
                 ui.h4("Help"),
                 ui.p("Add your help text or instructions here."),
+                easy_close=True,
+                footer=None,
+            )
+        )
+
+    @reactive.effect
+    @reactive.event(input.info_btn)
+    def _show_info_modal() -> None:
+        ui.modal_show(
+            ui.modal(
+                ui.h4("Information"),
+                ui.p("Add your information text here."),
+                easy_close=True,
+                footer=None,
+            )
+        )
+
+    @reactive.effect
+    @reactive.event(input.github_btn)
+    def _show_github_modal() -> None:
+        ui.modal_show(
+            ui.modal(
+                ui.h4("GitHub Repository"),
+                ui.p("Add your information text here."),
                 easy_close=True,
                 footer=None,
             )

@@ -7,7 +7,9 @@ from constants import URLS
 def header_ui():
     return ui.tags.div(
         ui.tags.div(
-            ui.div("OSSA - Optimal Spatial Sampling Algorithm"), class_="app-title"
+            ui.tags.h1(
+                "OSSA - Optimal Spatial Sampling Algorithm", class_="header-title"
+            ),
         ),
         ui.tags.div(
             ui.tags.a(
@@ -17,7 +19,7 @@ def header_ui():
             ),
             class_="logo-container",
         ),
-        class_="header-bar",
+        class_="app-header",
     )
 
 

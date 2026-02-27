@@ -11,7 +11,7 @@ from src.sampling.asd import asd_plot, glmmPQL_via_rpy2
 from src.sampling.lcp import lcp, plot_lcp
 from src.sampling.luqdaloop import luqdaloop, newdata_to_raster, plot_wilks_lambda
 
-SKIP_RS = False
+SKIP_RS = True
 SKIP_QDA_LCP = False
 SKIP_ASD = True
 
@@ -64,7 +64,7 @@ if not SKIP_RS:
     xyz.to_csv("output/xyz.csv")
 else:
     # xyz = pd.read_csv("output/xyz.csv", index_col=0)
-    xyz = pd.read_csv("/Users/david/Downloads/ossa_extracted_XwithSEA.csv")
+    xyz = pd.read_csv("/Users/david/Downloads/ossa_extracted_170226_1155.csv")
 
 # =========================================
 # STEP 2: Ecological classification
@@ -79,7 +79,7 @@ if not SKIP_QDA_LCP:
     grid = xyz[["longitude", "latitude"]].values
 
     # Do QDA
-    class_analysis = luqdaloop(X=X, y=y, grid=grid, nx=10)
+    class_analysis = luqdaloop(X=X, y=y, grid=grid, nx=8)
 
     best_n_classes = class_analysis["NewData"]["BestClass"].nunique()
     new_data = class_analysis["NewData"][["grid1", "grid2", "BestClass"]].rename(

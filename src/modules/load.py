@@ -7,10 +7,11 @@ def load_ui():
     return ui.div(
         ui.input_file(
             "data_file",
-            "Choose .csv file",
+            "",
             accept=[".csv"],
             multiple=False,
             width="100%",
+            placeholder="Upload a previously saved CSV file",
         ),
         class_="input-section",
     )
@@ -76,7 +77,6 @@ def load_server(input, output, session, reactive_values):
             }
             drawn_shapes.set([rectangle_data])
 
-            # Zoom map to fit the bounds by calling the exposed map reference
             try:
                 map_ref = reactive_values.get("map_ref")
                 if map_ref is not None:
