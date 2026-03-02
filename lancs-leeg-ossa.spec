@@ -9,6 +9,10 @@ shiny_datas, shiny_binaries, shiny_hiddenimports = collect_all("shiny")
 faicons_datas, faicons_binaries, faicons_hiddenimports = collect_all("faicons")
 matplotlib_datas, matplotlib_binaries, matplotlib_hiddenimports = collect_all("matplotlib")
 folium_datas, folium_binaries, folium_hiddenimports = collect_all("folium")
+rasterio_datas, rasterio_binaries, rasterio_hiddenimports = collect_all("rasterio")
+rioxarray_datas, rioxarray_binaries, rioxarray_hiddenimports = collect_all("rioxarray")
+xarray_datas, xarray_binaries, xarray_hiddenimports = collect_all("xarray")
+pandas_datas, pandas_binaries, pandas_hiddenimports = collect_all("pandas")
 
 # Get absolute paths for data directories
 # This spec is run from the project root directory
@@ -17,19 +21,51 @@ www_dir = os.path.join(root_dir, "www")
 static_dir = os.path.join(root_dir, "static")
 
 # Add directories only if they exist
-datas = shiny_datas + faicons_datas + matplotlib_datas + folium_datas
+datas = (
+    shiny_datas
+    + faicons_datas
+    + matplotlib_datas
+    + folium_datas
+    + rasterio_datas
+    + rioxarray_datas
+    + xarray_datas
+    + pandas_datas
+)
 if os.path.exists(www_dir):
     datas.append((www_dir, "www"))
 if os.path.exists(static_dir):
     datas.append((static_dir, "static"))
 
-binaries = shiny_binaries + faicons_binaries + matplotlib_binaries + folium_binaries
+binaries = (
+    shiny_binaries
+    + faicons_binaries
+    + matplotlib_binaries
+    + folium_binaries
+    + rasterio_binaries
+    + rioxarray_binaries
+    + xarray_binaries
+    + pandas_binaries
+)
 
 hiddenimports = (
     shiny_hiddenimports
     + faicons_hiddenimports
     + matplotlib_hiddenimports
     + folium_hiddenimports
+    + rasterio_hiddenimports
+    + rioxarray_hiddenimports
+    + xarray_hiddenimports
+    + pandas_hiddenimports
+    + [
+        "rasterio.sample",
+        "rasterio._io",
+        "rasterio.dtypes",
+        "rasterio.shutil",
+        "rasterio.vrt",
+        "rasterio.compat",
+        "rasterio.crs",
+        "rasterio.features",
+    ]
 )
 
 
@@ -62,7 +98,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,
