@@ -16,14 +16,12 @@ root_dir = os.path.abspath(os.path.curdir)
 www_dir = os.path.join(root_dir, "www")
 static_dir = os.path.join(root_dir, "static")
 
-# Ensure directories exist
-assert os.path.exists(www_dir), f"www directory not found at {www_dir}"
-assert os.path.exists(static_dir), f"static directory not found at {static_dir}"
-
-datas = shiny_datas + faicons_datas + matplotlib_datas + folium_datas + [
-    (www_dir, "www"),
-    (static_dir, "static"),
-]
+# Add directories only if they exist
+datas = shiny_datas + faicons_datas + matplotlib_datas + folium_datas
+if os.path.exists(www_dir):
+    datas.append((www_dir, "www"))
+if os.path.exists(static_dir):
+    datas.append((static_dir, "static"))
 
 binaries = shiny_binaries + faicons_binaries + matplotlib_binaries + folium_binaries
 
