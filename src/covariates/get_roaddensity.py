@@ -46,7 +46,9 @@ def get_roaddensity(
     asc_file = next(f for f in os.listdir(exdir) if f.endswith("dens_m_km2.asc"))
     raster = xr.open_dataarray(os.path.join(exdir, asc_file), engine="rasterio")
     raster.rio.write_crs("EPSG:4326", inplace=True)
-    raster_clipped = raster.rio.clip_box(bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax)
+    raster_clipped = raster.rio.clip_box(
+        bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, allow_one_dimensional_raster=True
+    )
 
     try:
         os.remove(zippath)

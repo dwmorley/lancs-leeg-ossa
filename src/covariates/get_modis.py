@@ -77,9 +77,7 @@ def get_modis(
     return rasters
 
 
-def aggregate_ts(
-    da_raster: xr.DataArray, method: str = "mean"
-) -> Union[xr.DataArray, None]:
+def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.DataArray, None]:
 
     if "time" not in da_raster.coords or len(da_raster.time) <= 1:
         return None
@@ -92,8 +90,7 @@ def aggregate_ts(
 
     if method not in methods:
         raise ValueError(
-            f"Unsupported aggregation method: {method}. "
-            f"Choose from {list(methods.keys())}"
+            f"Unsupported aggregation method: {method}. " f"Choose from {list(methods.keys())}"
         )
 
     return methods[method](da_raster)

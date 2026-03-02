@@ -113,9 +113,7 @@ def glmmPQL_via_rpy2(
 
     ro.r("""xx <- dist(x[, 1:2])""")
     ro.r("""xx <- as.matrix(xx)""")
-    ro.r(
-        f"""xx <- lapply(2:nrow(xx),function(y)which(xx[(y-1),y:nrow(xx)]<={delta})+(y-1))"""
-    )
+    ro.r(f"""xx <- lapply(2:nrow(xx),function(y)which(xx[(y-1),y:nrow(xx)]<={delta})+(y-1))""")
     ro.r("""xx <- unique(unlist(xx))""")
     ro.r("""x <- x[-xx,]""")
     ro.r(f"""x <- x[1:{total},]""")
@@ -148,9 +146,7 @@ def glmmPQL_via_rpy2(
     return da, x_df
 
 
-def asd_plot(
-    plot_title: str, da: xr.DataArray, x_df: pd.DataFrame, z_grid: np.ndarray
-) -> None:
+def asd_plot(plot_title: str, da: xr.DataArray, x_df: pd.DataFrame, z_grid: np.ndarray) -> None:
 
     extent = (
         float(da.x.min().values),

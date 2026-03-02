@@ -42,9 +42,7 @@ def data_ui():
                                 end=datetime.now().date(),
                             ),
                             ui.div(
-                                {
-                                    "style": "display: flex; gap: 10px; align-items: flex-end;"
-                                },
+                                {"style": "display: flex; gap: 10px; align-items: flex-end;"},
                                 ui.input_numeric(
                                     "sample_size",
                                     ui.span("Sample size"),
@@ -79,13 +77,6 @@ def data_ui():
                         ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
                         class_="action-button",
                     ),
-                    # ui.input_action_button(
-                    #     "export_rasters",
-                    #     ui.tags.span(
-                    #         [icon_svg("layer-group")], class_="icon-square-btn"
-                    #     ),
-                    #     class_="action-button",
-                    # ),
                     ui.input_action_button(
                         "run_extraction",
                         ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
@@ -148,9 +139,7 @@ def data_server(input, output, session, reactive_values):
         # Get current bounds
         bounds = drawn_shapes.get()
         if not bounds:
-            ui.notification_show(
-                "Please draw a rectangle on the map first.", type="warning"
-            )
+            ui.notification_show("Please draw a rectangle on the map first.", type="warning")
             return
 
         extents = bounds[0]["bounds"]
@@ -159,9 +148,7 @@ def data_server(input, output, session, reactive_values):
         east = extents["east"]
         west = extents["west"]
 
-        bbox = BoundingBox(
-            [min(west, east), min(south, north), max(west, east), max(south, north)]
-        )
+        bbox = BoundingBox([min(west, east), min(south, north), max(west, east), max(south, north)])
 
         # Get selected variables and parameters
         selected_vars = input.covariate_vars()
@@ -175,7 +162,7 @@ def data_server(input, output, session, reactive_values):
         with ui.Progress(min=0, max=100) as p:
             p.set(message="Starting extraction...", value=0)
 
-            extracted_df, stacked = run_extraction(
+            extracted_df = run_extraction(
                 bbox=bbox,
                 variables=selected_vars,
                 date_range=input.covariate_dates(),
@@ -184,7 +171,6 @@ def data_server(input, output, session, reactive_values):
             )
 
         reactive_values["extracted_df"] = extracted_df
-        reactive_values["stacked_da"] = stacked
 
         try:
             map_ref = reactive_values.get("map_ref")
@@ -227,20 +213,6 @@ def data_server(input, output, session, reactive_values):
             "No data to export.",
         )
 
-    @reactive.effect
-    @reactive.event(input.export_rasters)
-    def _handle_export_rasters() -> None:
-        def export_rasters(stacked, fn):
-            stacked_ds = stacked.to_dataset(dim="band")
-            stacked_ds.rio.to_raster(str(fn), compress="deflate", COMPRESS_LEVEL=9)
-
-        _export_with_notification(
-            reactive_values.get("stacked_da"),
-            "ossa_rasters_{ts}.tif",
-            export_rasters,
-            "No data to export.",
-        )
-
 
 def get_downloads_folder():
     """Get the Downloads folder path for the current platform."""
@@ -263,6 +235,4 @@ def get_boundingbox(bounds: List[str]) -> BoundingBox:
     south = extents["south"]
     east = extents["east"]
     west = extents["west"]
-    return BoundingBox(
-        [min(west, east), min(south, north), max(west, east), max(south, north)]
-    )
+    return BoundingBox([min(west, east), min(south, north), max(west, east), max(south, north)])

@@ -57,25 +57,15 @@ def aoi_server(input, output, session, reactive_values):
 
         updating_from_map.set(True)
         try:
-            ui.update_text(
-                "bounds_north", value=f"{rectangle_data['bounds']['north']:.4f}"
-            )
-            ui.update_text(
-                "bounds_south", value=f"{rectangle_data['bounds']['south']:.4f}"
-            )
-            ui.update_text(
-                "bounds_east", value=f"{rectangle_data['bounds']['east']:.4f}"
-            )
-            ui.update_text(
-                "bounds_west", value=f"{rectangle_data['bounds']['west']:.4f}"
-            )
+            ui.update_text("bounds_north", value=f"{rectangle_data['bounds']['north']:.4f}")
+            ui.update_text("bounds_south", value=f"{rectangle_data['bounds']['south']:.4f}")
+            ui.update_text("bounds_east", value=f"{rectangle_data['bounds']['east']:.4f}")
+            ui.update_text("bounds_west", value=f"{rectangle_data['bounds']['west']:.4f}")
         finally:
             updating_from_map.set(False)
 
     @reactive.effect
-    @reactive.event(
-        input.bounds_north, input.bounds_south, input.bounds_east, input.bounds_west
-    )
+    @reactive.event(input.bounds_north, input.bounds_south, input.bounds_east, input.bounds_west)
     def _update_from_inputs() -> None:
         # Avoid reacting to updates that originated from the map
         if updating_from_map.get():
@@ -133,18 +123,10 @@ def aoi_server(input, output, session, reactive_values):
         # Only update text fields and drawn_shapes if not updating_from_map
         updating_from_map.set(True)
         try:
-            ui.update_text(
-                "bounds_north", value=f"{rectangle_data['bounds']['north']:.4f}"
-            )
-            ui.update_text(
-                "bounds_south", value=f"{rectangle_data['bounds']['south']:.4f}"
-            )
-            ui.update_text(
-                "bounds_east", value=f"{rectangle_data['bounds']['east']:.4f}"
-            )
-            ui.update_text(
-                "bounds_west", value=f"{rectangle_data['bounds']['west']:.4f}"
-            )
+            ui.update_text("bounds_north", value=f"{rectangle_data['bounds']['north']:.4f}")
+            ui.update_text("bounds_south", value=f"{rectangle_data['bounds']['south']:.4f}")
+            ui.update_text("bounds_east", value=f"{rectangle_data['bounds']['east']:.4f}")
+            ui.update_text("bounds_west", value=f"{rectangle_data['bounds']['west']:.4f}")
             drawn_shapes.set([rectangle_data])
         finally:
             updating_from_map.set(False)

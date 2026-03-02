@@ -25,9 +25,7 @@ def map_server(input, output, session, reactive_values):
         circle={},
         circlemarker={},
         marker={},
-        rectangle={
-            "shapeOptions": {"color": "red", "fillColor": "red", "fillOpacity": 0.2}
-        },
+        rectangle={"shapeOptions": {"color": "red", "fillColor": "red", "fillOpacity": 0.2}},
         edit=False,
         remove=False,
     )
@@ -110,9 +108,7 @@ def map_server(input, output, session, reactive_values):
             return
 
         base_layers = [
-            lyr
-            for lyr in m.layers
-            if isinstance(lyr, (L.TileLayer, L.LayersControl, DrawControl))
+            lyr for lyr in m.layers if isinstance(lyr, (L.TileLayer, L.LayersControl, DrawControl))
         ]
 
         to_render = []

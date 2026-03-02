@@ -51,9 +51,7 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
         method="nearest",
     ).values
 
-    dataframe = pd.DataFrame(
-        {"x": grid_pts[:, 0], "y": grid_pts[:, 1], "class": classes}
-    )
+    dataframe = pd.DataFrame({"x": grid_pts[:, 0], "y": grid_pts[:, 1], "class": classes})
     dataframe = dataframe.dropna()
 
     t = np.array([np.sum(dataframe["class"] == val) for val in xx])
@@ -103,9 +101,7 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
             y=xr.DataArray(dataframe2[:, 1], dims="points"),
             method="nearest",
         ).values
-        dataframe2 = pd.DataFrame(
-            {"x": dataframe2[:, 0], "y": dataframe2[:, 1], "v": classes2}
-        )
+        dataframe2 = pd.DataFrame({"x": dataframe2[:, 0], "y": dataframe2[:, 1], "v": classes2})
     else:
         dataframe2 = pd.DataFrame(columns=["x", "y", "v"])
 
@@ -126,9 +122,7 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
                 )
                 bb.append(pts)
             else:
-                sample_idx = np.random.choice(
-                    x_idx, min(int(v[i]), len(x_idx)), replace=False
-                )
+                sample_idx = np.random.choice(x_idx, min(int(v[i]), len(x_idx)), replace=False)
                 bb.append(dataframe2.loc[sample_idx, ["x", "y", "v"]].values)
 
     bb = np.vstack(bb) if bb else np.empty((0, 3))
@@ -172,9 +166,7 @@ def plot_lcp(map_raster: xr.DataArray, sites: pd.DataFrame, n_classes: int) -> N
         linewidth=2,
     )
 
-    ax.set_title(
-        "Ecological Classification with Sampling Sites", fontsize=14, fontweight="bold"
-    )
+    ax.set_title("Ecological Classification with Sampling Sites", fontsize=14, fontweight="bold")
     ax.legend(loc="upper right", fontsize=11)
     plt.tight_layout()
     plt.show()

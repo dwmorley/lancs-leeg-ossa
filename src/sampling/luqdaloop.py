@@ -116,17 +116,14 @@ def luqdaloop(
     if np.sum(N2) > 0:
         cluster_keys = [f"{i + int(np.sum(G2))}cluster" for i in range(2, nx + 1)]
         all: Dict[str, Any] = {
-            key: None
-            for key in ["WilksSummary"] + cluster_keys + ["ExcludedClusters", "NewData"]
+            key: None for key in ["WilksSummary"] + cluster_keys + ["ExcludedClusters", "NewData"]
         }
         all["ExcludedClusters"] = np.column_stack(
             [grid[N2 == 1, :], X[N2 == 1, :], y[N2 == 1], prior[N2 == 1, :][:, G2 == 1]]
         )
     else:
         cluster_keys = [f"{i}cluster" for i in range(2, nx + 1)]
-        all: Dict[str, Any] = {
-            key: None for key in ["WilksSummary"] + cluster_keys + ["NewData"]
-        }
+        all: Dict[str, Any] = {key: None for key in ["WilksSummary"] + cluster_keys + ["NewData"]}
 
     # ===== INITIAL LDA =====
     all[f"{ng}cluster"] = ls_da(X=XX, y=yy, prior=prior_cleaned, test=test)
@@ -269,9 +266,7 @@ def luqdaloop(
     return all
 
 
-def ls_da(
-    X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None] = None
-) -> dict:
+def ls_da(X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None] = None) -> dict:
     """
     Linear discriminant analysis with localised priors.
 
@@ -328,9 +323,7 @@ def ls_da(
         # Discriminant function: Mahalanobis distance + log determinant - log prior
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
-            disc[:, k] = (
-                0.5 * np.sum(dev**2, axis=1) + 0.5 * ldet[k] - np.log(prior[:, k])
-            )
+            disc[:, k] = 0.5 * np.sum(dev**2, axis=1) + 0.5 * ldet[k] - np.log(prior[:, k])
 
     # Convert to probabilities
     disc = np.exp(-(disc - np.min(disc, axis=1, keepdims=True)))
@@ -342,9 +335,7 @@ def ls_da(
     y_cat = pd.Categorical(y, categories=classes)
     pred_cat = pd.Categorical(pred_class, categories=classes)
 
-    conf = pd.crosstab(
-        y_cat, pred_cat, rownames=["original"], colnames=["predicted"], dropna=False
-    )
+    conf = pd.crosstab(y_cat, pred_cat, rownames=["original"], colnames=["predicted"], dropna=False)
     err = 1 - np.trace(conf.values)
 
     # Wilks' Lambda test statistic
@@ -485,9 +476,7 @@ def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataA
     pivoted = df.pivot(index="y", columns="x", values="id")
     pivoted.index = pivoted.index.round(round_coords)
     pivoted.columns = pivoted.columns.round(round_coords)
-    pivoted = pivoted.reindex(
-        index=ys_full, columns=xs_full, tolerance=1e-5, method="nearest"
-    )
+    pivoted = pivoted.reindex(index=ys_full, columns=xs_full, tolerance=1e-5, method="nearest")
 
     map_raster = xr.DataArray(
         pivoted.values,

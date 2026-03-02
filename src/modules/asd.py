@@ -99,9 +99,7 @@ def asd_server(input, output, session, reactive_values):
             plot_title = "ASD Uncertainty"
 
         map_raster = results["map_raster"]
-        overlay = dataarray_to_image_overlay(
-            map_raster, categorical=False, name=plot_title
-        )
+        overlay = dataarray_to_image_overlay(map_raster, categorical=False, name=plot_title)
         lcp_df = results["asd_sites"]
         points = make_point_layer(lcp_df, layer_name="ASD Sites")
         my_ossa_layers.set([overlay, points])

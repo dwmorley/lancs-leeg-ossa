@@ -34,9 +34,14 @@ def get_terraclimate(
     da = ds[variable].sel(time=slice(f"{year}-01-01", f"{year}-12-31"))
 
     da.rio.write_crs("EPSG:4326", inplace=True)
-    da_clipped = da.rio.clip_box(bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax)
+    da_clipped = da.rio.clip_box(
+        bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, allow_one_dimensional_raster=True
+    )
 
     da_clipped = da_clipped.mean(dim="time", skipna=True)
+
+    # Rename lat/lon to x/y for consistency with other raster sources
+    da_clipped = da_clipped.rename({"lon": "x", "lat": "y"})
 
     return da_clipped
 

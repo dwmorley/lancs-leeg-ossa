@@ -34,7 +34,9 @@ def get_worldpop(
 
     merged = xr.combine_by_coords(rasters)
     merged.rio.write_crs("EPSG:4326", inplace=True)
-    merged_clipped = merged.rio.clip_box(bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax)
+    merged_clipped = merged.rio.clip_box(
+        bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, allow_one_dimensional_raster=True
+    )
 
     return merged_clipped
 

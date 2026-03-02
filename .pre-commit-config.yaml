@@ -12,7 +12,7 @@ repos:
     rev: 5.13.2
     hooks:
       - id: isort
-        args: ["--profile", "black"]
+        args: ["--profile", "black", "--line-length", "100"]
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
@@ -22,4 +22,4 @@ repos:
     rev: 7.1.1
     hooks:
       - id: flake8
-        args: ["-j8", "--ignore=E203,E501,P103,W503"]
+        args: ["-j8", "--max-line-length=100", "--ignore=E203,E501,W503"]

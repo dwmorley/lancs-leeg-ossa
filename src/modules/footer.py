@@ -5,9 +5,7 @@ from shiny import module, reactive, ui
 @module.ui
 def footer_ui():
     return ui.tags.div(
-        ui.tags.div(
-            "© 2026 Lancaster University | Version 0.0.0", class_="footer-left"
-        ),
+        ui.tags.div("© 2026 Lancaster University | Version 0.0.0", class_="footer-left"),
         ui.tags.div(
             ui.tags.span(
                 ui.input_action_button(
@@ -30,6 +28,14 @@ def footer_ui():
                     "github_btn",
                     "",
                     icon=icon_svg("github", height="20px", width="20px"),
+                    class_="footer-icon footer-icon-button",
+                ),
+            ),
+            ui.tags.span(
+                ui.input_action_button(
+                    "apikey_btn",
+                    "",
+                    icon=icon_svg("key", height="20px", width="20px"),
                     class_="footer-icon footer-icon-button",
                 ),
             ),
@@ -72,6 +78,18 @@ def footer_server(input, output, session):
             ui.modal(
                 ui.h4("GitHub Repository"),
                 ui.p("Add your information text here."),
+                easy_close=True,
+                footer=None,
+            )
+        )
+
+    @reactive.effect
+    @reactive.event(input.apikey_btn)
+    def _show_apikey_modal() -> None:
+        ui.modal_show(
+            ui.modal(
+                ui.h4("API Key Management"),
+                ui.p("Add your API key management instructions here."),
                 easy_close=True,
                 footer=None,
             )

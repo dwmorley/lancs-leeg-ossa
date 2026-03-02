@@ -87,7 +87,9 @@ class BoundingBox:
 
     def __repr__(self):
         """String representation of BoundingBox."""
-        return f"BoundingBox(xmin={self.xmin}, ymin={self.ymin}, xmax={self.xmax}, ymax={self.ymax})"
+        return (
+            f"BoundingBox(xmin={self.xmin}, ymin={self.ymin}, xmax={self.xmax}, ymax={self.ymax})"
+        )
 
     def estimate_utm_epsg(self) -> int:
         """

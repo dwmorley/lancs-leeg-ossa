@@ -17,9 +17,7 @@ def dataarray_to_image_overlay(
 
     data = da.values.astype(float)
     lats = np.array(da.coords.get("y", da.coords.get("lat", da.coords.get("latitude"))))
-    lons = np.array(
-        da.coords.get("x", da.coords.get("lon", da.coords.get("longitude")))
-    )
+    lons = np.array(da.coords.get("x", da.coords.get("lon", da.coords.get("longitude"))))
     lat_res = np.abs(np.diff(lats)).mean() if len(lats) > 1 else 0.01
     lon_res = np.abs(np.diff(lons)).mean() if len(lons) > 1 else 0.01
     bounds = [
@@ -50,9 +48,7 @@ def dataarray_to_image_overlay(
     if categorical:
         cmap = cm.tab20 if np.unique(data).size <= 20 else cm.viridis
 
-        ax.imshow(
-            data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest"
-        )
+        ax.imshow(data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest")
     else:
         vmin, vmax = data.min(), data.max()
         cuts = np.linspace(vmin, vmax, 12)

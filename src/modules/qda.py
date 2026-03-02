@@ -113,9 +113,7 @@ def qda_server(input, output, session, reactive_values):
         # draw_control.data = []
         drawn_shapes.set([])
         map_raster = results["map_raster"]
-        overlay = dataarray_to_image_overlay(
-            map_raster, categorical=True, name="LUQDA Classes"
-        )
+        overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")
         lcp_df = results["lcp_sites"]
         points = make_point_layer(lcp_df, layer_name="LCP Sites")
         my_ossa_layers.set([overlay, points])
