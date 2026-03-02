@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 import geopandas as gpd
 from shapely.geometry import box
 
@@ -6,8 +9,8 @@ from src.utils.bounding_box import BoundingBox
 
 def get_iso3_codes(bbox: BoundingBox) -> list[str]:
 
-    # fn = "static/ne_50m_admin_0_countries.gpkg"
-    fn = "/Users/david/Documents/GitHub/lancs-leeg-ossa/static/ne_50m_admin_0_countries.gpkg"
+    base_path = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    fn = base_path / "static" / "ne_50m_admin_0_countries.gpkg"
 
     world = gpd.read_file(fn)
 

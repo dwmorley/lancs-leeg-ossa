@@ -1,0 +1,110 @@
+name: Build standalone app
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Install PyInstaller
+        run: poetry run pip install pyinstaller
+
+      - name: Build executable
+        run: poetry run pyinstaller lancs-leeg-ossa.spec --noconfirm --clean
+
+      - name: Package build output
+        shell: bash
+        run: |
+          mkdir -p release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell -Command "Compress-Archive -Path dist/* -DestinationPath release/lancs-leeg-ossa-Windows.zip"
+          else
+            cd dist
+            zip -r "../release/lancs-leeg-ossa-${{ runner.os }}.zip" .
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lancs-leeg-ossa-${{ runner.os }}
+          path: release/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate tag matches project version
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PROJECT_VERSION="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['poetry']['version'])")"
+
+          echo "Tag version: ${TAG_VERSION}"
+          echo "Project version: ${PROJECT_VERSION}"
+
+          if [[ "${TAG_VERSION}" != "${PROJECT_VERSION}" ]]; then
+            echo "Tag v${TAG_VERSION} does not match pyproject.toml version ${PROJECT_VERSION}."
+            exit 1
+          fi
+
+      - name: Validate release notes are updated
+        run: |
+          if grep -q "RELEASE_NOTES_TODO" RELEASE_NOTES.md; then
+            echo "RELEASE_NOTES.md still contains placeholder text."
+            echo "Please update RELEASE_NOTES.md before tagging a release."
+            exit 1
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: lancs-leeg-ossa-*
+          merge-multiple: true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: release-assets/*

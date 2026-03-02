@@ -1,0 +1,82 @@
+name: Check dependency sync
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-requirements-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build expected requirements from pyproject
+        shell: bash
+        run: |
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+
+          def caret_to_range(v: str) -> str:
+              parts = [int(p) for p in v.split('.')]
+              while len(parts) < 3:
+                  parts.append(0)
+              major, minor, patch = parts[:3]
+              lower = f">={major}.{minor}.{patch}"
+              if major > 0:
+                  upper = f"<{major + 1}.0.0"
+              elif minor > 0:
+                  upper = f"<0.{minor + 1}.0"
+              else:
+                  upper = f"<0.0.{patch + 1}"
+              return f"{lower},{upper}"
+
+
+          with open("pyproject.toml", "rb") as f:
+              pyproject = tomllib.load(f)
+
+          deps = pyproject["tool"]["poetry"]["dependencies"]
+          lines = []
+          for name, spec in deps.items():
+              if name == "python":
+                  continue
+
+              if isinstance(spec, str):
+                  version = spec.strip()
+              else:
+                  version = spec.get("version", "").strip()
+
+              if version.startswith("^"):
+                  version = caret_to_range(version[1:])
+
+              marker = spec.get("markers") if isinstance(spec, dict) else None
+              if marker:
+                  lines.append(f"{name}{version} ; {marker}")
+              else:
+                  lines.append(f"{name}{version}")
+
+          Path("requirements.expected.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Compare requirements files
+        shell: bash
+        run: |
+          if ! diff -u requirements.expected.txt requirements.txt; then
+            echo "requirements.txt is out of sync with pyproject.toml dependencies."
+            echo "Please regenerate requirements.txt to match pyproject.toml."
+            exit 1
+          fi
