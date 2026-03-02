@@ -15,6 +15,8 @@ COVARIATE_OPTIONS = {
     "grip3": "GRIP Road Density - Secondary Roads",
     "grip4": "GRIP Road Density - Tertiary Roads",
     "grip5": "GRIP Road Density - Local Roads",
+    "ET_500m": "MODIS Yearly Evapotranspiration (500m)",
+    "LST_Day_1KM": "MODIS Yearly LST Day (1km)",
     "terraclimate_aet": "TerraClimate Actual Evapotranspiration",
     "terraclimate_def": "TerraClimate Water Deficit",
     "terraclimate_pet": "TerraClimate Potential Evapotranspiration",

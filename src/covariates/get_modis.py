@@ -7,7 +7,7 @@ import rioxarray  # noqa: F401
 import stackstac
 import xarray as xr
 
-from src.gis.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox
 
 MODIS_CONFIGS = {
     "ET_500m": {"aggregation": ["mean"], "date_range": "{year}", "nodata": 6553},

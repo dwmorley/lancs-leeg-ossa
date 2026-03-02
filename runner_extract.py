@@ -11,7 +11,7 @@ from src.covariates.get_modis import get_modis
 from src.covariates.get_roaddensity import get_roaddensity
 from src.covariates.get_terraclimate import get_terraclimate
 from src.covariates.get_worldpop import get_worldpop
-from src.gis.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox
 
 
 def run_extraction(
@@ -27,6 +27,8 @@ def run_extraction(
         "dem": lambda: get_dem(bbox=bbox, res=30),
         "wp_1km_unadj": lambda: get_worldpop(bbox=bbox, year=year),
         "modis": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", year=year),
+        "ET_500m": lambda: get_modis(bbox=bbox, variable="ET_500m", year=year),
+        "LST_Day_1KM": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", year=year),
         "grip0": lambda: get_roaddensity(bbox=bbox, road_type=0),
         "grip1": lambda: get_roaddensity(bbox=bbox, road_type=1),
         "grip2": lambda: get_roaddensity(bbox=bbox, road_type=2),
@@ -76,18 +78,18 @@ def run_extraction(
         else:
             raise ValueError(f"Unknown variable: {var}")
 
-        # Handle dict return (e.g., from get_modis)
         if isinstance(raster, dict):
-            # TODO: For now, just take the first raster from the dict, should be min max etc
-            raster = list(raster.values())[0]
-            if raster is None:
-                continue
+            for k, v in raster.items():
+                values = v.sel(x=x, y=y, method="nearest").values
+                if values.ndim > 1:
+                    values = values.squeeze()
+                df[k] = values
 
-        values = raster.sel(x=x, y=y, method="nearest").values
-        if values.ndim > 1:
-            values = values.squeeze()
-
-        df[var] = values
+        else:
+            values = raster.sel(x=x, y=y, method="nearest").values
+            if values.ndim > 1:
+                values = values.squeeze()
+            df[var] = values
 
     progress.set(value=100, message="Finalising...")
 

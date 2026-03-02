@@ -4,7 +4,7 @@ import pystac_client
 import stackstac
 import xarray
 
-from src.gis.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox
 
 
 def get_lulc(

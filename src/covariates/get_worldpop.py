@@ -4,8 +4,8 @@ import rioxarray as rxr
 import xarray as xr
 from rasterio.io import MemoryFile
 
-from src.gis.bounding_box import BoundingBox
-from src.gis.iso3 import get_iso3_codes
+from src.utils.bounding_box import BoundingBox
+from src.utils.iso3 import get_iso3_codes
 
 
 def get_worldpop(

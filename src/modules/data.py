@@ -1,6 +1,4 @@
-import platform
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import List
 
 from faicons import icon_svg
@@ -8,7 +6,8 @@ from shiny import module, reactive, render, ui
 
 from constants import COVARIATE_OPTIONS, GRID_SAMPLE_SIZE
 from runner_extract import run_extraction
-from src.gis.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox
+from src.utils.downloads import get_downloads_folder
 
 
 @module.ui
@@ -152,9 +151,9 @@ def data_server(input, output, session, reactive_values):
 
         # Get selected variables and parameters
         selected_vars = input.covariate_vars()
-        if len(selected_vars) <= 1:
+        if len(selected_vars) <= 2:
             ui.notification_show(
-                "Please select at least one additional variable to landcover.",
+                "Please select at least two additional variables to landcover.",
                 type="warning",
             )
             return
@@ -212,21 +211,6 @@ def data_server(input, output, session, reactive_values):
             lambda df, fn: df.to_csv(fn, index=False),
             "No data to export.",
         )
-
-
-def get_downloads_folder():
-    """Get the Downloads folder path for the current platform."""
-    if platform.system() == "Windows":
-        import winreg
-
-        sub_key = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
-        downloads_guid = "{374DE290-123F-4565-9164-39C4925E467B}"
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
-            location = winreg.QueryValueEx(key, downloads_guid)[0]
-        return Path(location)
-    else:
-        # macOS and Linux
-        return Path.home() / "Downloads"
 
 
 def get_boundingbox(bounds: List[str]) -> BoundingBox:

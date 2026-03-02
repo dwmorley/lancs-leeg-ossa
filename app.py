@@ -73,6 +73,8 @@ def server(input, output, session):
         "my_ossa_layers": reactive.Value([]),
         "drawn_shapes": reactive.Value([]),
         "updating_from_map": reactive.Value(False),
+        "qda_lcp_results": reactive.Value([]),
+        "asd_results": reactive.Value([]),
     }
 
     map.map_server("my_map", reactive_values)

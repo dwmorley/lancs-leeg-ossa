@@ -7,7 +7,7 @@ import rioxarray  # noqa: F401
 import stackstac
 import xarray
 
-from src.gis.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox
 
 # TODO: This dataset has a known issue with 1 pixel wide NaN edge artefacts
 

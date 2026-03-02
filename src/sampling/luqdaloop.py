@@ -157,8 +157,8 @@ def luqdaloop(
                 prior2.iloc[:, a[i]] = prior2.iloc[:, a[i]] / 2
                 ng2 = ng2 + 1
 
-                # counts_pd = pd.Series(y2).value_counts()
-                # print(counts_pd)
+                counts_pd = pd.Series(y2).value_counts()
+                print(counts_pd)
 
                 all[f"{ng2}cluster"] = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
                 tb2 = np.append(tb2, len(half_indices))
@@ -250,7 +250,7 @@ def luqdaloop(
             + ["BestClass"]
         )
     else:
-        cls = N2.copy().astype(object)
+        cls = np.zeros(len(N2)).astype(str)
         cls[N2 == 0] = all[best_key]["classification"]
         cls[N2 == 1] = y[N2 == 1]
         bestdata = np.column_stack([grid, X, y, prior, cls])
@@ -262,6 +262,9 @@ def luqdaloop(
             + [f"Prior{i}" for i in range(prior.shape[1])]
             + ["BestClass"]
         )
+
+        # counts_pd = pd.Series(all["NewData"]["BestClass"]).value_counts()
+        # print(counts_pd)
 
     return all
 
@@ -425,7 +428,7 @@ def Wilks_test(X, y):
     return lambda_stat
 
 
-def plot_wilks_lambda(wilks: pd.Series, opt_classes: int):
+def plot_wilks_lambda(wilks: pd.Series, opt_classes: int, deficient_classes: int = 0):
 
     # Plot Wilks' Lambda
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -436,15 +439,28 @@ def plot_wilks_lambda(wilks: pd.Series, opt_classes: int):
         linewidth=2,
         markersize=6,
     )
+
+    subtitle = f"Selected classes (n={opt_classes})"
+    if deficient_classes > 0:
+        subtitle += f" | Excluded {deficient_classes} rank-deficient classes"
+
+    ax.text(
+        0.5,
+        -0.12,
+        subtitle,
+        transform=ax.transAxes,
+        ha="center",
+        va="top",
+        fontsize=10,
+    )
+
     ax.axvline(
         x=opt_classes,
         color="red",
         linestyle="--",
         linewidth=2,
-        label=f"Selected classes (n={opt_classes})",
     )
     ax.set_title("Wilks' Lambda", fontsize=14, fontweight="bold")
-    ax.set_xlabel("N classes", fontsize=12)
     ax.set_ylabel("Lambda", fontsize=12)
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=11)
@@ -490,17 +506,26 @@ def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataA
 
 if __name__ == "__main__":
 
-    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_4vars.csv")
-    # df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260227_164418.csv")
+    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260302_112805.csv")
 
-    X = df[["dem", "wp_1km_unadj", "grip0"]].values
+    X = df[["dem", "LST_Day_1KM_mean", "LST_Day_1KM_min", "LST_Day_1KM_max"]].values
     y = df["landcover"].values.astype(int)
     grid = df[["longitude", "latitude"]].values
 
     results = luqdaloop(X, y, grid, nx=8)
 
-    opt_classes = len(results["NewData"]["BestClass"].unique())
-    print("opt_classes: ", opt_classes)
+    new_data = results["NewData"][["grid1", "grid2", "BestClass"]].rename(
+        columns={"grid1": "x", "grid2": "y"}
+    )
+    rank_deficient = results.get("ExcludedClusters")
+    if rank_deficient is not None:
+        indx = 2 + X.shape[1]
+        n_excluded = len(np.unique(rank_deficient[:, indx]))
+    else:
+        n_excluded = 0
+
+    unique_classes = new_data["BestClass"].unique()
+    n_classes = len(unique_classes) - n_excluded
 
     wilks = results["WilksSummary"].loc["Wilks"][1::]
-    plot_wilks_lambda(wilks, opt_classes)
+    plot_wilks_lambda(wilks, n_classes)

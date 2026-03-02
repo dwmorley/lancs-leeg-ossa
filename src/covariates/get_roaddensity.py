@@ -4,7 +4,7 @@ import zipfile
 import requests
 import xarray as xr
 
-from src.gis.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox
 
 
 def get_roaddensity(

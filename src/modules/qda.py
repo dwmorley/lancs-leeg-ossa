@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from io import BytesIO
 
 import matplotlib.pyplot as plt
@@ -6,8 +7,9 @@ from faicons import icon_svg
 from shiny import module, reactive, ui
 
 from constants import LCP_OPTIONS, QDA_OPTIONS
-from runner_analysis import do_qda
+from runner_analysis import do_qda_and_lcp
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
+from src.utils.downloads import save_artifacts_zip
 
 
 @module.ui
@@ -93,6 +95,34 @@ def qda_ui():
 def qda_server(input, output, session, reactive_values):
 
     @reactive.effect
+    @reactive.event(input.save_qda)
+    def _handle_save_qda() -> None:
+        if not reactive_values["qda_lcp_results"]():
+            ui.notification_show(
+                "Please run the QDA/LCP analysis first.",
+                type="warning",
+            )
+            return
+
+        lcp_sites = reactive_values["qda_lcp_results"]()["lcp_sites"]
+        qda_raster = reactive_values["qda_lcp_results"]()["map_raster"]
+        wilks_plot = reactive_values["qda_lcp_results"]()["wilks_plot"]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        zip_path = save_artifacts_zip(
+            zip_name=f"qda_lcp_results_{timestamp}.zip",
+            csv_artifacts={"lcp_sites.csv": lcp_sites},
+            raster_artifacts={"qda_raster.tif": qda_raster},
+            figure_artifacts={"wilks_plot.png": wilks_plot},
+        )
+        plt.close(wilks_plot)
+
+        ui.notification_show(
+            f"Results saved to {zip_path}",
+            type="message",
+        )
+
+    @reactive.effect
     @reactive.event(input.run_qda)
     def _handle_run_qda() -> None:
 
@@ -107,7 +137,7 @@ def qda_server(input, output, session, reactive_values):
             return
 
         # Run QDA analysis
-        results = do_qda(extracted_df, input.qda_nx(), input.qda_nn())
+        results = do_qda_and_lcp(extracted_df, input.qda_nx(), input.qda_nn())
 
         # Remove drawn bbox from the map and add LCP overlays
         # draw_control.data = []
@@ -131,9 +161,10 @@ def qda_server(input, output, session, reactive_values):
                 ui.HTML(
                     f'<img src="data:image/png;base64,{img_base64}" style="width:100%; max-width:800px;">'
                 ),
-                ui.p(f"Found {results['best_n_classes']} optimal classes"),
                 easy_close=True,
                 size="l",
                 footer=None,
             )
         )
+
+        reactive_values["qda_lcp_results"].set(results)

@@ -1,7 +1,7 @@
 import geopandas as gpd
 from shapely.geometry import box
 
-from src.gis.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox
 
 
 def get_iso3_codes(bbox: BoundingBox) -> list[str]:

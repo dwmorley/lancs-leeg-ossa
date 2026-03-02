@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from src.sampling.asd import asd_plot, glmmPQL_via_rpy2  # noqa: F401
@@ -6,7 +7,7 @@ from src.sampling.luqdaloop import plot_wilks_lambda  # noqa: F401
 from src.sampling.luqdaloop import luqdaloop, newdata_to_raster
 
 
-def do_qda(df: pd.DataFrame, nx: int, nn: float) -> dict[str, any]:
+def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> dict[str, any]:
 
     X = df.drop(columns=["longitude", "latitude", "landcover"]).values
     y = df["landcover"].values.astype(int).astype(str)
@@ -18,15 +19,24 @@ def do_qda(df: pd.DataFrame, nx: int, nn: float) -> dict[str, any]:
     new_data = class_analysis["NewData"][["grid1", "grid2", "BestClass"]].rename(
         columns={"grid1": "x", "grid2": "y"}
     )
+
+    # Account for rank deficiency
+    rank_deficient = class_analysis.get("ExcludedClusters")
+    if rank_deficient is not None:
+        indx = 2 + X.shape[1]
+        n_excluded = len(np.unique(rank_deficient[:, indx]))
+    else:
+        n_excluded = 0
+
     unique_classes = new_data["BestClass"].unique()
-    n_classes = len(unique_classes)
+    n_classes = len(unique_classes) - n_excluded
 
     # Map string labels to their index in unique_classes (sequential integer values)
     label_to_index = {cls: i for i, cls in enumerate(unique_classes)}
     new_data["id"] = new_data["BestClass"].map(label_to_index)
 
     wilks = class_analysis["WilksSummary"].loc["Wilks"][1::]
-    fig = plot_wilks_lambda(wilks, n_classes)
+    fig = plot_wilks_lambda(wilks, n_classes, n_excluded)
     map_raster = newdata_to_raster(new_data)
 
     # Generate LCP sites

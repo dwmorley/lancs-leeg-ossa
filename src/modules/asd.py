@@ -1,9 +1,12 @@
+from datetime import datetime
+
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
 from constants import ASD_OPTIONS
 from runner_analysis import do_asd
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
+from src.utils.downloads import save_artifacts_zip
 
 
 @module.ui
@@ -84,6 +87,31 @@ def asd_ui():
 def asd_server(input, output, session, reactive_values):
 
     @reactive.effect
+    @reactive.event(input.save_asd)
+    def _handle_save_asd() -> None:
+        if not reactive_values["asd_results"]():
+            ui.notification_show(
+                "Please run the ASD analysis first.",
+                type="warning",
+            )
+            return
+
+        asd_sites = reactive_values["asd_results"]()["asd_sites"]
+        asd_raster = reactive_values["asd_results"]()["map_raster"]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        zip_path = save_artifacts_zip(
+            zip_name=f"asd_results_{timestamp}.zip",
+            csv_artifacts={"asd_sites.csv": asd_sites},
+            raster_artifacts={"asd_raster.tif": asd_raster},
+        )
+
+        ui.notification_show(
+            f"Results saved to {zip_path}",
+            type="message",
+        )
+
+    @reactive.effect
     @reactive.event(input.run_asd)
     def _handle_run_asd() -> None:
 
@@ -129,3 +157,5 @@ def asd_server(input, output, session, reactive_values):
                         m.fit_bounds([[lat_min, lon_min], [lat_max, lon_max]])
                     except Exception:
                         pass
+
+        reactive_values["asd_results"].set(results)
