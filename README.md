@@ -1,15 +1,5 @@
 # OSSA
 
-## Dependencies
-- Python >= 3.13
-- R >= 4.3
-
-## Setup
-
-
-
-
-
 ## Development
 
 - Ensure Poetry is installed.
@@ -38,3 +28,15 @@
 - Uses `poetry run flake8` for linting.
 - Uses `poetry run black app.py` to format the code.
 - Run on all files: `poetry run pre-commit run --all-files`
+
+## macOS Installation & Running
+
+1. Download the latest release zip
+2. Extract the zip file
+3. Right-click the app and select "Open"
+4. Click "Open" in the security dialog
+
+Or in Terminal:
+```bash
+xattr -d com.apple.quarantine /path/to/lancs-leeg-ossa.app
+```
