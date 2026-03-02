@@ -5,19 +5,7 @@ Update this file before creating a new release tag.
 The GitHub Action will fail if RELEASE_NOTES_TODO is present.
 -->
 
-RELEASE_NOTES_TODO
+## v0.0.1 (2026-03-02)
 
-## Highlights
--
-
-## Added
--
-
-## Changed
--
-
-## Fixed
--
-
-## Known Issues
--
+- Initial release
+- Test
