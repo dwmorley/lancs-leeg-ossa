@@ -17,6 +17,7 @@ pandas_datas, pandas_binaries, pandas_hiddenimports = collect_all("pandas")
 scipy_datas, scipy_binaries, scipy_hiddenimports = collect_all("scipy")
 numpy_datas, numpy_binaries, numpy_hiddenimports = collect_all("numpy")
 pillow_datas, pillow_binaries, pillow_hiddenimports = collect_all("PIL")
+rpy2_datas, rpy2_binaries, rpy2_hiddenimports = collect_all("rpy2")
 
 # Try to find GDAL/PROJ data directories from installed packages
 # This helps with rasterio/rioxarray on macOS
@@ -51,6 +52,7 @@ datas = (
     + scipy_datas
     + numpy_datas
     + pillow_datas
+    + rpy2_datas
 )
 if os.path.exists(www_dir):
     datas.append((www_dir, "www"))
@@ -70,6 +72,7 @@ binaries = (
     + scipy_binaries
     + numpy_binaries
     + pillow_binaries
+    + rpy2_binaries
 )
 
 hiddenimports = (
@@ -85,6 +88,7 @@ hiddenimports = (
     + scipy_hiddenimports
     + numpy_hiddenimports
     + pillow_hiddenimports
+    + rpy2_hiddenimports
     + [
         "rasterio.sample",
         "rasterio._io",
@@ -124,16 +128,23 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name="lancs-leeg-ossa",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=True,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name="lancs-leeg-ossa",
 )
