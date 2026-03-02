@@ -51,10 +51,11 @@ jobs:
         run: |
           mkdir -p release
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            powershell -Command "Compress-Archive -Path dist/* -DestinationPath release/lancs-leeg-ossa-Windows.zip"
+            cd dist
+            powershell -Command "Compress-Archive -Path lancs-leeg-ossa.exe -DestinationPath ../release/lancs-leeg-ossa-Windows.zip"
           else
             cd dist
-            zip -r "../release/lancs-leeg-ossa-${{ runner.os }}.zip" .
+            zip "../release/lancs-leeg-ossa-${{ runner.os }}.zip" lancs-leeg-ossa
           fi
 
       - name: Upload build artifact
