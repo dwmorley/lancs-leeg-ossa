@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
 from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
@@ -9,9 +10,14 @@ faicons_datas, faicons_binaries, faicons_hiddenimports = collect_all("faicons")
 matplotlib_datas, matplotlib_binaries, matplotlib_hiddenimports = collect_all("matplotlib")
 folium_datas, folium_binaries, folium_hiddenimports = collect_all("folium")
 
+# Get absolute paths for data directories
+root_dir = os.path.dirname(os.path.abspath(__file__))
+www_dir = os.path.join(root_dir, "www")
+static_dir = os.path.join(root_dir, "static")
+
 datas = shiny_datas + faicons_datas + matplotlib_datas + folium_datas + [
-    ("www", "www"),
-    ("static", "static"),
+    (www_dir, "www"),
+    (static_dir, "static"),
 ]
 
 binaries = shiny_binaries + faicons_binaries + matplotlib_binaries + folium_binaries
