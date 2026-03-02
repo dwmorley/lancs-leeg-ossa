@@ -11,9 +11,14 @@ matplotlib_datas, matplotlib_binaries, matplotlib_hiddenimports = collect_all("m
 folium_datas, folium_binaries, folium_hiddenimports = collect_all("folium")
 
 # Get absolute paths for data directories
-root_dir = os.path.dirname(os.path.abspath(__file__))
+# This spec is run from the project root directory
+root_dir = os.path.abspath(os.path.curdir)
 www_dir = os.path.join(root_dir, "www")
 static_dir = os.path.join(root_dir, "static")
+
+# Ensure directories exist
+assert os.path.exists(www_dir), f"www directory not found at {www_dir}"
+assert os.path.exists(static_dir), f"static directory not found at {static_dir}"
 
 datas = shiny_datas + faicons_datas + matplotlib_datas + folium_datas + [
     (www_dir, "www"),
