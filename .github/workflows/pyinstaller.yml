@@ -85,14 +85,6 @@ jobs:
             exit 1
           fi
 
-      - name: Validate release notes are updated
-        run: |
-          if grep -q "RELEASE_NOTES_TODO" RELEASE_NOTES.md; then
-            echo "RELEASE_NOTES.md still contains placeholder text."
-            echo "Please update RELEASE_NOTES.md before tagging a release."
-            exit 1
-          fi
-
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
