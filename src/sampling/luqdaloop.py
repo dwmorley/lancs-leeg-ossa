@@ -157,8 +157,8 @@ def luqdaloop(
                 prior2.iloc[:, a[i]] = prior2.iloc[:, a[i]] / 2
                 ng2 = ng2 + 1
 
-                counts_pd = pd.Series(y2).value_counts()
-                print(counts_pd)
+                # counts_pd = pd.Series(y2).value_counts()
+                # print(counts_pd)
 
                 all[f"{ng2}cluster"] = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
                 tb2 = np.append(tb2, len(half_indices))
