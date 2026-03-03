@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    image: lancs-leeg-ossa:dev
+    ports:
+      - "8000:8000"
+    environment:
+      - DEVELOPMENT=1
+      - PORT=8000
+    volumes:
+      - ./:/app:cached
+    restart: unless-stopped

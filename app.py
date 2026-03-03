@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from shiny import App, reactive, run_app, ui
@@ -87,9 +88,33 @@ def server(input, output, session):
 
 
 www_dir = Path(__file__).parent / "www"
-app = App(app_ui, server, static_assets=www_dir)
+# Create the Shiny app instance
+shiny_app = App(app_ui, server, static_assets=www_dir)
+
+
+# ASGI wrapper: respond quickly to /health and delegate all other requests to the Shiny app
+async def _asgi_app(scope, receive, send):
+    if scope.get("type") == "http" and scope.get("path", "") == "/health":
+        # lightweight health response
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+            }
+        )
+        await send({"type": "http.response.body", "body": b"OK"})
+    else:
+        await shiny_app(scope, receive, send)
+
+
+# Export the ASGI callable expected by gunicorn/uvicorn
+app = _asgi_app
 
 
 # DEBUG
 if __name__ == "__main__":
-    run_app(app, host="127.0.0.1", port=8000)
+    # When running in Docker, bind to 0.0.0.0 and read PORT from env.
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", 8000))
+    run_app(shiny_app, host=host, port=port)

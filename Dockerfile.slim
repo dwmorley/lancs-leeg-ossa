@@ -1,0 +1,44 @@
+# Slim Dockerfile (Debian-slim) — smaller but may require tweaks for geospatial packages
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install system dependencies required by many geospatial packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    git \
+    curl \
+    ca-certificates \
+    libgdal-dev \
+    gdal-bin \
+    libproj-dev \
+    proj-bin \
+    libgeos-dev \
+    libpq-dev \
+    libxml2-dev \
+    libnetcdf-dev \
+    libhdf5-dev \
+    libssl-dev \
+    libffi-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Copy project
+COPY . /app
+RUN chmod +x /app/scripts/entrypoint.sh || true
+
+EXPOSE 8000
+ENV PORT=8000
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+CMD [""]
+
+# Healthcheck using /health
+HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=5 \
+  CMD python -c "import urllib.request,sys;\ntry:\n r=urllib.request.urlopen('http://localhost:8000/health');\n code = getattr(r, 'status', None) or r.getcode();\n sys.exit(0 if code==200 else 1)\nexcept Exception:\n sys.exit(1)"
