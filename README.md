@@ -8,6 +8,11 @@ TODO: This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorit
 
 ![OSSA screenshot](www/OSSA_screengrab_1.png)
 
+## Credits and Acknowledgements
+- The sampling algorithms were developed by Luigi Sedda (University of Lancaster) (funded by XYX grant).
+- The Shiny app was developed by David Morley.
+- and some other people too ...
+
 ## Installation & Running
 
 OSSA runs locally on your machine using Docker. To get started, follow these steps:
