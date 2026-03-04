@@ -1,3 +1,5 @@
+"""Project-level constants and option mappings used by OSSA."""
+
 URLS = {
     "lms": "https://www.lancaster.ac.uk/lms/",
 }

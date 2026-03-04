@@ -1,3 +1,5 @@
+"""Data UI/server module for extracting and previewing covariates."""
+
 from datetime import datetime, timedelta
 from typing import List
 
@@ -12,6 +14,7 @@ from src.utils.downloads import save_csv
 
 @module.ui
 def data_ui():
+    """Return the UI components for the data extraction panel."""
     return ui.tags.div(
         ui.tags.br(),
         [
@@ -91,7 +94,7 @@ def data_ui():
 
 @module.server
 def data_server(input, output, session, reactive_values):
-
+    """Server logic for data extraction UI, handling user inputs and running extraction."""
     drawn_shapes = reactive_values["drawn_shapes"]
 
     # Ensure landcover is always selected
@@ -107,9 +110,7 @@ def data_server(input, output, session, reactive_values):
     @render.text
     @reactive.event(drawn_shapes, input.sample_size)
     def sample_resolution() -> str:
-        """
-        This output is bound to `ui.output_text_verbatim('sample_resolution')`
-        """
+        """Return the sampling resolution as a short string."""
         sample_size = input.sample_size()
         shapes = drawn_shapes.get()
         if not shapes or not sample_size:
@@ -199,6 +200,18 @@ def data_server(input, output, session, reactive_values):
 
 
 def get_boundingbox(bounds: List[str]) -> BoundingBox:
+    """Convert a Shiny drawn shapes event into a BoundingBox.
+
+    Parameters
+    ----------
+    bounds : List[str]
+        Shiny drawn shapes payload (list containing a dict with 'bounds').
+
+    Returns
+    -------
+    BoundingBox
+        BoundingBox instance constructed from the drawn shape.
+    """
     extents = bounds[0]["bounds"]
     north = extents["north"]
     south = extents["south"]

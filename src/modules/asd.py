@@ -1,3 +1,5 @@
+"""ASD UI and server components for ASD sampling in OSSA."""
+
 from datetime import datetime
 
 from faicons import icon_svg
@@ -11,6 +13,7 @@ from src.utils.downloads import save_artifacts_zip
 
 @module.ui
 def asd_ui():
+    """Return UI components for the ASD panel."""
     return ui.div(
         ui.tags.div(
             [
@@ -85,6 +88,7 @@ def asd_ui():
 
 @module.server
 def asd_server(input, output, session, reactive_values):
+    """Server logic for ASD controls (currently a placeholder)."""
 
     @reactive.effect
     @reactive.event(input.save_asd)

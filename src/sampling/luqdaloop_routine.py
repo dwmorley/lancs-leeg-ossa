@@ -1,5 +1,7 @@
+"""Localised discriminant analysis utilities. Translated from Luigi's original R code."""
+
 import warnings
-from typing import Any, Dict, List, Union
+from typing import List, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,39 +19,59 @@ def luqdaloop(
     nx: int = 8,
     test: Union[int, None] = None,
 ):
+    """Perform localised discriminant analysis with class splitting and merging.
+
+    This function implements a localised discriminant analysis routine that
+    mirrors Luigi's original R implementation. It computes local priors (if
+    not provided) from spatial neighbours, performs an initial LDA, then
+    iteratively attempts to split and merge classes to find an improved
+    classification. The function returns a dictionary containing diagnostics
+    for each explored number of clusters and a combined `NewData` DataFrame
+    with the final class assignment for each observation.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Feature matrix of shape (n_samples, n_features).
+    y : np.ndarray
+        Integer class labels for each sample (shape (n_samples,)).
+    grid : np.ndarray
+        Spatial coordinates array of shape (n_samples, 2) (e.g. longitude,
+        latitude) used for local prior computation.
+    prior : np.ndarray or None, optional
+        Prior probability matrix with shape (n_samples, n_classes). If
+        None, local priors are estimated from neighbours in `grid` within
+        distance `nn`.
+    nn : float, optional
+        Neighborhood tolerance (in same units as `grid`) to define local
+        neighbourhoods when computing priors. Default 0.001.
+    nx : int, optional
+        Maximum number of classes to explore when splitting. Must be larger
+        than the number of unique classes in `y`.
+    test : int or None, optional
+        Optional indices reserved for testing/validation (currently
+        preserved for API compatibility; internal validation handling is
+        commented out in the current implementation).
+
+    Returns
+    -------
+    dict
+        Dictionary containing at least the following keys:
+        - 'NewData': pandas.DataFrame containing original data and final
+          class assignments (column 'BestClass').
+        - 'WilksSummary': pandas.DataFrame summarising Wilks' Lambda and
+          error rates for explored cluster counts.
+        - '<k>cluster': for each tested cluster count k, a dict returned by
+          `ls_da` with diagnostics for that clustering.
+        - 'ExcludedClusters' (optional): array with information on any
+          rank-deficient clusters that were excluded prior to analysis.
+
+    Raises
+    ------
+    ValueError
+        If `nx` equals the number of unique classes in `y` (must be larger),
+        or if other invalid inputs are provided.
     """
-    Localised Discriminant Analysis with automatic class splitting and merging.
-    (Python translation of R function with same name)
-
-    Parameters:
-    -----------
-    X : array-like, shape (n_samples, n_features)
-        Explanatory variables / feature matrix
-    y : array-like, shape (n_samples,)
-        Group vector / class labels
-    grid : array-like, shape (n_samples, 2)
-        Spatial coordinates for each sample (used for local prior calculation)
-    prior : array-like, shape (n_samples, n_groups), optional
-        Matrix of prior probabilities for each point. If None, will be computed
-        using local frequency method (can be time-consuming)
-    nn : float, default=0.001
-        Distance threshold for "Local frequency prior" neighborhood
-        Based on: Cutillo, Localised empirical discriminant analysis
-    nx : int, default=8
-        Maximum number of classes to explore
-    test : int, optional
-        Number of samples to hold out per class for validation
-
-    Returns:
-    --------
-    all : dict
-        Dictionary containing results for different numbers of classes:
-        - Key 0: 'WilksSummary' - performance metrics across all class counts
-        - Keys 2 to nx: results for each number of classes
-        - 'ExcludedClusters': groups with rank deficiency (if any)
-        - 'NewData': final classification results with spatial coordinates
-    """
-
     y = y.astype(int)
     n = X.shape[0]
     p = X.shape[1]
@@ -115,7 +137,7 @@ def luqdaloop(
 
     if np.sum(N2) > 0:
         cluster_keys = [f"{i + int(np.sum(G2))}cluster" for i in range(2, nx + 1)]
-        all: Dict[str, Any] = {
+        all = {
             key: None for key in ["WilksSummary"] + cluster_keys + ["ExcludedClusters", "NewData"]
         }
         all["ExcludedClusters"] = np.column_stack(
@@ -123,7 +145,7 @@ def luqdaloop(
         )
     else:
         cluster_keys = [f"{i}cluster" for i in range(2, nx + 1)]
-        all: Dict[str, Any] = {key: None for key in ["WilksSummary"] + cluster_keys + ["NewData"]}
+        all = {key: None for key in ["WilksSummary"] + cluster_keys + ["NewData"]}
 
     # ===== INITIAL LDA =====
     all[f"{ng}cluster"] = ls_da(X=XX, y=yy, prior=prior_cleaned, test=test)
@@ -270,13 +292,48 @@ def luqdaloop(
 
 
 def ls_da(X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None] = None) -> dict:
-    """
-    Linear discriminant analysis with localised priors.
+    """Run linear discriminant analysis with localized priors and return results.
 
-    Performs LDA using QR decomposition and computes classification scores
-    based on Mahalanobis distances with local prior probabilities.
-    """
+    Performs LDA using QR decomposition and returns classification, scores,
+    confusion matrix and other diagnostic outputs.
 
+    Parameters
+    ----------
+    X : np.ndarray
+        Feature matrix for the training data (n_samples, n_features).
+    y : list-like
+        Class labels corresponding to rows of `X`. Labels are treated as
+        categorical and should be comparable (strings or integers).
+    prior : np.ndarray
+        Prior probability matrix with shape (n_samples, n_classes). Each
+        row corresponds to sample-specific prior probabilities for each
+        class.
+    test : int or None, optional
+        Reserved test/validation indices (currently not used in the
+        computation; kept for API compatibility).
+
+    Returns
+    -------
+    dict
+        Dictionary containing keys including:
+        - 'WMqr': list of matrices used for within-group transforms.
+        - 'gm': group means.
+        - 'ldet': log-determinant values for each group covariance.
+        - 'prior': provided prior matrix.
+        - 'scores': transformed discriminant scores (unnormalised).
+        - 'classification': predicted class labels for each sample.
+        - 'confusion': pandas.DataFrame confusion matrix between original
+          and predicted classes.
+        - 'error_rate': scalar error value (1 - trace(confusion)).
+        - 'Wlambda': Wilks' Lambda statistic for the grouping provided.
+        - 'Nclasses': pandas.Series counts per class.
+
+    Raises
+    ------
+    ValueError
+        If a group is rank-deficient and the internal linear algebra
+        operations fail.
+    """
     # Split into train/validation if test indices provided
     # if test is not None:
     #     XV = X[test, :]
@@ -359,52 +416,32 @@ def ls_da(X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None]
         "Classes": y.copy(),
     }
 
-    # If validation set exists, compute scores for it
-    # if test is not None:
-    #     Disc2 = np.zeros((V, ng))
-    #     for k in range(ng):
-    #         Xk = np.tile(gm[k], (V, 1))
-    #         dev = (XV - Xk) @ WMqr[k]
-    #         with warnings.catch_warnings():
-    #             warnings.filterwarnings("ignore", category=RuntimeWarning)
-    #             Disc2[:, k] = (
-    #                 0.5 * np.sum(dev**2, axis=1)
-    #                 + 0.5 * ldet[k]
-    #                 - np.log(priorV[:, k])
-    #             )
-    #
-    #     # Convert to probabilities
-    #     Disc2 = np.exp(-(Disc2 - np.min(Disc2, axis=1, keepdims=True)))
-    #     pred = Disc2 / np.sum(Disc2, axis=1, keepdims=True)
-    #     pred_class2 = g[np.argmax(pred, axis=1)]
-    #
-    #     # Validation confusion matrix and error rate
-    #     conf2 = pd.crosstab(
-    #         yV, pred_class2, rownames=["original"], colnames=["predicted"]
-    #     )
-    #     err2 = 1 - np.trace(conf2.values) / V
-    #     lambda2 = Wilks_test(XV, yV)
-    #
-    #     # Add validation results
-    #     res.update(
-    #         {
-    #             "xscores": Disc2.copy(),
-    #             "xclassification": pred_class2.copy(),
-    #             "xconfusion": conf2.copy(),
-    #             "xerror_rate": err2,
-    #             "xWlambda": lambda2,
-    #         }
-    #     )
-
     return res
 
 
 def Wilks_test(X, y):
-    """
-    Compute Wilks' Lambda statistic for multivariate group differences.
+    """Compute Wilks' Lambda statistic for multivariate group differences.
 
-    Wilks' Lambda = |W| / |T| where W is within-group scatter and T is total scatter.
-    Values close to 0 indicate strong group separation.
+    Wilks' Lambda is defined as the determinant of the within-group
+    scatter matrix divided by the determinant of the total scatter matrix:
+
+        Lambda = |W| / |T|
+
+    where T = total scatter and W = within-group scatter. Smaller values
+    indicate greater separation among group means.
+
+    Parameters
+    ----------
+    X : array-like
+        Feature matrix of shape (n_samples, n_features).
+    y : array-like
+        Group labels corresponding to rows of `X`.
+
+    Returns
+    -------
+    float
+        Wilks' Lambda statistic (or NaN if computation fails due to a
+        singular matrix or other numerical issues).
     """
     groups = np.unique(y)
     grand_mean = X.mean(axis=0)
@@ -429,7 +466,25 @@ def Wilks_test(X, y):
 
 
 def plot_wilks_lambda(wilks: pd.Series, opt_classes: int, deficient_classes: int = 0):
+    """Plot Wilks' Lambda summary and highlight the selected class count.
 
+    Parameters
+    ----------
+    wilks : pandas.Series
+        Series of Wilks' Lambda values indexed by the number of classes
+        (or with an implicit order matching class counts starting at 2).
+    opt_classes : int
+        The selected / optimal number of classes to highlight on the plot.
+    deficient_classes : int, optional
+        Number of rank-deficient classes excluded from the analysis (used
+        to annotate the subtitle).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The created figure object (not shown). Caller can save or display
+        it as needed.
+    """
     # Plot Wilks' Lambda
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(
@@ -470,7 +525,30 @@ def plot_wilks_lambda(wilks: pd.Series, opt_classes: int, deficient_classes: int
 
 
 def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataArray:
+    """Convert LUQDA 'NewData' DataFrame into a raster DataArray.
 
+    The function expects `new_data` to contain columns 'x', 'y' and 'id'
+    (or equivalent column names), where 'id' is the class label or
+    integer value to rasterize. Coordinates are rounded to `round_coords`
+    decimal places to ensure a regular grid. The resulting xarray
+    DataArray uses 'y' and 'x' as dimensions and writes an EPSG:4326 CRS
+    on the returned DataArray if the rioxarray accessor is available.
+
+    Parameters
+    ----------
+    new_data : pandas.DataFrame
+        DataFrame with at least columns ['x', 'y', 'id']. Coordinates can
+        be numeric strings or floats; they will be cast to float.
+    round_coords : int, optional
+        Number of decimal places to round coordinates to when building the
+        grid. Default is 6.
+
+    Returns
+    -------
+    xarray.DataArray
+        A 2-D DataArray indexed by 'y' and 'x' containing the rasterized
+        'id' values.
+    """
     df = new_data[["x", "y", "id"]].copy()
 
     df["x"] = df["x"].astype(float)

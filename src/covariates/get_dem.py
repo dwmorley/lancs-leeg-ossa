@@ -1,3 +1,5 @@
+"""Helpers to fetch and process digital elevation model (DEM) rasters for AOIs."""
+
 from typing import Literal
 
 import numpy as np
@@ -16,7 +18,20 @@ def get_dem(
     bbox: BoundingBox,
     res: int = Literal[30, 90],
 ) -> xarray.DataArray:
+    """Fetch and clip a DEM raster for the bounding box at the requested resolution.
 
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest.
+    res : int, optional
+        Desired spatial resolution in metres (default: 30).
+
+    Returns
+    -------
+    xarray.DataArray
+        DEM raster clipped to the AOI.
+    """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
         modifier=planetary_computer.sign_inplace,

@@ -1,3 +1,5 @@
+"""Routines for the LCP sampling design. Translated from Luigi's original R code."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -6,6 +8,30 @@ from scipy.spatial.distance import pdist, squareform
 
 
 def lcp(map, delta, zeta, total=30, grid=0.7):
+    """Generate LCP sampling sites from an ecological classification map.
+
+    Generate a sampling design combining grid and inhibitory (closed-pair)
+    samples stratified by class from a raster-like classification map.
+
+    Parameters
+    ----------
+    map : xarray.DataArray
+        Raster-like DataArray containing class IDs (no-data assumed NaN).
+    delta : float
+        Minimum separation distance for inhibitory points (metres or CRS units).
+    zeta : float
+        Maximum distance used when creating closed pairs (metres or CRS units).
+    total : int, optional
+        Target total number of sample points (default is 30).
+    grid : float or int, optional
+        Fraction or number of grid points to include in the design (default is 0.7).
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with columns ['x', 'y', 'class', 'type'] where 'type' is
+        'G' for grid points and 'I' for inhibitory points.
+    """
     np.random.seed(1234)
     grid2 = grid
     grid = round(total * grid)
@@ -138,6 +164,22 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
 
 
 def plot_lcp(map_raster: xr.DataArray, sites: pd.DataFrame, n_classes: int) -> None:
+    """Plot an ecological classification raster and overlay sampling sites.
+
+    Parameters
+    ----------
+    map_raster : xarray.DataArray
+        Raster of class IDs used as the background.
+    sites : pandas.DataFrame
+        DataFrame produced by :func:`lcp` containing columns ['x', 'y', 'class', 'type'].
+    n_classes : int
+        Number of distinct classes (used to set the colormap).
+
+    Returns
+    -------
+    None
+        Displays the plot using matplotlib and returns None.
+    """
     cmap = plt.get_cmap("tab20", n_classes)
     fig, ax = plt.subplots(figsize=(6, 6))
     map_raster.plot(ax=ax, cmap=cmap, cbar_kwargs={"label": "Class ID"})

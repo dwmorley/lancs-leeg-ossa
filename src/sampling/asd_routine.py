@@ -1,3 +1,12 @@
+"""Routines for the ASD sampling design. Luigi's original R code.
+
+This module provides a thin Python wrapper around R functionality via
+rpy2 to run a GLMM (glmmPQL) and generate an interpolated raster of
+predicted values or prediction uncertainty. It also offers a simple
+plotting helper to visualise the resulting raster and selected sample
+points.
+"""
+
 from typing import Literal
 
 import matplotlib.pyplot as plt
@@ -17,11 +26,58 @@ def glmmPQL_via_rpy2(
     formular: str,
     data: pd.DataFrame,
     area: pd.DataFrame,
-    target: str = Literal["H", "U"],
+    target: Literal["H", "U"],
     total: float = 15,
     delta: float = 0.01,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
+    """Fit a GLMM via R (glmmPQL) and produce an interpolated raster.
 
+    This function uses rpy2 to call R packages (MASS, nlme, AICcmodavg,
+    MBA) to fit a penalised quasi-likelihood GLMM with an exponential
+    spatial correlation structure, predict standard errors on a supplied
+    `area` grid, and produce a regularly-gridded raster using MBA
+    interpolation. It also selects sampling locations using a simple
+    thinning procedure.
+
+    Parameters
+    ----------
+    formulaf : str
+        A formula string for the fixed effects in R syntax (e.g.
+        "AnGam~Week+Elev+Soil").
+    formular : str
+        A formula string describing the random structure (e.g. "~1|LCD").
+    data : pandas.DataFrame
+        Observational data passed to the R model. Must contain columns
+        referenced by `formulaf` and coordinate columns named 'x' and 'y'.
+    area : pandas.DataFrame
+        Prediction grid (data frame with 'x' and 'y') on which predictions
+        and prediction standard errors will be computed.
+    target : {'H','U'}
+        If 'H' request raster of fitted values and uncertainties; if 'U'
+        request raster of uncertainties only. Defaults to 'H'.
+    total : float
+        Maximum number of sample locations to return after thinning.
+    delta : float
+        Minimum allowed pairwise distance (in the same units as 'x'/'y')
+        for the thinning step.
+
+    Returns
+    -------
+    tuple
+        A tuple (da, x_df) where ``da`` is an ``xarray.DataArray`` holding
+        the interpolated raster (dimensions ['y', 'x']) and ``x_df`` is a
+        pandas DataFrame with the sampled point locations (columns include
+        'x' and 'y').
+
+    Notes
+    -----
+    - This function requires the R packages MASS, nlme, AICcmodavg and
+      MBA to be installed and available to rpy2. If they are missing the
+      calls will raise an error from rpy2.
+    - The function communicates with R via global environment variables
+      and runs several R scripts; the behaviour mirrors a direct R
+      workflow and is not vectorised in pure Python.
+    """
     # TODO: fix imports
     importr("MASS")
     importr("nlme")
@@ -147,7 +203,27 @@ def glmmPQL_via_rpy2(
 
 
 def asd_plot(plot_title: str, da: xr.DataArray, x_df: pd.DataFrame, z_grid: np.ndarray) -> None:
+    """Plot an ASD raster with sampled points overlaid.
 
+    Parameters
+    ----------
+    plot_title : str
+        Title to use for the matplotlib figure.
+    da : xarray.DataArray
+        The raster DataArray used to derive the plot extent. Expected to
+        have coordinate dims 'x' and 'y'.
+    x_df : pandas.DataFrame
+        DataFrame of sampled point locations. Must have columns 'x' and
+        'y' containing coordinates.
+    z_grid : numpy.ndarray
+        2-D array of raster values shaped to match the coordinates in
+        ``da`` (rows correspond to y coordinates, columns to x).
+
+    Returns
+    -------
+    None
+        Displays a matplotlib figure and returns None.
+    """
     extent = (
         float(da.x.min().values),
         float(da.x.max().values),

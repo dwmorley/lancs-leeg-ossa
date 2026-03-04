@@ -1,3 +1,5 @@
+"""Application entry point for the OSSA sampling UI and data pipeline."""
+
 import os
 from pathlib import Path
 
@@ -68,7 +70,11 @@ app_ui = ui.page_fluid(
 
 
 def server(input, output, session):
+    """Wire together Shiny module servers and provide shared reactive state.
 
+    This server function registers module server functions and sets up the
+    shared reactive_values dictionary used across modules.
+    """
     reactive_values = {
         "extracted_df": None,
         "my_ossa_layers": reactive.Value([]),

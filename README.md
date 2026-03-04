@@ -8,13 +8,16 @@ TODO: This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorit
 
 ## Installation & Running
 
-- Docker
+OSSA runs locally on your machine using Docker. To get started, follow these steps:
+1. Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/). You will only need to do this once.
+2. Run ...
 
 
 
 
 ## Development
 
+### VS Code & Poetry
 - Ensure Poetry is installed.
 - Run `poetry install` to install dependencies.
 - Run `poetry run shiny run app.py` to start the app.
@@ -41,3 +44,23 @@ TODO: This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorit
 - Uses `poetry run flake8` for linting.
 - Uses `poetry run black app.py` to format the code.
 - Run on all files: `poetry run pre-commit run --all-files`
+
+### Docker
+- To debug in Docker ```docker compose up --build```
+- Then Ctrl + C to stop the container and run ```docker compose down``` to clean up.
+
+- The above is useful for a quick test if there are only small code changes. To force a total rebuild, including all R and Python environments:
+```
+docker compose down -v
+docker compose build --no-cache
+docker compose up
+```
+
+## Deployment
+
+To create a new docker image on GitHub:
+
+```commandline
+git tag v0.0.1
+git push origin v0.0.1
+```

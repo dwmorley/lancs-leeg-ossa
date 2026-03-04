@@ -1,8 +1,11 @@
+"""Module for defining the AOI, i.e. the bounding box for the analysis."""
+
 from shiny import module, reactive, ui
 
 
 @module.ui
 def aoi_ui():
+    """Return UI components for the AOI tab, which includes text inputs for bounding box coordinates."""
     return ui.tags.div(
         ui.div(
             ui.div(
@@ -28,7 +31,7 @@ def aoi_ui():
 
 @module.server
 def aoi_server(input, output, session, reactive_values):
-
+    """Server-side logic for AOI tab, syncing text inputs with drawn shapes on the map."""
     drawn_shapes = reactive_values["drawn_shapes"]
     updating_from_map = reactive_values["updating_from_map"]
 

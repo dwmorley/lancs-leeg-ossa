@@ -1,3 +1,5 @@
+"""Helpers to render xarray DataArrays and point DataFrames as ipyleaflet map layers."""
+
 import base64
 from io import BytesIO
 
@@ -14,7 +16,30 @@ from matplotlib.colors import BoundaryNorm
 def dataarray_to_image_overlay(
     da: xr.DataArray, categorical: bool = True, name: str = "Raster"
 ) -> L.ImageOverlay:
+    """Render a DataArray as a PNG image and return an ipyleaflet ImageOverlay.
 
+    The function converts the DataArray values to an image (using a
+    categorical colour map for discrete values or a continuous colour map
+    otherwise), encodes the image in base64 and wraps it in an
+    ipyleaflet.ImageOverlay using appropriate spatial bounds derived from
+    the DataArray coordinates.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        2-D DataArray with coordinates containing latitude-like ('y') and
+        longitude-like ('x') values.
+    categorical : bool, optional
+        If True, use a categorical colormap (tab20) for discrete values;
+        otherwise render as a continuous heatmap. Default: True.
+    name : str, optional
+        Name assigned to the returned ImageOverlay (used as a layer name).
+
+    Returns
+    -------
+    ipyleaflet.ImageOverlay
+        An overlay ready to be added to an ipyleaflet map.
+    """
     data = da.values.astype(float)
     lats = np.array(da.coords.get("y", da.coords.get("lat", da.coords.get("latitude"))))
     lons = np.array(da.coords.get("x", da.coords.get("lon", da.coords.get("longitude"))))
@@ -74,7 +99,28 @@ def make_point_layer(
     df: pd.DataFrame,
     layer_name: str,
 ) -> L.LayerGroup:
+    """Create an ipyleaflet LayerGroup of circle markers from a DataFrame.
 
+    The function maps a named layer to a small set of marker styling rules
+    and returns a LayerGroup containing CircleMarker objects for each row
+    in `df`. The row is passed to the style lambda and expected to provide
+    attributes `x`, `y` and optionally `type`.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing point rows. The function expects columns named
+        'x' and 'y' which are used for marker locations.
+    layer_name : str
+        Name of the style group to render. Supported values include
+        'LCP Sites' and 'ASD Sites'.
+
+    Returns
+    -------
+    ipyleaflet.LayerGroup
+        A LayerGroup containing CircleMarker layers representing the
+        input points.
+    """
     # Define marker style config for each layer
     marker_config = {
         "LCP Sites": lambda row: dict(
@@ -102,6 +148,20 @@ def make_point_layer(
 
 
 def point_layer_legend(name: str) -> HTML:
+    """Return an HTML widget to use as a legend for a point layer.
+
+    Parameters
+    ----------
+    name : str
+        The layer name for which to create a legend (e.g. 'LCP Sites',
+        'ASD Sites').
+
+    Returns
+    -------
+    ipywidgets.HTML
+        A small HTML widget describing the marker symbology for the
+        requested layer.
+    """
     if name == "LCP Sites":
         return HTML(
             value="""

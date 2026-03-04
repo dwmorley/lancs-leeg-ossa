@@ -1,14 +1,30 @@
+"""Runner utilities for analysis workflows (QDA, LCP, ASD) used by OSSA."""
+
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
-from src.sampling.asd import asd_plot, glmmPQL_via_rpy2  # noqa: F401
-from src.sampling.lcp import lcp
-from src.sampling.luqdaloop import plot_wilks_lambda  # noqa: F401
-from src.sampling.luqdaloop import luqdaloop, newdata_to_raster
+from src.sampling.asd_routine import asd_plot, glmmPQL_via_rpy2  # noqa: F401
+from src.sampling.lcp_routine import lcp
+from src.sampling.luqdaloop_routine import plot_wilks_lambda  # noqa: F401
+from src.sampling.luqdaloop_routine import luqdaloop, newdata_to_raster
 
 
-def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> dict[str, any]:
+def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> None:
+    """Run QDA classification followed by LCP sampling on the provided data.
 
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Containing columns 'longitude', 'latitude', 'landcover', and
+        predictor variables for QDA.
+    nx : int
+        Max number of QDA classes to consider in the classification loop.
+    nn : float
+        Nearest neighbor distance parameter for QDA classification.
+
+    """
     X = df.drop(columns=["longitude", "latitude", "landcover"]).values
     y = df["landcover"].values.astype(int).astype(str)
     grid = df[["longitude", "latitude"]].values
@@ -52,8 +68,14 @@ def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> dict[str, any]:
     }
 
 
-def do_asd() -> dict[str, any]:
+def do_asd(data: Any) -> None:
+    """Perform ASD sampling and analysis on the provided dataset.
 
+    Parameters
+    ----------
+    data : Any
+        Analysis-ready dataset for ASD.
+    """
     benin = pd.read_csv("test_data/benin.csv")
     beningrid = pd.read_csv("test_data/beningrid.csv")
     target = "H"

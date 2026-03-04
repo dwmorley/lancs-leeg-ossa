@@ -1,3 +1,5 @@
+"""Helpers to fetch and process WorldPop population rasters for AOIs."""
+
 import numpy as np
 import requests
 import rioxarray as rxr
@@ -12,7 +14,20 @@ def get_worldpop(
     bbox: BoundingBox,
     year: int,
 ) -> xr.DataArray:
+    """Download and combine WorldPop rasters for the given AOI and year.
 
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest to clip WorldPop rasters to.
+    year : int
+        Year between 2000 and 2020.
+
+    Returns
+    -------
+    xarray.DataArray
+        Clipped WorldPop raster for the AOI.
+    """
     if year < 2000 or year > 2020:
         raise ValueError("Year must be between 2000 and 2020")
 

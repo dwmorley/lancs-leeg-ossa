@@ -6,9 +6,9 @@ from src.covariates.get_lulc import get_lulc
 from src.covariates.get_modis import get_modis
 from src.covariates.make_stack import stack
 from src.covariates.raster_to_grid import extract
-from src.sampling.asd import asd_plot, glmmPQL_via_rpy2
-from src.sampling.lcp import lcp, plot_lcp
-from src.sampling.luqdaloop import luqdaloop, newdata_to_raster, plot_wilks_lambda
+from src.sampling.asd_routine import asd_plot, glmmPQL_via_rpy2
+from src.sampling.lcp_routine import lcp, plot_lcp
+from src.sampling.luqdaloop_routine import luqdaloop, newdata_to_raster, plot_wilks_lambda
 from src.utils.bounding_box import BoundingBox
 
 SKIP_RS = True

@@ -1,9 +1,26 @@
+"""Shiny UI/server module for loading CSV data into the app.
+
+This module exposes a small Shiny module used by the application to allow
+users to upload a CSV file. The server side reads the uploaded file,
+extracts bounding coordinates (latitude/longitude), updates reactive
+values used by the map and stores the parsed DataFrame in
+`reactive_values['extracted_df']`.
+"""
+
 import pandas as pd
 from shiny import module, reactive, ui
 
 
 @module.ui
 def load_ui():
+    """Create the UI portion of the load-data module.
+
+    Returns
+    -------
+    shiny.ui.Tag
+        A UI fragment containing a file input control and a header used in
+        the main application layout.
+    """
     return ui.div(
         ui.h4("Import Data", class_="column-header"),
         ui.input_file(
@@ -20,6 +37,29 @@ def load_ui():
 
 @module.server
 def load_server(input, output, session, reactive_values):
+    """Server-side logic for the load-data module.
+
+    This function registers a reactive effect that listens for changes to
+    `input.data_file`. When a CSV file is uploaded it reads the file into a
+    pandas DataFrame, extracts bounding box coordinates from `latitude` and
+    `longitude` columns, updates UI text fields and stores the DataFrame in
+    `reactive_values['extracted_df']`. It also generates a GeoJSON
+    rectangle and sets `reactive_values['drawn_shapes']` so the map can
+    render the bounding box.
+
+    Parameters
+    ----------
+    input : shiny.Input
+        The Shiny input object (provides access to `input.data_file`).
+    output : shiny.Output
+        The Shiny output object (unused by this module but required by the
+        module server signature).
+    session : shiny.Session
+        The current session (used implicitly by UI update helpers).
+    reactive_values : dict-like
+        Shared reactive state used across modules (expects keys like
+        'updating_from_map', 'drawn_shapes', 'extracted_df' and 'map_ref').
+    """
 
     @reactive.effect
     @reactive.event(input.data_file)

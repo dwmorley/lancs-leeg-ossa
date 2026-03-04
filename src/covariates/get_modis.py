@@ -1,3 +1,5 @@
+"""Get and transform MODIS rasters."""
+
 from typing import Union
 
 import numpy as np
@@ -24,7 +26,17 @@ def get_modis(
     variable: str,
     year: int,
 ) -> dict[str, xr.DataArray]:
+    """Fetch and prepare MODIS rasters for the AOI, variable, and year.
 
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest to fetch the MODIS rasters for.
+    variable : str
+        MODIS variable to fetch (e.g. 'ET_500m')
+    year : int
+        Date range
+    """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
         modifier=planetary_computer.sign_inplace,
@@ -78,7 +90,21 @@ def get_modis(
 
 
 def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.DataArray, None]:
+    """Aggregate a time series of rasters using the specified method.
 
+    Parameters
+    ----------
+    da_raster : xarray.DataArray
+        Input raster with a time dimension.
+    method : str, optional
+        Aggregation method to apply across the time dimension.
+        Supported methods: 'mean', 'min', 'max' (default: 'mean')
+
+    Returns
+    -------
+    xarray.DataArray or None
+        Aggregated raster if time dimension exists, otherwise None.
+    """
     if "time" not in da_raster.coords or len(da_raster.time) <= 1:
         return None
 
@@ -97,11 +123,16 @@ def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.Data
 
 
 def get_collection(var: str) -> Union[str, None]:
-    """
-    Connect to Microsoft Planetary Computer STAC API and find
-    the MODIS collection containing the specified variable.
+    """Connect to Microsoft Planetary Computer STAC API and find the MODIS collection.
 
-    Returns the collection ID.
+        Parameters
+    ----------
+    var : str
+        Variable name to search for in the collection assets (e.g. 'ET_500m').
+
+    Returns
+    -------
+    The collection ID.
     """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",

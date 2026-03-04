@@ -1,3 +1,5 @@
+"""QDA UI and server components for OSSA's classification workflow."""
+
 import base64
 from datetime import datetime
 from io import BytesIO
@@ -14,6 +16,7 @@ from src.utils.downloads import save_artifacts_zip
 
 @module.ui
 def qda_ui():
+    """Return UI components for the QDA tab."""
     return ui.div(
         ui.tags.div(
             [
@@ -93,6 +96,7 @@ def qda_ui():
 
 @module.server
 def qda_server(input, output, session, reactive_values):
+    """Server-side logic for QDA."""
 
     @reactive.effect
     @reactive.event(input.save_qda)

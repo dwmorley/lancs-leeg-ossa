@@ -45,8 +45,11 @@ ENV LD_LIBRARY_PATH=/usr/local/lib/R/lib:${LD_LIBRARY_PATH}
 
 # ── Install R packages required by the app ───────────────────────────────────
 # MASS and nlme are included with R base, so only extras are needed here.
+# Posit Package Manager serves pre-compiled binaries for Ubuntu 22.04 (Jammy),
+# which avoids triggering C++ compilation (e.g. RcppEigen) during docker build
+# — critical for fast cross-platform builds on CI.
 RUN Rscript -e "\
-    options(repos = c(CRAN = 'https://cloud.r-project.org')); \
+    options(repos = c(CRAN = 'https://packagemanager.posit.co/cran/__linux__/jammy/latest')); \
     install.packages(c('AICcmodavg', 'MBA'), dependencies = TRUE)"
 
 # ── Python dependencies ───────────────────────────────────────────────────────

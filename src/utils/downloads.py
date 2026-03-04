@@ -1,3 +1,5 @@
+"""Small helpers for saving downloads and writing CSV output."""
+
 import os
 import platform
 import tempfile

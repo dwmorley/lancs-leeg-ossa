@@ -1,3 +1,5 @@
+"""Fetch GRIP road density rasters for an AOI."""
+
 import os
 import zipfile
 
@@ -12,19 +14,29 @@ def get_roaddensity(
     bbox: BoundingBox,
     road_type: int = 0,
 ) -> xr.DataArray:
-    """
+    """Return road density raster clipped to the bounding box.
+
     Road density data from the Global Roads Inventory Project (GRIP), version 4.
-    GRIP provides a consistent and up-to-date global roads dataset at approximately 10 km resolution,
-    which is widely used in environmental and biodiversity assessments.
 
-        road_type 0: All road types combined (default)
-        road_type 1: Highways
-        road_type 2: Primary roads
-        road_type 3: Secondary roads
-        road_type 4: Tertiary roads
-        road_type 5: Local roads
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest to clip to.
+    road_type : int, optional
+        Road type code (default 0). Options are:
+
+        0 - All road types combined (total density).
+        1 - Highways.
+        2 - Primary roads.
+        3 - Secondary roads.
+        4 - Tertiary roads.
+        5 - Local roads.
+
+    Returns
+    -------
+    xarray.DataArray
+        Clipped road density raster.
     """
-
     type_str = "total" if road_type == 0 else f"tp{road_type}"
 
     # Download the zip file

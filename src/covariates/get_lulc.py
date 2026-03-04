@@ -1,3 +1,5 @@
+"""Fetch and prepare land use / land cover (LULC) covariates for an AOI."""
+
 import numpy as np
 import planetary_computer
 import pystac_client
@@ -11,17 +13,22 @@ def get_lulc(
     bbox: BoundingBox,
     year: int = 2023,
 ) -> xarray.DataArray:
-    """
+    """Return a land use/land cover raster for the AOI and year.
+
     Impact Observatory, Microsoft, and Esri. (2023). Global Land Use Land Cover (LULC) Dataset, 10m Resolution (2017-2023).
-    ESA Sentinel-2 Imagery. Available at: https://planetarycomputer.microsoft.com/
 
-    https://planetarycomputer.microsoft.com/dataset/io-lulc-annual-v02
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Bounding box to fetch the raster for.
+    year : int, optional
+        Year between 2017 and 2023 inclusive.
 
-    :param bbox: The BoundingBox
-    :param year: Has to be between 2017 and 2023.
-    :return: a land use land cover (LULC) raster for the specified area of interest (AOI) and year.
+    Returns
+    -------
+    xarray.DataArray
+        LULC raster clipped to the AOI.
     """
-
     if 2017 > year > 2023:
         raise ValueError("Year must be between 2017 and 2023.")
 

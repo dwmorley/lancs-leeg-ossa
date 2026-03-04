@@ -1,3 +1,5 @@
+"""Map UI and server components for the OSSA Shiny app."""
+
 import ipyleaflet as L
 import leafmap
 from ipyleaflet import DrawControl, LayersControl, WidgetControl
@@ -9,12 +11,21 @@ from src.plotting.maps import point_layer_legend
 
 @module.ui
 def map_ui():
+    """Return the map UI widget for embedding in the app."""
     return output_widget("map", width="100%", height="100%")
 
 
 @module.server
 def map_server(input, output, session, reactive_values):
+    """Provide server-side logic for the map, syncing drawn shapes and layers.
 
+    Parameters
+    ----------
+    input, output, session : Shiny objects
+        The module server parameters provided by the Shiny framework.
+    reactive_values : dict
+        Shared reactive state dictionary used across modules.
+    """
     drawn_shapes = reactive_values["drawn_shapes"]
     updating_from_map = reactive_values["updating_from_map"]
     my_ossa_layers = reactive_values["my_ossa_layers"]
@@ -81,7 +92,7 @@ def map_server(input, output, session, reactive_values):
                 updating_from_map.set(False)
             return
 
-        rectangle_data = shapes[0]
+        rectangle_data = next(iter(shapes))
         geo = {
             "type": "Feature",
             "geometry": rectangle_data["geometry"],

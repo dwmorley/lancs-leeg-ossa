@@ -1,3 +1,5 @@
+"""Utilities to represent and manipulate bounding boxes for AOIs."""
+
 import ast
 
 import numpy as np
@@ -6,9 +8,7 @@ from pyproj import Transformer
 
 
 class BoundingBox:
-    """
-    Bounding box for spatial queries.
-    """
+    """Bounding box for spatial queries."""
 
     xmin: float
     ymin: float
@@ -18,16 +18,16 @@ class BoundingBox:
     resolution_m: float
 
     def __init__(self, *args, buffer: float = 0.15):
-        """
-        Initialize BoundingBox with flexible input.
+        """Initialize BoundingBox with flexible input.
 
-        Args:
-            *args: Either:
-                - Four numbers: xmin, ymin, xmax, ymax
-                - Single tuple/list of 4 bounds
-                - Single numpy array or DataFrame with coordinates
-                - JSON-like dict with 'bounds' key containing north/south/east/west
-            buffer: Buffer distance in degrees (only for coordinate inputs)
+        Parameters
+        ----------
+        *args : various
+            Either four numbers (xmin, ymin, xmax, ymax) or a single iterable
+            or JSON-like dict containing bounds.
+        buffer : float, optional
+            Buffer distance in degrees applied when computing bounds from
+            coordinate collections (default: 0.15).
         """
         if len(args) == 4:
             # Four separate arguments: xmin, ymin, xmax, ymax
@@ -86,16 +86,18 @@ class BoundingBox:
         self.utm_epsg = self.estimate_utm_epsg()
 
     def __repr__(self):
-        """String representation of BoundingBox."""
+        """Return a concise string representation of the bounding box."""
         return (
             f"BoundingBox(xmin={self.xmin}, ymin={self.ymin}, xmax={self.xmax}, ymax={self.ymax})"
         )
 
     def estimate_utm_epsg(self) -> int:
-        """
-        Estimate the best UTM EPSG code for this bounding box (WGS84).
-        Returns:
-            int: EPSG code (e.g., 32633 for UTM zone 33N)
+        """Estimate the best UTM EPSG code for this bounding box (WGS84).
+
+        Returns
+        -------
+        int
+            EPSG code for the appropriate UTM zone (e.g., 32633).
         """
         center_lon = (self.xmin + self.xmax) / 2.0
         center_lat = (self.ymin + self.ymax) / 2.0
@@ -114,6 +116,11 @@ class BoundingBox:
         return (self.xmin, self.ymin, self.xmax, self.ymax)
 
     def sampling_grid(self, n: int = 5000) -> np.ndarray:
+        """Return an evenly spaced sampling grid of approximately n points.
+
+        The function computes a spacing based on the requested number of points
+        and returns a numpy array of point coordinates with shape (m, 2).
+        """
         area = (self.xmax - self.xmin) * (self.ymax - self.ymin)
         point_density = n / area
         spacing = np.sqrt(1.0 / point_density)
@@ -127,12 +134,17 @@ class BoundingBox:
         return np.column_stack([X.flatten(), Y.flatten()])
 
     def spacing_in_metres(self, spacing_deg: float) -> int:
-        """
-        Convert spacing in decimal degrees to metres at the bounding box center using UTM projection.
-        Args:
-            spacing_deg (float): Spacing in decimal degrees.
-        Returns:
-            int: Spacing in metres at the center of the bounding box (rounded to nearest metre).
+        """Convert spacing in decimal degrees to metres at the bounding box center.
+
+        Parameters
+        ----------
+        spacing_deg : float
+            Spacing in decimal degrees.
+
+        Returns
+        -------
+        int
+            Spacing in metres at the center of the bounding box (rounded to nearest metre).
         """
         lon = (self.xmin + self.xmax) / 2
         lat = (self.ymin + self.ymax) / 2

@@ -1,9 +1,12 @@
+"""Footer UI components for the OSSA Shiny app."""
+
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
 
 @module.ui
 def footer_ui():
+    """Return footer UI for the app."""
     return ui.tags.div(
         ui.tags.div("© 2026 Lancaster University | Version 0.0.0", class_="footer-left"),
         ui.tags.div(
@@ -46,6 +49,7 @@ def footer_ui():
 
 @module.server
 def footer_server(input, output, session):
+    """Server-side footer logic (no-op)."""
 
     @reactive.effect
     @reactive.event(input.help_btn)

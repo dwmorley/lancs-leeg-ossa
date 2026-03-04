@@ -1,3 +1,5 @@
+"""Utilities to download and prepare TerraClimate covariates for an AOI."""
+
 import xarray as xr
 
 from src.utils.bounding_box import BoundingBox
@@ -8,7 +10,22 @@ def get_terraclimate(
     variable: str = "aet",
     year: int = 2024,
 ) -> xr.DataArray:
+    """Fetch and prepare a yearly TerraClimate variable clipped to the AOI.
 
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest to clip the TerraClimate raster to.
+    variable : str, optional
+        TerraClimate variable name (default: 'aet').
+    year : int, optional
+        Year to extract (default: current year).
+
+    Returns
+    -------
+    xarray.DataArray
+        Mean annual TerraClimate variable clipped to the bounding box.
+    """
     possible = [
         "aet",
         "def",

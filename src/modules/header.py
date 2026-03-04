@@ -1,3 +1,5 @@
+"""UI header components for the OSSA Shiny app."""
+
 from shiny import module, ui
 
 from src.constants import URLS
@@ -5,6 +7,7 @@ from src.constants import URLS
 
 @module.ui
 def header_ui():
+    """Return the header UI components for the app."""
     return ui.tags.div(
         ui.tags.div(
             ui.tags.h1("OSSA - Optimal Spatial Sampling Algorithm", class_="header-title"),
@@ -23,4 +26,5 @@ def header_ui():
 
 @module.server
 def header_server(input, output, session):
+    """Server-side header logic (currently no-op)."""
     pass

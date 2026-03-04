@@ -1,3 +1,5 @@
+"""Utilities and runner entrypoint for extraction tasks used by OSSA."""
+
 from datetime import datetime
 from typing import List
 
@@ -21,6 +23,29 @@ def run_extraction(
     sample_size: int,
     progress=None,
 ) -> pd.DataFrame:
+    """Extract selected covariates clipped to `bbox` at grid points.
+
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest.
+    variables : list[str]
+        Covariate keys to extract (see COVARIATE_OPTIONS).
+    date_range : tuple[datetime, datetime]
+        Date range to determine raster years.
+    sample_size : int
+        Target number of sample points.
+    progress : optional
+        Progress UI object supporting set(value=int, message=str).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Sampled covariate values at the requested grid points.
+    """
+    # The maximum year from date_range
+    year = max(date_range[0].year, date_range[1].year)
+    year = 2020  # ################ HARDTYPED
 
     variable_funcs = {
         "landcover": lambda: get_lulc(bbox=bbox, year=year),
@@ -53,10 +78,6 @@ def run_extraction(
 
     if "landcover" not in variables:
         raise ValueError("Landcover must be included in the selected variables.")
-
-    # The maximum year from date_range
-    year = max(date_range[0].year, date_range[1].year)
-    year = 2020  # ################ HARDTYPED
 
     # The points to sample the rasters at
     grid = bbox.sampling_grid(sample_size)
