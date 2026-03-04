@@ -2,10 +2,14 @@
 
 <!--
 Update this file before creating a new release tag.
-The GitHub Action will fail if RELEASE_NOTES_TODO is present.
 -->
+---------------------------------------------------------------------
+## v0.0.2 (04-Mar-2026)
 
+- Refined test release
+---------------------------------------------------------------------
 ## v0.0.1 (03-Mar-2026)
 
 - Initial release
 - Test
+---------------------------------------------------------------------

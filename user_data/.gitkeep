@@ -1,2 +1,0 @@
-# This folder is mounted into the Docker container at /data.
-# Put your input files here before launching the app.

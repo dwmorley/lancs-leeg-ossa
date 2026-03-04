@@ -15,10 +15,6 @@ services:
     volumes:
       # App writes outputs here — maps to ./output on your machine
       - ./output:/app/output
-      # Mount a local folder as /data inside the container
-      # so the app can read/write your files.
-      # Override DATA_DIR in a .env file, e.g.  DATA_DIR=/Users/you/my-project-data
-      - ${DATA_DIR:-./user_data}:/data
     environment:
       - HOST=0.0.0.0
       - PORT=8000

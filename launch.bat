@@ -8,7 +8,6 @@ SET IMAGE=ghcr.io/dwmorley/lancs-leeg-ossa:latest
 
 REM ── Create local directories if they don't exist  ─────────────────────────
 if not exist output   mkdir output
-if not exist user_data mkdir user_data
 
 echo Pulling latest image ...
 docker pull %IMAGE%
@@ -20,5 +19,4 @@ echo.
 docker run --rm ^
   -p 8000:8000 ^
   -v "%cd%\output:/app/output" ^
-  -v "%cd%\user_data:/data" ^
   %IMAGE%

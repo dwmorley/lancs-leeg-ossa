@@ -20,7 +20,6 @@ services:
       - "${PORT:-8000}:8000"
     volumes:
       - ${OUTPUT_DIR:-./output}:/app/output
-      - ${DATA_DIR:-./user_data}:/data
     environment:
       - HOST=0.0.0.0
       - PORT=8000
