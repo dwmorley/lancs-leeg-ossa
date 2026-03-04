@@ -4,10 +4,10 @@ from typing import List
 from faicons import icon_svg
 from shiny import module, reactive, render, ui
 
-from constants import COVARIATE_OPTIONS, GRID_SAMPLE_SIZE
 from runner_extract import run_extraction
+from src.constants import COVARIATE_OPTIONS, GRID_SAMPLE_SIZE
 from src.utils.bounding_box import BoundingBox
-from src.utils.downloads import get_downloads_folder
+from src.utils.downloads import save_csv
 
 
 @module.ui
@@ -186,31 +186,16 @@ def data_server(input, output, session, reactive_values):
             duration=3,
         )
 
-    def _export_with_notification(data, filename, export_func, empty_message):
-        if data is None:
-            ui.notification_show(
-                empty_message,
-                type="warning",
-            )
-            return
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        fn = get_downloads_folder() / filename.format(ts=ts)
-        export_func(data, fn)
-        ui.notification_show(
-            "Data exported to your downloads folder",
-            type="message",
-            duration=5,
-        )
-
     @reactive.effect
     @reactive.event(input.export_csv)
     def _handle_export_csv() -> None:
-        _export_with_notification(
-            reactive_values.get("extracted_df"),
-            "ossa_extracted_{ts}.csv",
-            lambda df, fn: df.to_csv(fn, index=False),
-            "No data to export.",
-        )
+        df = reactive_values.get("extracted_df")
+        if df is None:
+            ui.notification_show("No data to export.", type="warning")
+            return
+        csv_name = f"ossa_extracted_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        csv_path = save_csv(csv_name=csv_name, dataframe=df)
+        ui.notification_show(f"Data saved to {csv_path}", type="message")
 
 
 def get_boundingbox(bounds: List[str]) -> BoundingBox:

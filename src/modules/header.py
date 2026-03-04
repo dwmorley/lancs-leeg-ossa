@@ -1,6 +1,6 @@
 from shiny import module, ui
 
-from constants import URLS
+from src.constants import URLS
 
 
 @module.ui

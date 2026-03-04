@@ -4,7 +4,7 @@ from typing import List
 import pandas as pd
 import xarray as xr
 
-from constants import COVARIATE_OPTIONS
+from src.constants import COVARIATE_OPTIONS
 from src.covariates.get_dem import get_dem
 from src.covariates.get_lulc import get_lulc
 from src.covariates.get_modis import get_modis

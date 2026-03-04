@@ -88,13 +88,11 @@ def server(input, output, session):
 
 
 www_dir = Path(__file__).parent / "www"
-# Create the Shiny app instance
-shiny_app = App(app_ui, server, static_assets=www_dir)
-
+app = App(app_ui, server, static_assets=www_dir)
 
 # DEBUG
 if __name__ == "__main__":
     # When running in Docker, bind to 0.0.0.0 and read PORT from env.
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", 8000))
-    run_app(shiny_app, host=host, port=port)
+    run_app(app, host=host, port=port)

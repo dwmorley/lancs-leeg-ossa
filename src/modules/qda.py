@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
-from constants import LCP_OPTIONS, QDA_OPTIONS
 from runner_analysis import do_qda_and_lcp
+from src.constants import LCP_OPTIONS, QDA_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.utils.downloads import save_artifacts_zip
 

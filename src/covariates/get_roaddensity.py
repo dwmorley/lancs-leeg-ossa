@@ -5,6 +5,7 @@ import requests
 import xarray as xr
 
 from src.utils.bounding_box import BoundingBox
+from src.utils.downloads import get_downloads_folder
 
 
 def get_roaddensity(
@@ -29,14 +30,15 @@ def get_roaddensity(
     # Download the zip file
     zipfilename = f"GRIP4_density_{type_str}.zip"
     url = f"https://dataportaal.pbl.nl/downloads/GRIP4/{zipfilename}"
-    downloaddir = os.path.expanduser("~/Downloads")
-    zippath = os.path.join(downloaddir, zipfilename)
+    downloaddir = get_downloads_folder()
+    downloaddir.mkdir(parents=True, exist_ok=True)
+    zippath = downloaddir / zipfilename
 
     response = requests.get(url, verify=False)
     with open(zippath, "wb") as f:
         f.write(response.content)
 
-    exdir = os.path.join(downloaddir, f"roaddensity_{type_str}")
+    exdir = downloaddir / f"roaddensity_{type_str}"
     os.makedirs(exdir, exist_ok=True)
 
     with zipfile.ZipFile(zippath, "r") as zip_ref:

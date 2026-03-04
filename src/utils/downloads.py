@@ -1,3 +1,4 @@
+import os
 import platform
 import tempfile
 import zipfile
@@ -5,7 +6,13 @@ from pathlib import Path
 
 
 def get_downloads_folder():
-    """Get the Downloads folder path for the current platform."""
+    """Get the Downloads folder path for the current platform.
+
+    Respects the DOWNLOAD_DIR environment variable when set (e.g. in Docker).
+    """
+    env_dir = os.environ.get("DOWNLOAD_DIR")
+    if env_dir:
+        return Path(env_dir)
     if platform.system() == "Windows":
         import winreg
 
@@ -17,6 +24,14 @@ def get_downloads_folder():
     else:
         # macOS and Linux
         return Path.home() / "Downloads"
+
+
+def save_csv(csv_name: str, dataframe) -> Path:
+    """Save a single dataframe as a CSV to the downloads folder."""
+    csv_path = get_downloads_folder() / csv_name
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    dataframe.to_csv(csv_path, index=False)
+    return csv_path
 
 
 def save_artifacts_zip(
@@ -40,6 +55,7 @@ def save_artifacts_zip(
                 figure.savefig(temp_path / filename, dpi=150, bbox_inches="tight")
 
         zip_path = get_downloads_folder() / zip_name
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for filename in [
                 *csv_artifacts.keys(),
