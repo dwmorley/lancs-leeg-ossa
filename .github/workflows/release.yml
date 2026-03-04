@@ -31,6 +31,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Fail fast if the pushed tag doesn't match pyproject.toml version.
+      # e.g. tag v0.1.2 must match version = "0.1.2" in pyproject.toml.
+      - name: Verify tag matches pyproject.toml version
+        run: |
+          TOML_VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/.*"\(.*\)"/\1/')
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          if [ "$TOML_VERSION" != "$TAG_VERSION" ]; then
+            echo "ERROR: git tag '${GITHUB_REF_NAME}' does not match pyproject.toml version '${TOML_VERSION}'"
+            exit 1
+          fi
+          echo "OK: tag and pyproject.toml both at v${TOML_VERSION}"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

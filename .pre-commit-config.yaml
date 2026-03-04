@@ -27,3 +27,13 @@ repos:
     hooks:
       - id: pydocstyle
         args: [ --convention=pep257 ]  # The standard!
+
+  # ── Local hook: pyproject.toml version must have an entry in RELEASE_NOTES ──
+  - repo: local
+    hooks:
+      - id: check-version
+        name: Version consistent with RELEASE_NOTES.md
+        language: python
+        entry: python scripts/check_version.py
+        pass_filenames: false
+        always_run: true

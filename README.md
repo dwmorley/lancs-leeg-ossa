@@ -19,7 +19,7 @@ OSSA runs locally on your machine using Docker. To get started, follow these ste
 4. OSSA will be ready to use!
 5. Downloads can be found from Docker Desktop:
     - Click on three dots icon > show container actions > View files.
-    - Any downloads will be in, ```app > output```
+    - Any downloads will be in, ```home > appuser > Downloads```
     - Right-click on the file you want to download and select "Save". The file will be downloaded to your local machine.
 6. You will also see the container running in Docker Desktop. You can stop the container when you are done using OSSA.
 

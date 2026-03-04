@@ -7,6 +7,8 @@ from shiny import App, reactive, run_app, ui
 
 from src.modules import aoi, asd, data, footer, header, load, map, qda
 
+os.environ["RPY2_CFFI_MODE"] = "ABI"
+
 page_dependencies = ui.tags.head(
     ui.tags.link(rel="stylesheet", type="text/css", href="styles.css"),
 )
@@ -70,11 +72,7 @@ app_ui = ui.page_fluid(
 
 
 def server(input, output, session):
-    """Wire together Shiny module servers and provide shared reactive state.
-
-    This server function registers module server functions and sets up the
-    shared reactive_values dictionary used across modules.
-    """
+    """Shiny Server."""
     reactive_values = {
         "extracted_df": None,
         "my_ossa_layers": reactive.Value([]),
