@@ -1,5 +1,9 @@
 # OSSA - Optimal Spatial Sampling Algorithm
 
+[![Build](https://github.com/dwmorley/lancs-leeg-ossa/actions/workflows/release.yml/badge.svg)](https://github.com/dwmorley/lancs-leeg-ossa/actions/workflows/release.yml)
+[![Docker Image Version](https://ghcr-badge.egpl.dev/dwmorley/lancs-leeg-ossa/latest_tag?trim=major&label=docker)](https://github.com/dwmorley/lancs-leeg-ossa/pkgs/container/lancs-leeg-ossa)
+[![Docker Image Size](https://ghcr-badge.egpl.dev/dwmorley/lancs-leeg-ossa/size)](https://github.com/dwmorley/lancs-leeg-ossa/pkgs/container/lancs-leeg-ossa)
+
 ## About
 
 OSSA is a set of algorithms developed for spatial sampling designs in absence of any prior information about the process, such as species distribution or a disease prevalence (lattice with close pairs) and for adaptive sampling designs (when prior information is available). It also contains an algorithm for ecological area delineation.
