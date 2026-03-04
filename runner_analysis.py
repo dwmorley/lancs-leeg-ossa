@@ -1,7 +1,5 @@
 """Runner utilities for analysis workflows (QDA, LCP, ASD) used by OSSA."""
 
-from typing import Any
-
 import numpy as np
 import pandas as pd
 
@@ -68,14 +66,8 @@ def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> None:
     }
 
 
-def do_asd(data: Any) -> None:
-    """Perform ASD sampling and analysis on the provided dataset.
-
-    Parameters
-    ----------
-    data : Any
-        Analysis-ready dataset for ASD.
-    """
+def do_asd() -> None:
+    """Perform ASD sampling and analysis on the provided dataset."""
     benin = pd.read_csv("test_data/benin.csv")
     beningrid = pd.read_csv("test_data/beningrid.csv")
     target = "H"
