@@ -1,14 +1,25 @@
 """Footer UI components for the OSSA Shiny app."""
 
+import tomllib
+from pathlib import Path
+
 from faicons import icon_svg
 from shiny import module, reactive, ui
+
+
+def get_version():
+    """Read the version from pyproject.toml."""
+    toml_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+    with open(toml_path, "rb") as f:
+        data = tomllib.load(f)
+    return data["tool"]["poetry"]["version"]
 
 
 @module.ui
 def footer_ui():
     """Return footer UI for the app."""
     return ui.tags.div(
-        ui.tags.div("© 2026 Lancaster University | Version 0.0.0", class_="footer-left"),
+        ui.tags.div(f"© 2026 Lancaster University | Version {get_version()}", class_="footer-left"),
         ui.tags.div(
             ui.tags.span(
                 ui.input_action_button(
