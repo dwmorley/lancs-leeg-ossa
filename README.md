@@ -1,4 +1,17 @@
-# OSSA
+# OSSA - Optimal Spatial Sampling Algorithm
+
+## About
+
+OSSA is a set of algorithms developed for spatial sampling designs in absence of any prior information about the process, such as species distribution or a disease prevalence (lattice with close pairs) and for adaptive sampling designs (when prior information is available). It also contains an algorithm for ecological area delineation.
+
+TODO: This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorithm (OSSA). The app allows users to easily implement OSSA for spatial sampling designs and ecological area delineation without needing interact directly with R code.
+
+## Installation & Running
+
+- Docker
+
+
+
 
 ## Development
 
@@ -28,15 +41,3 @@
 - Uses `poetry run flake8` for linting.
 - Uses `poetry run black app.py` to format the code.
 - Run on all files: `poetry run pre-commit run --all-files`
-
-## macOS Installation & Running
-
-1. Download the latest release zip
-2. Extract the zip file
-3. Right-click the app and select "Open"
-4. Click "Open" in the security dialog
-
-Or in Terminal:
-```bash
-xattr -d com.apple.quarantine /path/to/lancs-leeg-ossa.app
-```
