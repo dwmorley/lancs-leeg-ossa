@@ -141,6 +141,5 @@ Thumbs.db
 
 #GIS things
 *.tif
-*.csv
 *.tif.aux.xml
 /output

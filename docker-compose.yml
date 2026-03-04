@@ -1,14 +1,25 @@
-version: "3.8"
+# ── Local development / debug compose file ───────────────────────────────────
+# Usage:
+#   docker compose up --build          # first run (builds the image locally)
+#   docker compose up                  # subsequent runs (re-uses cached image)
+#   docker compose down                # stop and remove container
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: lancs-leeg-ossa:dev
     ports:
-      - "8000:8000"
-    environment:
-      - DEVELOPMENT=1
-      - PORT=8000
+      - "${PORT:-8000}:8000"
     volumes:
-      - ./:/app:cached
+      # App writes outputs here — maps to ./output on your machine
+      - ./output:/app/output
+      # Mount a local folder as /data inside the container
+      # so the app can read/write your files.
+      # Override DATA_DIR in a .env file, e.g.  DATA_DIR=/Users/you/my-project-data
+      - ${DATA_DIR:-./user_data}:/data
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
     restart: unless-stopped

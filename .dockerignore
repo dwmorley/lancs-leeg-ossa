@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+
+# Version control
+.git/
+.gitignore
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output (will be mounted at runtime instead)
+output/
+
+# Tests / dev-only files
+test_runner.py
+# NOTE: test_data/, runner_analysis.py and runner_extract.py are kept — imported/read by app
+
+# Build / lock files (not needed inside the image)
+poetry.lock
+*.lock
+
+# Docs
+*.md

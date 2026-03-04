@@ -5,6 +5,7 @@ from shiny import module, reactive, ui
 @module.ui
 def load_ui():
     return ui.div(
+        ui.h4("Import Data", class_="column-header"),
         ui.input_file(
             "data_file",
             "",
@@ -28,21 +29,7 @@ def load_server(input, output, session, reactive_values):
         drawn_shapes = reactive_values["drawn_shapes"]
         extracted_df = reactive_values["extracted_df"]
 
-        try:
-            file_info = input.data_file()
-            if not file_info:
-                ui.notification_show("Please select a CSV file first.", type="warning")
-                return
-
-            # Debug: show what datapath looks like in Docker
-            ui.notification_show(
-                f"datapath: {file_info[0]['datapath']}", type="message", duration=10
-            )
-        except Exception as e:
-            ui.notification_show(f"Error accessing uploaded file: {str(e)}", type="error")
-            return
-
-        # file_info = input.data_file()
+        file_info = input.data_file()
         if not file_info:
             ui.notification_show("Please select a CSV file first.", type="warning")
             return

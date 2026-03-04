@@ -1,0 +1,27 @@
+# ── Release / end-user compose file ──────────────────────────────────────────
+# This file pulls the pre-built image from GitHub Container Registry (GHCR)
+# instead of building from source.  Distribute this file to your users.
+#
+# Usage (one-time setup):
+#   docker login ghcr.io -u <github-username> -p <github-pat>   # if image is private
+#
+# Usage (every time):
+#   docker compose -f docker-compose.release.yml up
+#
+# Set DATA_DIR in a .env file next to this file, e.g.:
+#   DATA_DIR=C:\Users\you\my-data        (Windows)
+#   DATA_DIR=/Users/you/my-data          (Mac)
+
+services:
+  app:
+    image: ghcr.io/dwmorley/lancs-leeg-ossa:latest
+    pull_policy: always
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ${OUTPUT_DIR:-./output}:/app/output
+      - ${DATA_DIR:-./user_data}:/data
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    restart: unless-stopped
