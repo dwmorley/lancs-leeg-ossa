@@ -1,11 +1,4 @@
-"""Routines for the ASD sampling design. Luigi's original R code.
-
-This module provides a thin Python wrapper around R functionality via
-rpy2 to run a GLMM (glmmPQL) and generate an interpolated raster of
-predicted values or prediction uncertainty. It also offers a simple
-plotting helper to visualise the resulting raster and selected sample
-points.
-"""
+"""Routines for the ASD sampling design. Luigi's original R code."""
 
 from typing import Literal
 

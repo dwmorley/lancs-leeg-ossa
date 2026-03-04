@@ -36,6 +36,11 @@ def get_modis(
         MODIS variable to fetch (e.g. 'ET_500m')
     year : int
         Date range
+
+    Returns
+    -------
+    dict[str, xarray.DataArray]
+        Dictionary of rasters, where keys are variable name with aggregation method
     """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -125,14 +130,14 @@ def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.Data
 def get_collection(var: str) -> Union[str, None]:
     """Connect to Microsoft Planetary Computer STAC API and find the MODIS collection.
 
-        Parameters
+    Parameters
     ----------
     var : str
         Variable name to search for in the collection assets (e.g. 'ET_500m').
 
     Returns
     -------
-    The collection ID.
+        The MODIS collection ID.
     """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
