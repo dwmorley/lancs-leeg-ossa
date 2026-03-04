@@ -7,8 +7,6 @@ from shiny import App, reactive, run_app, ui
 
 from src.modules import aoi, asd, data, footer, header, load, map, qda
 
-os.environ["RPY2_CFFI_MODE"] = "ABI"
-
 page_dependencies = ui.tags.head(
     ui.tags.link(rel="stylesheet", type="text/css", href="styles.css"),
 )
