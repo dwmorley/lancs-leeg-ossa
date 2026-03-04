@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shiny-app"
-version = "0.0.2"
+version = "0.0.1"
 description = "Shiny Python app"
 authors = ["David Morley <d.morley1@lancaster.ac.uk>"]
 readme = "README.md"
