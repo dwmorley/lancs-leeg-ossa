@@ -97,7 +97,7 @@ def asd_server(input, output, session, reactive_values):
     def _handle_save_asd() -> None:
         if not reactive_values["asd_results"]():
             ui.notification_show(
-                "Please run the ASD analysis first.",
+                "Nothing to export. Please run the ASD analysis first.",
                 type="warning",
             )
             return

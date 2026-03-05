@@ -103,7 +103,7 @@ def qda_server(input, output, session, reactive_values):
     def _handle_save_qda() -> None:
         if not reactive_values["qda_lcp_results"]():
             ui.notification_show(
-                "Please run the QDA/LCP analysis first.",
+                "Nothing to export. Please run the QDA/LCP analysis first.",
                 type="warning",
             )
             return
@@ -136,7 +136,7 @@ def qda_server(input, output, session, reactive_values):
 
         if extracted_df is None:
             ui.notification_show(
-                "Please run the data extraction first, or load a csv", type="warning"
+                "Please run the data extraction first, or upload a csv", type="warning"
             )
             return
 
@@ -144,7 +144,6 @@ def qda_server(input, output, session, reactive_values):
         results = do_qda_and_lcp(extracted_df, input.qda_nx(), input.qda_nn())
 
         # Remove drawn bbox from the map and add LCP overlays
-        # draw_control.data = []
         drawn_shapes.set([])
         map_raster = results["map_raster"]
         overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")

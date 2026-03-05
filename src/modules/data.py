@@ -197,7 +197,7 @@ def data_server(input, output, session, reactive_values):
     def _handle_export_csv() -> None:
         df = reactive_values.get("extracted_df")
         if df is None:
-            ui.notification_show("No data to export.", type="warning")
+            ui.notification_show("No data to export. Run the extraction first.", type="warning")
             return
         csv_name = f"ossa_extracted_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         csv_path = save_csv(csv_name=csv_name, dataframe=df)
