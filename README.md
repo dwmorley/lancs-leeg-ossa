@@ -2,13 +2,12 @@
 
 [![Build](https://github.com/dwmorley/lancs-leeg-ossa/actions/workflows/release.yml/badge.svg)](https://github.com/dwmorley/lancs-leeg-ossa/actions/workflows/release.yml)
 [![Docker Image Version](https://ghcr-badge.egpl.dev/dwmorley/lancs-leeg-ossa/latest_tag?trim=major&label=docker)](https://github.com/dwmorley/lancs-leeg-ossa/pkgs/container/lancs-leeg-ossa)
-[![Docker Image Size](https://ghcr-badge.egpl.dev/dwmorley/lancs-leeg-ossa/size)](https://github.com/dwmorley/lancs-leeg-ossa/pkgs/container/lancs-leeg-ossa)
 
 ## About
 
 OSSA is a set of algorithms developed for spatial sampling designs in absence of any prior information about the process, such as species distribution or a disease prevalence (lattice with close pairs) and for adaptive sampling designs (when prior information is available). It also contains an algorithm for ecological area delineation.
 
-TODO: This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorithm (OSSA). The app allows users to easily implement OSSA for spatial sampling designs and ecological area delineation without needing interact directly with R code.
+This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorithm (OSSA). The app allows users to easily implement OSSA for spatial sampling designs and ecological area delineation without needing interact directly with R code.
 
 ![OSSA screenshot](www/OSSA_screengrab_1.png)
 

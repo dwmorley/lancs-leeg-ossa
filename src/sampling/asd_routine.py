@@ -27,13 +27,6 @@ def glmmPQL_via_rpy2(
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     """Fit a GLMM via R (glmmPQL) and produce an interpolated raster.
 
-    This function uses rpy2 to call R packages (MASS, nlme, AICcmodavg,
-    MBA) to fit a penalised quasi-likelihood GLMM with an exponential
-    spatial correlation structure, predict standard errors on a supplied
-    `area` grid, and produce a regularly-gridded raster using MBA
-    interpolation. It also selects sampling locations using a simple
-    thinning procedure.
-
     Parameters
     ----------
     formulaf : str
@@ -69,15 +62,6 @@ def glmmPQL_via_rpy2(
         the interpolated raster (dimensions ['y', 'x']) and ``x_df`` is a
         pandas DataFrame with the sampled point locations (columns include
         'x' and 'y').
-
-    Notes
-    -----
-    - This function requires the R packages MASS, nlme, AICcmodavg and
-      MBA to be installed and available to rpy2. If they are missing the
-      calls will raise an error from rpy2.
-    - The function communicates with R via global environment variables
-      and runs several R scripts; the behaviour mirrors a direct R
-      workflow and is not vectorised in pure Python.
     """
     # Install rpy2 console-write hooks so R verbose output is forwarded.
     _original_print = rpy2_callbacks.consolewrite_print

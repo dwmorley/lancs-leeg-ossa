@@ -64,7 +64,6 @@ app_ui = ui.page_fluid(
         # Footer
         page_footer,
         class_="page-wrapper",
-        title="OSSA - Optimal Spatial Sampling Algorithm",
     )
 )
 
