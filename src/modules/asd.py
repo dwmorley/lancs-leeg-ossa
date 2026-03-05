@@ -1,5 +1,7 @@
 """ASD UI and server components for ASD sampling in OSSA."""
 
+import asyncio
+import queue
 from datetime import datetime
 
 from faicons import icon_svg
@@ -117,13 +119,35 @@ def asd_server(input, output, session, reactive_values):
 
     @reactive.effect
     @reactive.event(input.run_asd)
-    def _handle_run_asd() -> None:
+    async def _handle_run_asd() -> None:
 
         my_ossa_layers = reactive_values["my_ossa_layers"]
-
-        ui.notification_show("Running Adaptive Sampling...", type="message")
         target = input.asd_target._value
-        results = do_asd()
+
+        # Capture the R callbacks
+        msg_queue: queue.SimpleQueue[tuple] = queue.SimpleQueue()
+
+        def _on_progress(value: float, message: str, detail: str = "") -> None:
+            msg_queue.put((value, message, detail))
+
+        # Launch R computation in a thread so the event loop stays unblocked.
+        task = asyncio.create_task(asyncio.to_thread(do_asd, on_progress=_on_progress))
+
+        with ui.Progress(min=0, max=1) as p:
+            p.set(0, message="Starting Adaptive Sampling...")
+            while not task.done():
+                await asyncio.sleep(0.1)
+                # Apply all queued updates; final one will be the most recent.
+                while not msg_queue.empty():
+                    value, message, detail = msg_queue.get_nowait()
+                    p.set(value, message=message, detail=detail)
+            # Drain any last items after the task finishes.
+            while not msg_queue.empty():
+                value, message, detail = msg_queue.get_nowait()
+                p.set(value, message=message, detail=detail)
+            p.set(1, message="Done")
+
+        results = task.result()
 
         if target == "H":
             plot_title = "ASD Hotspot"
@@ -136,9 +160,7 @@ def asd_server(input, output, session, reactive_values):
         points = make_point_layer(lcp_df, layer_name="ASD Sites")
         my_ossa_layers.set([overlay, points])
 
-        # Zoom to raster extents by updating the shared `drawn_shapes` reactive
-        # value. The `map` module reacts to `drawn_shapes` and will set the
-        # draw control and call `fit_bounds` on the map widget.
+        # Zoom to raster extents
         drawn_shapes = reactive_values.get("drawn_shapes")
         if drawn_shapes is not None:
             lats = map_raster.coords.get(

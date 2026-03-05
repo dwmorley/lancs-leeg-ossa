@@ -430,3 +430,8 @@
     .ui-span-grid-resolution {
         margin-bottom: 6.4px;
     }
+    .shiny-progress .progress-text .progress-detail,
+    .shiny-progress-notification .progress-text .progress-detail {
+        font-size: 100% !important;
+        color: inherit !important;
+    }

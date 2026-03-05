@@ -1,6 +1,6 @@
 """Routines for the ASD sampling design. Luigi's original R code."""
 
-from typing import Literal
+from typing import Callable, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,6 +9,7 @@ import rioxarray  # noqa: F401
 import rpy2.robjects as ro
 import xarray as xr
 from matplotlib.colors import BoundaryNorm
+from rpy2.rinterface_lib import callbacks as rpy2_callbacks
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
@@ -22,6 +23,7 @@ def glmmPQL_via_rpy2(
     target: Literal["H", "U"],
     total: float = 15,
     delta: float = 0.01,
+    on_progress: Callable[[float, str, str], None] | None = None,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     """Fit a GLMM via R (glmmPQL) and produce an interpolated raster.
 
@@ -53,6 +55,12 @@ def glmmPQL_via_rpy2(
     delta : float
         Minimum allowed pairwise distance (in the same units as 'x'/'y')
         for the thinning step.
+    on_progress : callable, optional
+        If provided, called as ``on_progress(value, message, detail)`` where
+        *value* is a float in [0, 1] indicating overall progress, *message*
+        is the current stage label, and *detail* is a live string from the R
+        console (e.g. ``glmmPQL`` iteration lines). Useful for updating a
+        progress bar in a UI such as Shiny.
 
     Returns
     -------
@@ -71,16 +79,79 @@ def glmmPQL_via_rpy2(
       and runs several R scripts; the behaviour mirrors a direct R
       workflow and is not vectorised in pure Python.
     """
-    # TODO: fix imports
+    # Install rpy2 console-write hooks so R verbose output is forwarded.
+    _original_print = rpy2_callbacks.consolewrite_print
+    _original_warnerror = rpy2_callbacks.consolewrite_warnerror
+    _state: dict = {"value": 0.0, "message": "Starting..."}
+    if on_progress is not None:
+
+        def _consolewrite_hook(s: str) -> None:
+            stripped = s.strip()
+            if stripped:
+                on_progress(_state["value"], _state["message"], stripped)
+            _original_print(s)
+
+        def _warnerror_hook(s: str) -> None:
+            stripped = s.strip()
+            if stripped:
+                on_progress(_state["value"], _state["message"], stripped)
+            _original_warnerror(s)
+
+        rpy2_callbacks.consolewrite_print = _consolewrite_hook
+        rpy2_callbacks.consolewrite_warnerror = _warnerror_hook
+
+    try:
+        return _glmmPQL_via_rpy2_inner(
+            formulaf=formulaf,
+            formular=formular,
+            data=data,
+            area=area,
+            target=target,
+            total=total,
+            delta=delta,
+            on_progress=on_progress,
+            _state=_state,
+        )
+    finally:
+        rpy2_callbacks.consolewrite_print = _original_print
+        rpy2_callbacks.consolewrite_warnerror = _original_warnerror
+
+
+def _glmmPQL_via_rpy2_inner(
+    formulaf: str,
+    formular: str,
+    data: pd.DataFrame,
+    area: pd.DataFrame,
+    target: Literal["H", "U"],
+    total: float = 15,
+    delta: float = 0.01,
+    on_progress: Callable[[float, str, str], None] | None = None,
+    _state: dict | None = None,
+) -> tuple[xr.DataArray, pd.DataFrame]:
+    """Inner implementation called by glmmPQL_via_rpy2."""
+
+    def _prog(value: float, message: str, detail: str = "") -> None:
+        """Update shared state and fire the progress callback."""
+        if _state is not None:
+            _state["value"] = value
+            _state["message"] = message
+        if on_progress is not None:
+            on_progress(value, message, detail)
+
+    _prog(0.05, "Loading R packages")
     importr("MASS")
     importr("nlme")
     importr("AICcmodavg")
     importr("MBA")
 
     with localconverter(pandas2ri.converter):
+        _prog(0.10, "Transferring data to R")
         ro.globalenv["data"] = data
         ro.globalenv["area"] = area
 
+        # R console writes during glmmPQL will be picked up by the hook and
+        # forwarded as detail text at this stage value/message.
+        _prog(0.15, "Fitting model (glmmPQL)...")
         ro.r(
             f"""
             model <- glmmPQL(
@@ -88,16 +159,20 @@ def glmmPQL_via_rpy2(
                 random = {formular},
                 data = data,
                 correlation = corExp(form = ~x + y, nugget = T),
-                family = poisson
+                family = poisson,
+                verbose = TRUE
             )
         """
         )
 
+        _prog(0.75, "Predicting standard errors")
         ro.r(
             """
             modelse <- predictSE(model, newdata=area)
         """
         )
+
+        _prog(0.85, "Interpolating uncertainty grid")
         ro.r(
             """
             modelgrid <- mba.surf(
@@ -110,6 +185,7 @@ def glmmPQL_via_rpy2(
         )
 
         if target == "H":
+            _prog(0.88, "Interpolating fitted values grid")
             ro.r(
                 """
                 modelgridX <- mba.surf(
@@ -160,6 +236,7 @@ def glmmPQL_via_rpy2(
             the_raster = "modelgrid"
             colnames = """colnames(x)=c("x","y","Uncertainty")"""
 
+    _prog(0.90, "Selecting sample locations")
     ro.r("""xx <- dist(x[, 1:2])""")
     ro.r("""xx <- as.matrix(xx)""")
     ro.r(f"""xx <- lapply(2:nrow(xx),function(y)which(xx[(y-1),y:nrow(xx)]<={delta})+(y-1))""")
@@ -168,6 +245,7 @@ def glmmPQL_via_rpy2(
     ro.r(f"""x <- x[1:{total},]""")
     ro.r(colnames)
 
+    _prog(0.95, "Finalising")
     ro.r(
         f"""
         image <- setNames(

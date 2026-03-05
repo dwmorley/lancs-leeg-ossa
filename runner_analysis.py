@@ -66,7 +66,7 @@ def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> None:
     }
 
 
-def do_asd() -> None:
+def do_asd(on_progress=None) -> None:
     """Perform ASD sampling and analysis on the provided dataset."""
     benin = pd.read_csv("test_data/benin.csv")
     beningrid = pd.read_csv("test_data/beningrid.csv")
@@ -80,6 +80,7 @@ def do_asd() -> None:
         target=target,
         total=15,
         delta=0.01,
+        on_progress=on_progress,
     )
 
     return {
