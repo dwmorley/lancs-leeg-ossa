@@ -32,6 +32,10 @@ OSSA runs locally on your machine using Docker. To get started, follow these ste
     - Any downloads will be in, ```home > appuser > Downloads```
     - Right-click on the file you want to download and select "Save". The file will be downloaded to your local machine.
 6. You will also see the container running in Docker Desktop. You can stop the container when you are done using OSSA.
+7. OSSA can also be lauched from Docker Desktop without having to run the launch script. In Docker, your 'image' is
+essentially the software, and the 'container' is a single running instance of this. So, you can start and stop both
+images and containers in Docker Desktop. When starting a new container, you may need to specify a port - you can assign
+'0' to select a random port and click on the host URL once the container is running.
 
 ## Report an Issue
 

@@ -22,6 +22,7 @@ COVARIATE_OPTIONS = {
     "grip5": "GRIP Road Density - Local Roads",
     "modis_ET_500m": "MODIS Yearly Evapotranspiration (500m)",
     "modis_LST_Day_1KM": "MODIS Yearly LST Day (1km)",
+    "modis_Gpp_500m": "MODIS Gross Primary Productivity (500m)",
     "terraclimate_aet": "TerraClimate Actual Evapotranspiration",
     "terraclimate_def": "TerraClimate Water Deficit",
     "terraclimate_pet": "TerraClimate Potential Evapotranspiration",

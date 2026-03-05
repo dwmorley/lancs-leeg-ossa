@@ -1,10 +1,13 @@
 """Utilities and runner entrypoint for extraction tasks used by OSSA."""
 
+import time
 from datetime import datetime
 from typing import List
 
 import pandas as pd
 import xarray as xr
+from pystac_client.exceptions import APIError
+from shiny import ui
 
 from src.constants import COVARIATE_OPTIONS
 from src.covariates.get_dem import get_dem
@@ -52,6 +55,7 @@ def run_extraction(
         "wp_1km_unadj": lambda: get_worldpop(bbox=bbox, year=year),
         "modis_ET_500m": lambda: get_modis(bbox=bbox, variable="ET_500m", year=year),
         "modis_LST_Day_1KM": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", year=year),
+        "modis_Gpp_500m": lambda: get_modis(bbox=bbox, variable="Gpp_500m", year=year),
         "grip0": lambda: get_roaddensity(bbox=bbox, road_type=0),
         "grip1": lambda: get_roaddensity(bbox=bbox, road_type=1),
         "grip2": lambda: get_roaddensity(bbox=bbox, road_type=2),
@@ -93,9 +97,44 @@ def run_extraction(
         func = variable_funcs.get(var)
 
         if func:
-            raster = func()
+
+            def _call_with_retries(fn, *, retries: int = 3, base_delay: float = 1.0):
+                for attempt in range(retries):
+                    try:
+                        return fn()
+                    except APIError:
+                        if attempt < retries - 1:
+                            delay = base_delay * (2**attempt)
+                            time.sleep(delay)
+                            continue
+                        # Exhausted retries: notify and return None
+                        try:
+                            ui.notification_show(
+                                "The API request timed out after multiple attempts. "
+                                "Please try again later.",
+                                type="error",
+                            )
+                        except Exception:
+                            print("The API request timed out after multiple attempts.")
+                        return None
+                    except Exception as e:
+                        ui.notification_show(
+                            f"Error while fetching {var}: {e}", type="error", duration=5
+                        )
+                        return None
+
+            raster = _call_with_retries(func)
         else:
             raise ValueError(f"Unknown variable: {var}")
+
+        # If raster retrieval failed (None), skip this variable and continue.
+        if raster is None:
+            ui.notification_show(
+                f"Skipping {COVARIATE_OPTIONS[var]} — failed to retrieve data.",
+                type="warning",
+                duration=None,
+            )
+            continue
 
         if isinstance(raster, dict):
             for k, v in raster.items():

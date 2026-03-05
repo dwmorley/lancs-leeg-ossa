@@ -1,6 +1,6 @@
 """Get and transform MODIS rasters."""
 
-from typing import Union
+from typing import Dict, Union
 
 import numpy as np
 import planetary_computer
@@ -18,6 +18,7 @@ MODIS_CONFIGS = {
         "date_range": "{year}",
         "nodata": None,
     },
+    "Gpp_500m": {"aggregation": ["mean", "min", "max"], "date_range": "{year}", "nodata": 3.2762},
 }
 
 
@@ -25,7 +26,7 @@ def get_modis(
     bbox: BoundingBox,
     variable: str,
     year: int,
-) -> dict[str, xr.DataArray]:
+) -> Dict[str, xr.DataArray]:
     """Fetch and prepare MODIS rasters for the AOI, variable, and year.
 
     Parameters
@@ -39,8 +40,9 @@ def get_modis(
 
     Returns
     -------
-    dict[str, xarray.DataArray]
-        Dictionary of rasters, where keys are variable name with aggregation method
+    dict[str, xarray.DataArray] or None
+        Dictionary of rasters, where keys are variable name with aggregation method,
+        or None if no MODIS tiles were found for the requested AOI/date range.
     """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -51,21 +53,12 @@ def get_modis(
 
     date_range = MODIS_CONFIGS[variable]["date_range"].format(year=year)
 
-    search = catalog.search(
-        collections=[collection],
-        bbox=bbox.to_list(),
-        datetime=date_range,
-    )
+    search = catalog.search(collections=[collection], bbox=bbox.to_list(), datetime=date_range)
     items = search.item_collection()
-
-    if len(items) == 0:
-        raise Exception(
-            f"No MODIS tiles found for variable {variable} in the specified AOI and date range."
-        )
 
     stack = stackstac.stack(
         items,
-        dtype=np.float64,
+        dtype=np.dtype("float64"),
         fill_value=np.nan,
         assets=[variable],
         epsg=4326,
@@ -127,7 +120,7 @@ def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.Data
     return methods[method](da_raster)
 
 
-def get_collection(var: str) -> Union[str, None]:
+def get_collection(var: str) -> str:
     """Connect to Microsoft Planetary Computer STAC API and find the MODIS collection.
 
     Parameters
@@ -157,4 +150,12 @@ def get_collection(var: str) -> Union[str, None]:
 
 
 if __name__ == "__main__":
-    pass
+    r = get_modis(
+        bbox=BoundingBox([-2.502, 42.698, -2.2, 43.0850]),
+        variable="Gpp_500m",
+        year=2019,
+    )
+
+    if r is not None:
+        r["Gpp_500m_mean"].rio.write_crs("epsg:4326")
+        r["Gpp_500m_mean"].rio.to_raster("modis.tif", compress="deflate", COMPRESS_LEVEL=9)

@@ -1,7 +1,7 @@
 """Data UI/server module for extracting and previewing covariates."""
 
-from datetime import datetime
-from typing import List
+from datetime import date, datetime
+from typing import Any, Dict, List, Tuple
 
 from faicons import icon_svg
 from shiny import module, reactive, render, ui
@@ -28,6 +28,7 @@ def data_ui():
                                 "",
                                 choices=COVARIATE_OPTIONS,
                                 selected=["landcover"],
+                                # inline=True,
                             ),
                             class_="checkbox-wrapper",
                         ),
@@ -204,7 +205,7 @@ def data_server(input, output, session, reactive_values):
         ui.notification_show(f"Data saved to {csv_path}", type="message")
 
 
-def get_boundingbox(bounds: List[str]) -> BoundingBox:
+def get_boundingbox(bounds: List[Dict[str, Any]]) -> BoundingBox:
     """Convert a Shiny drawn shapes event into a BoundingBox.
 
     Parameters
@@ -225,7 +226,7 @@ def get_boundingbox(bounds: List[str]) -> BoundingBox:
     return BoundingBox([min(west, east), min(south, north), max(west, east), max(south, north)])
 
 
-def extract_pre_checks(selected_vars: List[str], date_range: tuple) -> bool:
+def extract_pre_checks(selected_vars: List[str], date_range: Tuple[date, date]) -> bool:
     """Perform pre-checks before running extraction, such as validating inputs or checking data availability.
 
     Returns
@@ -242,6 +243,14 @@ def extract_pre_checks(selected_vars: List[str], date_range: tuple) -> bool:
         if end_date.year < 2017 or end_date.year > 2023:
             warnings.append(
                 "Selected date range is outside the available for landcover data (2017-2023)."
+            )
+
+    if "modis_Gpp_500m" in selected_vars:
+        modis_start = datetime.strptime("2000-02-18", "%Y-%m-%d").date()
+        modis_end = datetime.strptime("2023-02-17", "%Y-%m-%d").date()
+        if start_date < modis_start or end_date > modis_end:
+            warnings.append(
+                "Selected date range is outside the available range for MODIS GPP data (2000-02-18 to 2023-02-17)."
             )
 
     if any("modis_" in var for var in selected_vars):
