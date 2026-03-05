@@ -22,16 +22,18 @@ def load_ui():
         the main application layout.
     """
     return ui.div(
-        ui.h4("Import Data", class_="column-header"),
-        ui.input_file(
-            "data_file",
-            "",
-            accept=[".csv"],
-            multiple=False,
-            width="100%",
-            placeholder="Upload a previously saved CSV file",
+        ui.tags.div(
+            ui.input_file(
+                "data_file",
+                ui.h4("Import Data"),
+                accept=[".csv"],
+                multiple=False,
+                width="100%",
+                placeholder="Upload a previously saved CSV file",
+            ),
+            class_="input-section",
         ),
-        class_="input-section",
+        class_="tab-content",
     )
 
 
