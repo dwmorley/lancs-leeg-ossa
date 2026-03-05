@@ -6,6 +6,8 @@ from pathlib import Path
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
+from src.constants import URLS
+
 
 def get_version():
     """Read the version from pyproject.toml."""
@@ -92,7 +94,10 @@ def footer_server(input, output, session):
         ui.modal_show(
             ui.modal(
                 ui.h4("GitHub Repository"),
-                ui.p("Add your information text here."),
+                ui.p(
+                    "Source code available at: ",
+                    ui.a(URLS["github"], href=URLS["github"], target="_blank"),
+                ),
                 easy_close=True,
                 footer=None,
             )

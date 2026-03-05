@@ -45,7 +45,6 @@ def run_extraction(
     """
     # The maximum year from date_range
     year = max(date_range[0].year, date_range[1].year)
-    year = 2020  # ################ HARDTYPED
 
     variable_funcs = {
         "landcover": lambda: get_lulc(bbox=bbox, year=year),

@@ -1,13 +1,13 @@
 """Data UI/server module for extracting and previewing covariates."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List
 
 from faicons import icon_svg
 from shiny import module, reactive, render, ui
 
 from runner_extract import run_extraction
-from src.constants import COVARIATE_OPTIONS, GRID_SAMPLE_SIZE
+from src.constants import COVARIATE_OPTIONS, END_DATE, GRID_SAMPLE_SIZE, START_DATE
 from src.utils.bounding_box import BoundingBox
 from src.utils.downloads import save_csv
 
@@ -40,8 +40,8 @@ def data_ui():
                             ui.input_date_range(
                                 "covariate_dates",
                                 "",
-                                start=(datetime.now() - timedelta(days=183)).date(),
-                                end=datetime.now().date(),
+                                start=datetime.strptime(START_DATE, "%Y-%m-%d").date(),
+                                end=datetime.strptime(END_DATE, "%Y-%m-%d").date(),
                             ),
                             ui.div(
                                 {"style": "display: flex; gap: 10px; align-items: flex-end;"},
@@ -136,10 +136,24 @@ def data_server(input, output, session, reactive_values):
         extracted_df = reactive_values.get("extracted_df")
         drawn_shapes = reactive_values["drawn_shapes"]
 
+        # Get selected variables and parameters
+        selected_vars = input.covariate_vars()
+        if len(selected_vars) <= 2:
+            ui.notification_show(
+                "Please select at least two additional variables to landcover.",
+                type="warning",
+            )
+            return
+
         # Get current bounds
         bounds = drawn_shapes.get()
         if not bounds:
             ui.notification_show("Please draw a rectangle on the map first.", type="warning")
+            return
+
+        # Validate inputs before running extraction
+        b_checked = extract_pre_checks(selected_vars, input.covariate_dates())
+        if not b_checked:
             return
 
         extents = bounds[0]["bounds"]
@@ -149,15 +163,6 @@ def data_server(input, output, session, reactive_values):
         west = extents["west"]
 
         bbox = BoundingBox([min(west, east), min(south, north), max(west, east), max(south, north)])
-
-        # Get selected variables and parameters
-        selected_vars = input.covariate_vars()
-        if len(selected_vars) <= 2:
-            ui.notification_show(
-                "Please select at least two additional variables to landcover.",
-                type="warning",
-            )
-            return
 
         with ui.Progress(min=0, max=100) as p:
             p.set(message="Starting extraction...", value=0)
@@ -218,3 +223,51 @@ def get_boundingbox(bounds: List[str]) -> BoundingBox:
     east = extents["east"]
     west = extents["west"]
     return BoundingBox([min(west, east), min(south, north), max(west, east), max(south, north)])
+
+
+def extract_pre_checks(selected_vars: List[str], date_range: tuple) -> bool:
+    """Perform pre-checks before running extraction, such as validating inputs or checking data availability.
+
+    Returns
+    -------
+    bool
+        True if checks pass and extraction can proceed, False otherwise.
+    """
+    start_date = date_range[0]
+    end_date = date_range[1]
+
+    warnings = []
+
+    if "landcover" in selected_vars:
+        if end_date.year < 2017 or end_date.year > 2023:
+            warnings.append(
+                "Selected date range is outside the available for landcover data (2017-2023)."
+            )
+
+    if any("modis_" in var for var in selected_vars):
+        if start_date.year < 2000:
+            warnings.append("Selected start date is outside the available for MODIS data (>=2000).")
+
+    if any("terraclimate_" in var for var in selected_vars):
+        if start_date.year < 1950:
+            warnings.append(
+                "Selected start date is outside the available for Terraclimate data (>=1950)."
+            )
+
+    if any("wp_1km_unadj" in var for var in selected_vars):
+        if start_date.year < 2000 or end_date.year > 2020:
+            warnings.append(
+                "Selected date range is outside the available for World Pop data (2000-2020)."
+            )
+
+    if warnings:
+        message = ui.tags.div(
+            ui.tags.strong("Could not run extraction due to the following issues:"),
+            ui.tags.br(),
+            ui.tags.br(),
+            *[ui.tags.div(f"• {warning}", ui.tags.br()) for warning in warnings],
+        )
+        ui.notification_show(message, type="error")
+        return False
+
+    return True

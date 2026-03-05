@@ -2,10 +2,13 @@
 
 URLS = {
     "lms": "https://www.lancaster.ac.uk/lms/",
+    "github": "https://github.com/dwmorley/lancs-leeg-ossa",
 }
 
 GRID_SAMPLE_SIZE = 500
 
+START_DATE = "2019-01-01"
+END_DATE = "2019-12-31"
 
 COVARIATE_OPTIONS = {
     "landcover": "Impact Observatory Land Cover",
@@ -17,8 +20,8 @@ COVARIATE_OPTIONS = {
     "grip3": "GRIP Road Density - Secondary Roads",
     "grip4": "GRIP Road Density - Tertiary Roads",
     "grip5": "GRIP Road Density - Local Roads",
-    "ET_500m": "MODIS Yearly Evapotranspiration (500m)",
-    "LST_Day_1KM": "MODIS Yearly LST Day (1km)",
+    "modis_ET_500m": "MODIS Yearly Evapotranspiration (500m)",
+    "modis_LST_Day_1KM": "MODIS Yearly LST Day (1km)",
     "terraclimate_aet": "TerraClimate Actual Evapotranspiration",
     "terraclimate_def": "TerraClimate Water Deficit",
     "terraclimate_pet": "TerraClimate Potential Evapotranspiration",
