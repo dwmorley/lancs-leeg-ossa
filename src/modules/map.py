@@ -49,7 +49,7 @@ def map_server(input, output, session, reactive_values):
     draw_control.observe(on_draw_remove, "last_remove")
 
     # Holder for the map widget so other effects or other modules can call methods
-    m_ref = {"m": None}
+    m_ref: dict[str, leafmap.Map | None] = {"m": None}
 
     def on_draw_change(change) -> None:
         if change["new"] and change["new"].get("geometry"):
@@ -79,7 +79,7 @@ def map_server(input, output, session, reactive_values):
 
     @reactive.effect
     @reactive.event(drawn_shapes)
-    def _on_drawn_shapes_from_other() -> None:
+    def _on_drawn_shapes_from_other():
 
         shapes = drawn_shapes.get()
 
@@ -112,7 +112,7 @@ def map_server(input, output, session, reactive_values):
 
     @reactive.effect
     @reactive.event(my_ossa_layers)
-    def _render_my_layers() -> None:
+    def _render_my_layers():
 
         m = m_ref.get("m")
         if m is None:
@@ -145,7 +145,7 @@ def map_server(input, output, session, reactive_values):
             legend_control = WidgetControl(
                 widget=point_layer_legend(legend_needed), position="bottomright"
             )
-            m.add_control(legend_control)
+            m.add(legend_control)
 
     @render_widget
     def map():

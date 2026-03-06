@@ -1,14 +1,7 @@
-"""Shiny UI/server module for loading CSV data into the app.
-
-This module exposes a small Shiny module used by the application to allow
-users to upload a CSV file. The server side reads the uploaded file,
-extracts bounding coordinates (latitude/longitude), updates reactive
-values used by the map and stores the parsed DataFrame in
-`reactive_values['extracted_df']`.
-"""
+"""Shiny UI/server module for loading CSV data into the app."""
 
 import pandas as pd
-from shiny import module, reactive, ui
+from shiny import module, reactive, render, ui
 
 
 @module.ui
@@ -23,14 +16,7 @@ def load_ui():
     """
     return ui.div(
         ui.tags.div(
-            ui.input_file(
-                "data_file",
-                ui.h4("Import Data"),
-                accept=[".csv"],
-                multiple=False,
-                width="100%",
-                placeholder="Upload a previously saved CSV file",
-            ),
+            ui.output_ui("file_input_container"),
             class_="input-section",
         ),
         class_="tab-content",
@@ -40,14 +26,6 @@ def load_ui():
 @module.server
 def load_server(input, output, session, reactive_values):
     """Server-side logic for the load-data module.
-
-    This function registers a reactive effect that listens for changes to
-    `input.data_file`. When a CSV file is uploaded it reads the file into a
-    pandas DataFrame, extracts bounding box coordinates from `latitude` and
-    `longitude` columns, updates UI text fields and stores the DataFrame in
-    `reactive_values['extracted_df']`. It also generates a GeoJSON
-    rectangle and sets `reactive_values['drawn_shapes']` so the map can
-    render the bounding box.
 
     Parameters
     ----------
@@ -62,6 +40,19 @@ def load_server(input, output, session, reactive_values):
         Shared reactive state used across modules (expects keys like
         'updating_from_map', 'drawn_shapes', 'extracted_df' and 'map_ref').
     """
+    _reset_counter = reactive.Value(0)
+
+    @render.ui
+    def file_input_container():
+        _reset_counter()  # take dependency so re-render is triggered on reset
+        return ui.input_file(
+            "data_file",
+            ui.h4("Import Data"),
+            accept=[".csv"],
+            multiple=False,
+            width="100%",
+            placeholder="Upload a previously saved CSV file",
+        )
 
     @reactive.effect
     @reactive.event(input.data_file)
@@ -73,12 +64,34 @@ def load_server(input, output, session, reactive_values):
 
         file_info = input.data_file()
         if not file_info:
-            ui.notification_show("Please select a CSV file first.", type="warning")
             return
 
         try:
             # Read the uploaded CSV file
             extracted_df = pd.read_csv(file_info[0]["datapath"])
+
+            columns = extracted_df.columns
+
+            # Required columns: latitude, longitude and landcover
+            required = {"latitude", "longitude", "landcover"}
+            missing = required.difference(columns)
+            if missing:
+                ui.notification_show(
+                    f"CSV file is missing required columns: {', '.join(sorted(missing))}",
+                    type="error",
+                )
+                reactive_values["extracted_df"] = None
+                _reset_counter.set(_reset_counter() + 1)
+                return
+
+            if len(extracted_df.columns) <= 4:
+                ui.notification_show(
+                    "CSV file must contain more than one covariate",
+                    type="error",
+                )
+                reactive_values["extracted_df"] = None
+                _reset_counter.set(_reset_counter() + 1)
+                return
 
             # Get bounds from latitude and longitude columns
             north = extracted_df["latitude"].max()
@@ -139,3 +152,4 @@ def load_server(input, output, session, reactive_values):
         except Exception as e:
             ui.notification_show(f"Error reading CSV file: {str(e)}", type="error")
             reactive_values["extracted_df"] = None
+            _reset_counter.set(_reset_counter() + 1)

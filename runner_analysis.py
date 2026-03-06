@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from src.sampling.asd_routine import asd_plot, glmmPQL_via_rpy2  # noqa: F401
 from src.sampling.lcp_routine import lcp
@@ -9,7 +10,9 @@ from src.sampling.luqdaloop_routine import plot_wilks_lambda  # noqa: F401
 from src.sampling.luqdaloop_routine import luqdaloop, newdata_to_raster
 
 
-def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> None:
+def do_qda_and_lcp(
+    df: pd.DataFrame, nx: int, nn: float
+) -> dict[str, pd.DataFrame | xr.DataArray | dict]:
     """Run QDA classification followed by LCP sampling on the provided data.
 
     Parameters
@@ -66,7 +69,7 @@ def do_qda_and_lcp(df: pd.DataFrame, nx: int, nn: float) -> None:
     }
 
 
-def do_asd(on_progress=None) -> None:
+def do_asd(on_progress=None) -> dict[str, pd.DataFrame | xr.DataArray]:
     """Perform ASD sampling and analysis on the provided dataset."""
     benin = pd.read_csv("test_data/benin.csv")
     beningrid = pd.read_csv("test_data/beningrid.csv")

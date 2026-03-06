@@ -1,6 +1,6 @@
 """Routines for the ASD sampling design. Luigi's original R code."""
 
-from typing import Callable, Literal
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,7 +20,7 @@ def glmmPQL_via_rpy2(
     formular: str,
     data: pd.DataFrame,
     area: pd.DataFrame,
-    target: Literal["H", "U"],
+    target: str,
     total: float = 15,
     delta: float = 0.01,
     on_progress: Callable[[float, str, str], None] | None = None,
@@ -106,13 +106,15 @@ def _glmmPQL_via_rpy2_inner(
     formular: str,
     data: pd.DataFrame,
     area: pd.DataFrame,
-    target: Literal["H", "U"],
+    target: str,
     total: float = 15,
     delta: float = 0.01,
     on_progress: Callable[[float, str, str], None] | None = None,
     _state: dict | None = None,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     """Inner implementation called by glmmPQL_via_rpy2."""
+    if target not in ("H", "U"):
+        raise TypeError(f"target must be one of ('H', 'U'), got {target}")
 
     def _prog(value: float, message: str, detail: str = "") -> None:
         """Update shared state and fire the progress callback."""

@@ -14,7 +14,7 @@ def header_ui():
         ),
         ui.tags.div(
             ui.tags.a(
-                ui.img(src="lulogo.png", class_="logo-img", alt="Logo 1"),
+                ui.img(src="lulogo.png", class_="logo-img", alt="LU logo"),
                 href=URLS["lms"],
                 target="_blank",
             ),
