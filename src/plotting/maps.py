@@ -2,6 +2,7 @@
 
 import base64
 from io import BytesIO
+from typing import Literal
 
 import ipyleaflet as L
 import matplotlib.pyplot as plt
@@ -9,7 +10,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from ipywidgets import HTML
-from matplotlib import cm
 from matplotlib.colors import BoundaryNorm
 
 
@@ -50,28 +50,28 @@ def dataarray_to_image_overlay(
         [float(lats.max()) + 0.5 * lat_res, float(lons.max()) + 0.5 * lon_res],
     ]
 
-    origin = "lower" if lats[0] < lats[-1] else "upper"
+    origin: Literal["lower", "upper"] = "lower" if lats[0] < lats[-1] else "upper"
     extent = (
-        [
+        (
             bounds[0][1],
             bounds[1][1],  # lon_min_edge, lon_max_edge
             bounds[0][0],
             bounds[1][0],  # lat_min_edge, lat_max_edge
-        ]
+        )
         if origin == "lower"
-        else [
+        else (
             bounds[0][1],
             bounds[1][1],  # lon_min_edge, lon_max_edge
             bounds[1][0],
             bounds[0][0],  # lat_max_edge, lat_min_edge
-        ]
+        )
     )
 
     fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
     ax.axis("off")
 
     if categorical:
-        cmap = cm.tab20 if np.unique(data).size <= 20 else cm.viridis
+        cmap = plt.get_cmap("tab20") if np.unique(data).size <= 20 else plt.get_cmap("viridis")
 
         ax.imshow(data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest")
     else:
