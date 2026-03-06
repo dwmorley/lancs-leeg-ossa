@@ -1,5 +1,6 @@
 """Get and transform MODIS rasters."""
 
+from datetime import datetime
 from typing import Dict, Union
 
 import numpy as np
@@ -12,20 +13,19 @@ import xarray as xr
 from src.utils.bounding_box import BoundingBox
 
 MODIS_CONFIGS = {
-    "ET_500m": {"aggregation": ["mean"], "date_range": "{year}", "nodata": 6553},
+    "ET_500m": {"aggregation": ["mean"], "nodata": 6553},
     "LST_Day_1KM": {
         "aggregation": ["mean", "min", "max"],
-        "date_range": "{year}",
         "nodata": None,
     },
-    "Gpp_500m": {"aggregation": ["mean", "min", "max"], "date_range": "{year}", "nodata": 3.2762},
+    "Gpp_500m": {"aggregation": ["mean", "min", "max"], "nodata": 3.2762},
 }
 
 
 def get_modis(
     bbox: BoundingBox,
     variable: str,
-    year: int,
+    date_range: tuple[datetime, datetime],
 ) -> Dict[str, xr.DataArray]:
     """Fetch and prepare MODIS rasters for the AOI, variable, and year.
 
@@ -35,7 +35,7 @@ def get_modis(
         Area of interest to fetch the MODIS rasters for.
     variable : str
         MODIS variable to fetch (e.g. 'ET_500m')
-    year : int
+    date_range : tuple[datetime, datetime]
         Date range
 
     Returns
@@ -49,9 +49,8 @@ def get_modis(
         modifier=planetary_computer.sign_inplace,
     )
 
+    variable = variable.strip("modis_")
     collection = get_collection(variable)
-
-    date_range = MODIS_CONFIGS[variable]["date_range"].format(year=year)
 
     search = catalog.search(collections=[collection], bbox=bbox.to_list(), datetime=date_range)
     items = search.item_collection()
@@ -150,12 +149,16 @@ def get_collection(var: str) -> str:
 
 
 if __name__ == "__main__":
+
+    start = datetime.strptime("2019-01-01", "%Y-%m-%d")
+    end = datetime.strptime("2019-03-17", "%Y-%m-%d")
+
     r = get_modis(
         bbox=BoundingBox([-2.502, 42.698, -2.2, 43.0850]),
-        variable="Gpp_500m",
-        year=2019,
+        variable="modis_LST_Day_1KM",
+        date_range=(start, end),
     )
 
     if r is not None:
-        r["Gpp_500m_mean"].rio.write_crs("epsg:4326")
-        r["Gpp_500m_mean"].rio.to_raster("modis.tif", compress="deflate", COMPRESS_LEVEL=9)
+        r["LST_Day_1KM_mean"].rio.write_crs("epsg:4326")
+        r["LST_Day_1KM_mean"].rio.to_raster("modis.tif", compress="deflate", COMPRESS_LEVEL=9)
