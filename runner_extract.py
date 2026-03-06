@@ -49,34 +49,36 @@ def run_extraction(
     # The maximum year from date_range
     year = max(date_range[0].year, date_range[1].year)
 
+    # fmt: off
     variable_funcs = {
         "landcover": lambda: get_lulc(bbox=bbox, year=year),
         "dem": lambda: get_dem(bbox=bbox, res=30),
         "wp_1km_unadj": lambda: get_worldpop(bbox=bbox, year=year),
-        "modis_ET_500m": lambda: get_modis(bbox=bbox, variable="ET_500m", year=year),
-        "modis_LST_Day_1KM": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", year=year),
-        "modis_Gpp_500m": lambda: get_modis(bbox=bbox, variable="Gpp_500m", year=year),
+        "modis_ET_500m": lambda: get_modis(bbox=bbox, variable="ET_500m", date_range=date_range),
+        "modis_LST_Day_1KM": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", date_range=date_range),
+        "modis_Gpp_500m": lambda: get_modis(bbox=bbox, variable="Gpp_500m", date_range=date_range),
         "grip0": lambda: get_roaddensity(bbox=bbox, road_type=0),
         "grip1": lambda: get_roaddensity(bbox=bbox, road_type=1),
         "grip2": lambda: get_roaddensity(bbox=bbox, road_type=2),
         "grip3": lambda: get_roaddensity(bbox=bbox, road_type=3),
         "grip4": lambda: get_roaddensity(bbox=bbox, road_type=4),
         "grip5": lambda: get_roaddensity(bbox=bbox, road_type=5),
-        "terraclimate_aet": lambda: get_terraclimate(bbox=bbox, variable="aet", year=year),
-        "terraclimate_def": lambda: get_terraclimate(bbox=bbox, variable="def", year=year),
-        "terraclimate_pet": lambda: get_terraclimate(bbox=bbox, variable="pet", year=year),
-        "terraclimate_ppt": lambda: get_terraclimate(bbox=bbox, variable="ppt", year=year),
-        "terraclimate_q": lambda: get_terraclimate(bbox=bbox, variable="q", year=year),
-        "terraclimate_soil": lambda: get_terraclimate(bbox=bbox, variable="soil", year=year),
-        "terraclimate_srad": lambda: get_terraclimate(bbox=bbox, variable="srad", year=year),
-        "terraclimate_swe": lambda: get_terraclimate(bbox=bbox, variable="swe", year=year),
-        "terraclimate_tmax": lambda: get_terraclimate(bbox=bbox, variable="tmax", year=year),
-        "terraclimate_tmin": lambda: get_terraclimate(bbox=bbox, variable="tmin", year=year),
-        "terraclimate_vap": lambda: get_terraclimate(bbox=bbox, variable="vap", year=year),
-        "terraclimate_vpd": lambda: get_terraclimate(bbox=bbox, variable="vpd", year=year),
-        "terraclimate_ws": lambda: get_terraclimate(bbox=bbox, variable="ws", year=year),
-        "terraclimate_pdsi": lambda: get_terraclimate(bbox=bbox, variable="pdsi", year=year),
+        "terraclimate_aet": lambda: get_terraclimate(bbox=bbox, variable="aet", date_range=date_range),
+        "terraclimate_def": lambda: get_terraclimate(bbox=bbox, variable="def", date_range=date_range),
+        "terraclimate_pet": lambda: get_terraclimate(bbox=bbox, variable="pet", date_range=date_range),
+        "terraclimate_ppt": lambda: get_terraclimate(bbox=bbox, variable="ppt", date_range=date_range),
+        "terraclimate_q": lambda: get_terraclimate(bbox=bbox, variable="q", date_range=date_range),
+        "terraclimate_soil": lambda: get_terraclimate(bbox=bbox, variable="soil", date_range=date_range),
+        "terraclimate_srad": lambda: get_terraclimate(bbox=bbox, variable="srad", date_range=date_range),
+        "terraclimate_swe": lambda: get_terraclimate(bbox=bbox, variable="swe", date_range=date_range),
+        "terraclimate_tmax": lambda: get_terraclimate(bbox=bbox, variable="tmax", date_range=date_range),
+        "terraclimate_tmin": lambda: get_terraclimate(bbox=bbox, variable="tmin", date_range=date_range),
+        "terraclimate_vap": lambda: get_terraclimate(bbox=bbox, variable="vap", date_range=date_range),
+        "terraclimate_vpd": lambda: get_terraclimate(bbox=bbox, variable="vpd", date_range=date_range),
+        "terraclimate_ws": lambda: get_terraclimate(bbox=bbox, variable="ws", date_range=date_range),
+        "terraclimate_pdsi": lambda: get_terraclimate(bbox=bbox, variable="pdsi", date_range=date_range),
     }
+    # fmt: on
 
     if "landcover" not in variables:
         raise ValueError("Landcover must be included in the selected variables.")
