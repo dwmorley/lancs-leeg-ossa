@@ -69,10 +69,35 @@ def footer_server(input, output, session, reactive_values):
     def _show_help_modal() -> None:
         ui.modal_show(
             ui.modal(
-                ui.h4("Help"),
-                ui.p("Add your help text or instructions here."),
+                ui.tags.div(
+                    ui.tags.div(
+                        icon_svg("circle-question", height="28px", width="28px"),
+                        ui.tags.h3(" How to use OSSA", style="margin:0;"),
+                        style="display:flex; align-items:center; gap:10px; margin-bottom:15px;",
+                    ),
+                    ui.tags.hr(),
+                    ui.tags.h5("Lorem ipsum dolor."),
+                    ui.tags.p(
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ",
+                        style="text-align:justify;",
+                    ),
+                    ui.tags.hr(),
+                    ui.tags.p(
+                        "For further guidance, see the ",
+                        ui.tags.a("GitHub repository", href=URLS["github"], target="_blank"),
+                        " or contact ",
+                        ui.tags.a("Luigi Sedda", href=URLS["luigi_email"]),
+                        ".",
+                        style="font-size:0.85rem; color:#666;",
+                    ),
+                ),
+                title=None,
                 easy_close=True,
-                footer=None,
+                footer=ui.modal_button("Close"),
+                size="l",
             )
         )
 
@@ -81,10 +106,67 @@ def footer_server(input, output, session, reactive_values):
     def _show_info_modal() -> None:
         ui.modal_show(
             ui.modal(
-                ui.h4("Information"),
-                ui.p("Add your information text here."),
+                ui.tags.div(
+                    ui.tags.div(
+                        ui.tags.img(src="lulogo.png", height="50px", style="margin-right: 20px;"),
+                        ui.tags.img(src="leegogo.webp", height="50px"),
+                        style="display:flex; align-items:center; justify-content:center; margin-bottom:20px;",
+                    ),
+                    ui.tags.h3(
+                        "OSSA — Optimal Spatial Sampling Algorithm",
+                        style="text-align:center; margin-bottom:5px;",
+                    ),
+                    ui.tags.p(
+                        "Developed by the ",
+                        ui.tags.a(
+                            "Lancaster Ecology and Epidemiology Research Group (LEEG)",
+                            href=URLS["leeg"],
+                            target="_blank",
+                        ),
+                        " at Lancaster University.",
+                        style="text-align:center; color:#666; margin-bottom:20px;",
+                    ),
+                    ui.tags.hr(),
+                    ui.tags.p(
+                        "OSSA is a set of algorithms developed for spatial sampling designs in absence of any prior "
+                        "information about the process, such as species distribution or a disease prevalence (lattice "
+                        "with close pairs) and for adaptive sampling designs (when prior information is available). "
+                        "It also contains an algorithm for ecological area delineation.",
+                        "The application supports multiple sampling frameworks including: "
+                        "Clustering by Quadradic Discriminant Analysis (QDA) "
+                        "Sample site selection by Lattice Close Pairs (LCP) or Adaptive Sampling Design (ASD) ",
+                        style="text-align:justify;",
+                    ),
+                    ui.tags.p(
+                        ui.tags.ul(
+                            ui.tags.li(ui.tags.strong("Luigi Sedda"), " — PI, Algorithm design"),
+                            ui.tags.li(
+                                ui.tags.strong("David Morley"), " — Python/Shiny implementation"
+                            ),
+                            ui.tags.li(
+                                ui.tags.strong("And also these people..."), " — contribution"
+                            ),
+                            ui.tags.li(ui.tags.strong("and those people..."), " — funding"),
+                        ),
+                        style="text-align:justify;",
+                    ),
+                    ui.tags.hr(),
+                    ui.tags.p(
+                        ui.tags.strong("Version: "),
+                        get_version(),
+                        ui.tags.br(),
+                        ui.tags.strong("Licence: "),
+                        "???",
+                        ui.tags.br(),
+                        ui.tags.strong("Contact: "),
+                        ui.tags.a("Luigi Sedda", href=URLS["luigi_email"], target="_blank"),
+                        style="font-size:0.85rem; color:#666;",
+                    ),
+                ),
+                title=None,
                 easy_close=True,
-                footer=None,
+                footer=ui.modal_button("Close"),
+                size="l",
             )
         )
 
@@ -93,13 +175,17 @@ def footer_server(input, output, session, reactive_values):
     def _show_github_modal() -> None:
         ui.modal_show(
             ui.modal(
-                ui.h4("GitHub Repository"),
+                ui.tags.div(
+                    icon_svg("github", height="28px", width="28px"),
+                    ui.tags.h3(" GitHub Repository", style="margin:0;"),
+                    style="display:flex; align-items:center; gap:10px; margin-bottom:15px;",
+                ),
                 ui.p(
                     "Source code available at: ",
                     ui.a(URLS["github"], href=URLS["github"], target="_blank"),
                 ),
                 easy_close=True,
-                footer=None,
+                footer=ui.modal_button("Close"),
             )
         )
 
@@ -108,14 +194,18 @@ def footer_server(input, output, session, reactive_values):
     def _show_apikey_modal() -> None:
         ui.modal_show(
             ui.modal(
+                ui.tags.div(
+                    icon_svg("key", height="28px", width="28px"),
+                    ui.tags.h3(" API Key Management", style="margin:0;"),
+                    style="display:flex; align-items:center; gap:10px; margin-bottom:15px;",
+                ),
                 ui.input_text(
                     "ecmwf_key_input",
                     "ECMWF CDS API Key",
                     value=reactive_values["ecmwf_api_key"].get(),
-                    placeholder="like this: a3f7c821-4d12-4b8e-b3e1-7f9d2c056a18",
+                    placeholder="something like this: du7mm2y-k8ey-4x8x-b3e1-f7ak2e056a18",
                     width="100%",
                 ),
-                title="API Key Management",
                 easy_close=True,
                 footer=ui.modal_button("Save", class_="btn-primary"),
             )

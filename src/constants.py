@@ -2,7 +2,9 @@
 
 URLS = {
     "lms": "https://www.lancaster.ac.uk/lms/",
+    "leeg": "https://luigisedda.wordpress.com/",
     "github": "https://github.com/dwmorley/lancs-leeg-ossa",
+    "luigi_email": "mailto:l.sedda@lancaster.ac.uk",
 }
 
 GRID_SAMPLE_SIZE = 500
