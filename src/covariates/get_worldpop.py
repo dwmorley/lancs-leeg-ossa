@@ -39,7 +39,7 @@ def get_worldpop(
 
     rasters = []
     for iso3 in iso3_codes:
-        url = f"https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/2020/{iso3}/{iso3.lower()}_ppp_{year}_1km_Aggregated_UNadj.tif"
+        url = f"https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/{year}/{iso3}/{iso3.lower()}_ppp_{year}_1km_Aggregated_UNadj.tif"
 
         response = requests.get(url, timeout=30)
 
@@ -63,8 +63,8 @@ def get_worldpop(
 
 if __name__ == "__main__":
 
-    year = 2020
-    bbox = BoundingBox([-5, 21, -1.2416, 23.8564])
+    year = 2019
+    bbox = BoundingBox([-1.9143, 40.1718, --1.5184, 40.3815])
 
     merged = get_worldpop(bbox, year)
 

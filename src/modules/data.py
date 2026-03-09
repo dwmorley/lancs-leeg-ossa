@@ -134,8 +134,10 @@ def data_server(input, output, session, reactive_values):
     @reactive.event(input.run_extraction)
     def _handle_run_extraction() -> None:
 
+        api_keys = {}
         extracted_df = reactive_values.get("extracted_df")
         drawn_shapes = reactive_values["drawn_shapes"]
+        api_keys["ecmwf_api_key"] = reactive_values["ecmwf_api_key"].get()
 
         # Get selected variables and parameters
         selected_vars = input.covariate_vars()
@@ -150,6 +152,14 @@ def data_server(input, output, session, reactive_values):
         bounds = drawn_shapes.get()
         if not bounds:
             ui.notification_show("Please draw a rectangle on the map first.", type="warning")
+            return
+
+        # Check API keys for selected variables
+        if "ecmwf_" in "".join(selected_vars) and not api_keys.get("ecmwf_api_key"):
+            ui.notification_show(
+                "ECMWF data selected but no API key found. Please enter your ECMWF API key in the footer.",
+                type="error",
+            )
             return
 
         # Validate inputs before running extraction
@@ -173,6 +183,7 @@ def data_server(input, output, session, reactive_values):
                 variables=selected_vars,
                 date_range=input.covariate_dates(),
                 sample_size=input.sample_size(),
+                api_keys=api_keys,
                 progress=p,
             )
 

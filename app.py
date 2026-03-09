@@ -77,6 +77,7 @@ def server(input, output, session):
         "updating_from_map": reactive.Value(False),
         "qda_lcp_results": reactive.Value([]),
         "asd_results": reactive.Value([]),
+        "ecmwf_api_key": reactive.Value(""),
     }
 
     map.map_server("my_map", reactive_values)
@@ -85,7 +86,7 @@ def server(input, output, session):
     load.load_server("my_load", reactive_values)
     qda.qda_server("my_qda", reactive_values)
     asd.asd_server("my_asd", reactive_values)
-    footer.footer_server("my_footer")
+    footer.footer_server("my_footer", reactive_values)
 
 
 www_dir = Path(__file__).parent / "www"

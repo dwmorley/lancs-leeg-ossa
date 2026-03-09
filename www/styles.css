@@ -316,7 +316,7 @@
     .checkbox-wrapper {
         flex: 1;
         overflow-y: scroll !important;
-        overflow-x: hidden;
+        overflow-x: auto;
         border: 1px solid #e8eef5;
         border-radius: 8px;
         padding: 15px;
@@ -345,6 +345,7 @@
         line-height: 1;
         font-size: 0.95em;
         min-height: 18px;
+        white-space: nowrap;
     }
     .shiny-input-checkboxgroup label:hover {
         background: rgba(102, 126, 234, 0.1);

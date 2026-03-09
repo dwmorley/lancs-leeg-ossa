@@ -61,8 +61,8 @@ def footer_ui():
 
 
 @module.server
-def footer_server(input, output, session):
-    """Server-side footer logic (no-op)."""
+def footer_server(input, output, session, reactive_values):
+    """Server-side footer logic."""
 
     @reactive.effect
     @reactive.event(input.help_btn)
@@ -108,9 +108,20 @@ def footer_server(input, output, session):
     def _show_apikey_modal() -> None:
         ui.modal_show(
             ui.modal(
-                ui.h4("API Key Management"),
-                ui.p("Add your API key management instructions here."),
+                ui.input_text(
+                    "ecmwf_key_input",
+                    "ECMWF CDS API Key",
+                    value=reactive_values["ecmwf_api_key"].get(),
+                    placeholder="like this: a3f7c821-4d12-4b8e-b3e1-7f9d2c056a18",
+                    width="100%",
+                ),
+                title="API Key Management",
                 easy_close=True,
-                footer=None,
+                footer=ui.modal_button("Save", class_="btn-primary"),
             )
         )
+
+    @reactive.effect
+    @reactive.event(input.ecmwf_key_input)
+    def _save_apikey() -> None:
+        reactive_values["ecmwf_api_key"].set(input.ecmwf_key_input())

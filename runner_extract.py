@@ -11,6 +11,7 @@ from shiny import ui
 
 from src.constants import COVARIATE_OPTIONS
 from src.covariates.get_dem import get_dem
+from src.covariates.get_ecmwf import get_ecmwf
 from src.covariates.get_lulc import get_lulc
 from src.covariates.get_modis import get_modis
 from src.covariates.get_roaddensity import get_roaddensity
@@ -24,6 +25,7 @@ def run_extraction(
     variables: List[str],
     date_range: tuple[datetime, datetime],
     sample_size: int,
+    api_keys: dict[str, str],
     progress=None,
 ) -> pd.DataFrame:
     """Extract selected covariates clipped to `bbox` at grid points.
@@ -38,6 +40,8 @@ def run_extraction(
         Date range to determine raster years.
     sample_size : int
         Target number of sample points.
+    api_keys : dict[str, str]
+        API keys for data sources, e.g. {"ecmwf": "my_key"}
     progress : optional
         Progress UI object supporting set(value=int, message=str).
 
@@ -57,27 +61,13 @@ def run_extraction(
         "modis_ET_500m": lambda: get_modis(bbox=bbox, variable="ET_500m", date_range=date_range),
         "modis_LST_Day_1KM": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", date_range=date_range),
         "modis_Gpp_500m": lambda: get_modis(bbox=bbox, variable="Gpp_500m", date_range=date_range),
-        "grip0": lambda: get_roaddensity(bbox=bbox, road_type=0),
-        "grip1": lambda: get_roaddensity(bbox=bbox, road_type=1),
-        "grip2": lambda: get_roaddensity(bbox=bbox, road_type=2),
-        "grip3": lambda: get_roaddensity(bbox=bbox, road_type=3),
-        "grip4": lambda: get_roaddensity(bbox=bbox, road_type=4),
-        "grip5": lambda: get_roaddensity(bbox=bbox, road_type=5),
-        "terraclimate_aet": lambda: get_terraclimate(bbox=bbox, variable="aet", date_range=date_range),
-        "terraclimate_def": lambda: get_terraclimate(bbox=bbox, variable="def", date_range=date_range),
-        "terraclimate_pet": lambda: get_terraclimate(bbox=bbox, variable="pet", date_range=date_range),
-        "terraclimate_ppt": lambda: get_terraclimate(bbox=bbox, variable="ppt", date_range=date_range),
-        "terraclimate_q": lambda: get_terraclimate(bbox=bbox, variable="q", date_range=date_range),
-        "terraclimate_soil": lambda: get_terraclimate(bbox=bbox, variable="soil", date_range=date_range),
-        "terraclimate_srad": lambda: get_terraclimate(bbox=bbox, variable="srad", date_range=date_range),
-        "terraclimate_swe": lambda: get_terraclimate(bbox=bbox, variable="swe", date_range=date_range),
-        "terraclimate_tmax": lambda: get_terraclimate(bbox=bbox, variable="tmax", date_range=date_range),
-        "terraclimate_tmin": lambda: get_terraclimate(bbox=bbox, variable="tmin", date_range=date_range),
-        "terraclimate_vap": lambda: get_terraclimate(bbox=bbox, variable="vap", date_range=date_range),
-        "terraclimate_vpd": lambda: get_terraclimate(bbox=bbox, variable="vpd", date_range=date_range),
-        "terraclimate_ws": lambda: get_terraclimate(bbox=bbox, variable="ws", date_range=date_range),
-        "terraclimate_pdsi": lambda: get_terraclimate(bbox=bbox, variable="pdsi", date_range=date_range),
     }
+    for var in variables:
+        if var.startswith("terraclimate_"):
+            variable_funcs[var] = lambda v=var: get_terraclimate(bbox=bbox, variable=v.split("terraclimate_")[1], date_range=date_range)
+        elif var.startswith("grip_"):
+            road_type = int(var.split("grip_")[1])
+            variable_funcs[var] = lambda rt=road_type: get_roaddensity(bbox=bbox, road_type=rt)
     # fmt: on
 
     if "landcover" not in variables:
@@ -89,7 +79,13 @@ def run_extraction(
     x = xr.DataArray(grid[:, 0], dims="points")
     y = xr.DataArray(grid[:, 1], dims="points")
 
+    ecmwfs = []
     for i, var in enumerate(variables):
+
+        # We can do these as batch at the end
+        if var.startswith("ecmwf_"):
+            ecmwfs.append(var.removeprefix("ecmwf_"))
+            continue
 
         progress.set(
             value=int((i / len(variables)) * 100),
@@ -140,16 +136,41 @@ def run_extraction(
 
         if isinstance(raster, dict):
             for k, v in raster.items():
+                v = _ensure_spatial_index(v)
                 values = v.sel(x=x, y=y, method="nearest").values
                 if values.ndim > 1:
                     values = values.squeeze()
                 df[k] = values
 
         else:
+            raster = _ensure_spatial_index(raster)
             values = raster.sel(x=x, y=y, method="nearest").values
             if values.ndim > 1:
                 values = values.squeeze()
             df[var] = values
+
+    if len(ecmwfs):
+
+        progress.set(
+            value=int(((len(variables) - len(ecmwfs)) / len(variables)) * 100),
+            message=f"Processing ERA5 variable(s)...{ecmwfs}",
+        )
+
+        rasters = get_ecmwf(
+            bbox=bbox,
+            variables=ecmwfs,
+            api_keys=api_keys,
+            date_range=date_range,
+        )
+        if rasters is None:
+            ui.notification_show(
+                "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
+                type="warning",
+            )
+        else:
+            for var, raster in rasters.items():
+                raster = _ensure_spatial_index(raster)
+                df[var] = raster.sel(x=x, y=y, method="nearest").values
 
     progress.set(value=100, message="Finalising...")
 
@@ -157,3 +178,19 @@ def run_extraction(
     df = df[df["landcover"] != 0]
 
     return df
+
+
+def _ensure_spatial_index(da: xr.DataArray) -> xr.DataArray:
+    """Rebuild x/y indexes if they are missing, so that .sel() works correctly.
+
+    Newer xarray versions require an explicit PandasIndex backing each coordinate
+    used in .sel().  Some data sources (stackstac mosaics, rioxarray clip_box …)
+    return DataArrays where the coordinate values are present but the index is not,
+    causing KeyError: "no index found for coordinate 'y'".
+    """
+    rebuild = {
+        dim: da[dim].values for dim in ("x", "y") if dim in da.dims and dim not in da.indexes
+    }
+    if rebuild:
+        da = da.assign_coords(rebuild)
+    return da

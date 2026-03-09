@@ -832,6 +832,27 @@ files = [
 all = ["adbc-driver-manager", "fsspec", "ipython", "numpy", "pandas", "pyarrow"]
 
 [[package]]
+name = "ecmwf-datastores-client"
+version = "0.4.2"
+description = "ECMWF Data Stores Service (DSS) API Python client"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "ecmwf_datastores_client-0.4.2-py3-none-any.whl", hash = "sha256:d22a675b35263286de09969502ec897da9ceb9e4c8ec4d709f7ebb3b90d3ae98"},
+    {file = "ecmwf_datastores_client-0.4.2.tar.gz", hash = "sha256:7cee1f5e5dab34edcc794cd62bee02c603fafb6f4cc2121c5f012806e0f7934d"},
+]
+
+[package.dependencies]
+attrs = "*"
+multiurl = ">=0.3.7"
+requests = "*"
+typing-extensions = "*"
+
+[package.extras]
+legacy = ["cdsapi (>=0.7.6)"]
+
+[[package]]
 name = "eval-type-backport"
 version = "0.3.1"
 description = "Like `typing._eval_type`, but lets older Python versions use newer typing features."
@@ -2112,6 +2133,24 @@ files = [
     {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
     {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
 ]
+
+[[package]]
+name = "multiurl"
+version = "0.3.7"
+description = "A package to download several URL as one, as well as supporting multi-part URLs"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "multiurl-0.3.7-py3-none-any.whl", hash = "sha256:054f42974064f103be0ed55b43f0c32fc435a47dc7353a9adaffa643b99fa380"},
+    {file = "multiurl-0.3.7.tar.gz", hash = "sha256:4201563fc8989baca7b525fdc69d4cd5a6c0cef4f303559710b9890021aab6d9"},
+]
+
+[package.dependencies]
+python-dateutil = "*"
+pytz = "*"
+requests = "*"
+tqdm = "*"
 
 [[package]]
 name = "mypy-extensions"
@@ -4728,4 +4767,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "e92d73524b4506b426d629d3f5d467b0fa5702e9d6b3c9a3d9074dc909416d67"
+content-hash = "60d5549f47bf85180b281e93247c1af9ade593030709fde76197d0b1d2335199"
