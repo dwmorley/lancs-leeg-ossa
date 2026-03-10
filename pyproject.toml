@@ -32,6 +32,7 @@ rpy2 = "^3.6.4"
 netcdf4 = "^1.7.4"
 pydap = "^3.5.8"
 ecmwf-datastores-client = "^0.4.2"
+soilgrids = "^0.1.5"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = ">=4.5.0,<5.0.0"

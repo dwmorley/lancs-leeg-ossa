@@ -107,6 +107,20 @@ class BoundingBox:
         else:
             return 32700 + utm_zone  # Southern hemisphere
 
+    def to_soilgrids(self) -> tuple[float, float, float, float]:
+        """Reproject bounding box to EPSG:152160 (Homolosine) for SoilGrids WCS.
+
+        Returns
+        -------
+        tuple
+            (west, south, east, north) in EPSG:152160 metres.
+        """
+        homolosine = "+proj=igh +lat_0=0 +lon_0=0 +datum=WGS84 +units=m +no_defs"
+        transformer = Transformer.from_crs("EPSG:4326", homolosine, always_xy=True)
+        west, south = transformer.transform(self.xmin, self.ymin)
+        east, north = transformer.transform(self.xmax, self.ymax)
+        return west, south, east, north
+
     def to_list(self) -> list[float]:
         """Convert to list format [xmin, ymin, xmax, ymax]."""
         return [self.xmin, self.ymin, self.xmax, self.ymax]

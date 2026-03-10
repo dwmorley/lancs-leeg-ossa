@@ -15,6 +15,7 @@ from src.covariates.get_ecmwf import get_ecmwf
 from src.covariates.get_lulc import get_lulc
 from src.covariates.get_modis import get_modis
 from src.covariates.get_roaddensity import get_roaddensity
+from src.covariates.get_soilgrids import get_soilgrids
 from src.covariates.get_terraclimate import get_terraclimate
 from src.covariates.get_worldpop import get_worldpop
 from src.utils.bounding_box import BoundingBox
@@ -68,6 +69,8 @@ def run_extraction(
         elif var.startswith("grip_"):
             road_type = int(var.split("grip_")[1])
             variable_funcs[var] = lambda rt=road_type: get_roaddensity(bbox=bbox, road_type=rt)
+        elif var.startswith("sg_"):
+            variable_funcs[var] = lambda v=var: get_soilgrids(bbox=bbox, variable=v.split("sg_")[1])
     # fmt: on
 
     if "landcover" not in variables:

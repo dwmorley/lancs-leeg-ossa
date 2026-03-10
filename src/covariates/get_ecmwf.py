@@ -120,7 +120,7 @@ if __name__ == "__main__":
     r = get_ecmwf(
         bbox=bbox,
         variables=["ecmwf_snow_albedo", "ecmwf_evaporation_from_bare_soil"],
-        api_keys={"ecmwf_api_key": "f12aaef4-xxxxxxxxx"},
+        api_keys={"ecmwf_api_key": ""},
         date_range=(start, end),
     )
 
