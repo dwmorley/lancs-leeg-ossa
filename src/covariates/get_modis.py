@@ -19,17 +19,17 @@ MODIS_CONFIGS = {
     "PET_500m": {"aggregation": ["mean"], "nodata": 6553},
     "PLE_500m": {"aggregation": ["mean"], "nodata": 327630000},
     # modis-11A2-061 / modis-11A1-061 / modis-21A2-061 - Land Surface Temperature
-    "LST_Day_1KM": {"aggregation": ["mean", "min", "max"], "nodata": None},
-    "LST_Night_1KM": {"aggregation": ["mean", "min", "max"], "nodata": None},
-    "LST_Day_1km": {"aggregation": ["mean", "min", "max"], "nodata": None},
-    "LST_Night_1km": {"aggregation": ["mean", "min", "max"], "nodata": None},
+    "LST_Day_1KM": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
+    "LST_Night_1KM": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
+    "LST_Day_1km": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
+    "LST_Night_1km": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
     "Emis_31": {"aggregation": ["mean"], "nodata": None},
     "Emis_32": {"aggregation": ["mean"], "nodata": None},
     "Emis_29": {"aggregation": ["mean"], "nodata": None},
     # modis-17A2H-061 / modis-17A2HGF-061 / modis-17A3HGF-061 - Gross/Net Primary Productivity
-    "Gpp_500m": {"aggregation": ["mean", "min", "max"], "nodata": 3.2762},
-    "PsnNet_500m": {"aggregation": ["mean", "min", "max"], "nodata": 3.2762},
-    "Npp_500m": {"aggregation": ["mean", "min", "max"], "nodata": 3.2762},
+    "Gpp_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 3.2762},
+    "PsnNet_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 3.2762},
+    "Npp_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 3.2762},
     # modis-09A1-061 - Surface Reflectance 8-Day (500m)
     "sur_refl_b01": {"aggregation": ["mean"], "nodata": None},
     "sur_refl_b02": {"aggregation": ["mean"], "nodata": None},
@@ -49,27 +49,27 @@ MODIS_CONFIGS = {
     "Nadir_Reflectance_Band6": {"aggregation": ["mean"], "nodata": None},
     "Nadir_Reflectance_Band7": {"aggregation": ["mean"], "nodata": None},
     # modis-13Q1-061 - Vegetation Indices 16-Day (250m)
-    "250m_16_days_EVI": {"aggregation": ["mean", "min", "max"], "nodata": None},
-    "250m_16_days_NDVI": {"aggregation": ["mean", "min", "max"], "nodata": None},
+    "250m_16_days_EVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
+    "250m_16_days_NDVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
     "250m_16_days_NIR_reflectance": {"aggregation": ["mean"], "nodata": None},
     "250m_16_days_MIR_reflectance": {"aggregation": ["mean"], "nodata": None},
     "250m_16_days_red_reflectance": {"aggregation": ["mean"], "nodata": None},
     "250m_16_days_blue_reflectance": {"aggregation": ["mean"], "nodata": None},
     # modis-13A1-061 - Vegetation Indices 16-Day (500m)
-    "500m_16_days_EVI": {"aggregation": ["mean", "min", "max"], "nodata": None},
-    "500m_16_days_NDVI": {"aggregation": ["mean", "min", "max"], "nodata": None},
+    "500m_16_days_EVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
+    "500m_16_days_NDVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
     "500m_16_days_NIR_reflectance": {"aggregation": ["mean"], "nodata": None},
     "500m_16_days_MIR_reflectance": {"aggregation": ["mean"], "nodata": None},
     "500m_16_days_red_reflectance": {"aggregation": ["mean"], "nodata": None},
     "500m_16_days_blue_reflectance": {"aggregation": ["mean"], "nodata": None},
     # modis-15A2H-061 / modis-15A3H-061 - Leaf Area Index/FPAR
-    "Lai_500m": {"aggregation": ["mean", "min", "max"], "nodata": 25.4},
-    "Fpar_500m": {"aggregation": ["mean", "min", "max"], "nodata": 2.54},
+    "Lai_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 25.4},
+    "Fpar_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 2.54},
     # modis-10A2-061 - Snow Cover 8-day
     "Maximum_Snow_Extent": {"aggregation": ["mean"], "nodata": None},
     "Eight_Day_Snow_Cover": {"aggregation": ["mean"], "nodata": None},
     # modis-10A1-061 - Snow Cover Daily
-    "NDSI_Snow_Cover": {"aggregation": ["mean", "min", "max"], "nodata": None},
+    "NDSI_Snow_Cover": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
     "Snow_Albedo_Daily_Tile": {"aggregation": ["mean"], "nodata": None},
     "NDSI": {"aggregation": ["mean"], "nodata": -3.2768},
 }
@@ -169,6 +169,8 @@ def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.Data
         "mean": lambda da: da.mean(dim="time", skipna=True),
         "min": lambda da: da.min(dim="time", skipna=True),
         "max": lambda da: da.max(dim="time", skipna=True),
+        "sd": lambda da: da.std(dim="time", skipna=True),
+        "ampl": lambda da: da.max(dim="time", skipna=True) - da.min(dim="time", skipna=True),
     }
 
     if method not in methods:
@@ -213,7 +215,7 @@ if __name__ == "__main__":
     start = datetime.strptime("2019-01-01", "%Y-%m-%d")
     end = datetime.strptime("2019-03-01", "%Y-%m-%d")
 
-    var = "PLE_500m"
+    var = "LST_Day_1KM"
 
     r = get_modis(
         bbox=BoundingBox([-2.7, 43.2, -2.502, 43.5]),
@@ -222,5 +224,5 @@ if __name__ == "__main__":
     )
 
     if r is not None:
-        r[f"{var}_mean"].rio.write_crs("epsg:4326")
-        r[f"{var}_mean"].rio.to_raster("modis.tif", compress="deflate", COMPRESS_LEVEL=9)
+        r[f"{var}_sd"].rio.write_crs("epsg:4326")
+        r[f"{var}_sd"].rio.to_raster("modis.tif", compress="deflate", COMPRESS_LEVEL=9)

@@ -112,21 +112,20 @@ def _fetch_variable(client, collection_id, request, var_key) -> tuple[str, xr.Da
 
 
 if __name__ == "__main__":
-    bbox = BoundingBox([-5, 21, -1.2416, 23.8564])
+    bbox = BoundingBox([-2, 21, -1.2416, 21.8564])
 
     start = datetime.strptime("2019-01-01", "%Y-%m-%d")
     end = datetime.strptime("2019-12-31", "%Y-%m-%d")
 
+    var = "ecmwf_glacier_mask"
+
     r = get_ecmwf(
         bbox=bbox,
-        variables=["ecmwf_snow_albedo", "ecmwf_evaporation_from_bare_soil"],
-        api_keys={"ecmwf_api_key": ""},
+        variables=[var],
+        api_keys={"ecmwf_api_key": "f12aaef4-9be5-4fe2-a9a9-c8d99646ea6d"},
         date_range=(start, end),
     )
 
     import rasterio  # noqa: F401
 
-    r["ecmwf_snow_albedo_mean"].rio.write_crs("epsg:4326").rio.to_raster("ecmwf_snow_albedo.tif")
-    r["ecmwf_evaporation_from_bare_soil_mean"].rio.write_crs("epsg:4326").rio.to_raster(
-        "ecmwf_evaporation_from_bare_soil.tif"
-    )
+    r[f"{var}_mean"].rio.write_crs("epsg:4326").rio.to_raster(f"{var}.tif")
