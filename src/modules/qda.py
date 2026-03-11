@@ -141,7 +141,15 @@ def qda_server(input, output, session, reactive_values):
             return
 
         # Run QDA analysis
-        results = do_qda_and_lcp(extracted_df, input.qda_nx(), input.qda_nn())
+        results = do_qda_and_lcp(
+            df=extracted_df,
+            nx=input.qda_nx(),
+            nn=input.qda_nn(),
+            delta=input.lcp_delta(),
+            zeta=input.lcp_zeta(),
+            total=input.lcp_total(),
+            grid=input.lcp_grid(),
+        )
 
         # Remove drawn bbox from the map and add LCP overlays
         drawn_shapes.set([])
@@ -160,7 +168,6 @@ def qda_server(input, output, session, reactive_values):
         plt.close(fig)
         ui.modal_show(
             ui.modal(
-                ui.h4("Wilks' Lambda Analysis"),
                 ui.HTML(
                     f'<img src="data:image/png;base64,{img_base64}" style="width:100%; max-width:800px;">'
                 ),

@@ -518,7 +518,6 @@ def plot_wilks_lambda(wilks: pd.Series, opt_classes: int, deficient_classes: int
     ax.set_title("Wilks' Lambda", fontsize=14, fontweight="bold")
     ax.set_ylabel("Lambda", fontsize=12)
     ax.grid(True, alpha=0.3)
-    ax.legend(fontsize=11)
     plt.tight_layout()
     # plt.show()
     return fig

@@ -4,14 +4,19 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from src.sampling.asd_routine import asd_plot, glmmPQL_via_rpy2  # noqa: F401
+from src.sampling.asd_routine import glmmPQL_via_rpy2
 from src.sampling.lcp_routine import lcp
-from src.sampling.luqdaloop_routine import plot_wilks_lambda  # noqa: F401
-from src.sampling.luqdaloop_routine import luqdaloop, newdata_to_raster
+from src.sampling.luqdaloop_routine import luqdaloop, newdata_to_raster, plot_wilks_lambda
 
 
 def do_qda_and_lcp(
-    df: pd.DataFrame, nx: int, nn: float
+    df: pd.DataFrame,
+    nx: int,
+    nn: float,
+    delta: float,
+    zeta: float,
+    total: int,
+    grid: float,
 ) -> dict[str, pd.DataFrame | xr.DataArray | dict]:
     """Run QDA classification followed by LCP sampling on the provided data.
 
@@ -24,14 +29,22 @@ def do_qda_and_lcp(
         Max number of QDA classes to consider in the classification loop.
     nn : float
         Nearest neighbor distance parameter for QDA classification.
+    delta : float
+        Minimum separation distance for inhibitory points in LCP sampling
+    zeta : float
+        Maximum distance used when creating closed pairs in LCP sampling
+    total : int
+        Target total number of sample points for LCP sampling.
+    grid : float
+        Fraction of 'G' to 'I' points
 
     """
     X = df.drop(columns=["longitude", "latitude", "landcover"]).values
     y = df["landcover"].values.astype(int).astype(str)
-    grid = df[["longitude", "latitude"]].values
+    spatial_grid = df[["longitude", "latitude"]].values
 
     # Do QDA
-    class_analysis = luqdaloop(X=X, y=y, grid=grid, nn=nn, nx=nx)
+    class_analysis = luqdaloop(X=X, y=y, grid=spatial_grid, nn=nn, nx=nx)
 
     new_data = class_analysis["NewData"][["grid1", "grid2", "BestClass"]].rename(
         columns={"grid1": "x", "grid2": "y"}
@@ -57,7 +70,7 @@ def do_qda_and_lcp(
     map_raster = newdata_to_raster(new_data)
 
     # Generate LCP sites
-    sites = lcp(map_raster, delta=1.0, zeta=2.0, total=30, grid=0.7)
+    sites = lcp(map_raster, delta=delta, zeta=zeta, total=total, grid=grid)
 
     return {
         "new_data": new_data,
