@@ -1,16 +1,19 @@
 """Get data from ERA5-Land reanalysis via the Copernicus Climate Data Store API."""
 
+import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import List
 
-import cfgrib
+import rioxarray  # noqa: F401 - registers the .rio accessor
 import xarray as xr
 from ecmwf.datastores import Client
 from requests.exceptions import HTTPError
 
 from src.utils.bounding_box import BoundingBox
+
+os.environ.setdefault("ECCODES_DEFINITION_PATH", "")
 
 
 def get_ecmwf(
@@ -59,6 +62,7 @@ def get_ecmwf(
         "year": years,
         "month": months,
         "day": days,
+        "time": ["00:00"],
         "data_format": "grib",
         "download_format": "unarchived",
         "area": [bbox.ymax, bbox.xmin, bbox.ymin, bbox.xmax],
@@ -73,6 +77,7 @@ def get_ecmwf(
                 collection_id,
                 {**request, "variable": [var.removeprefix("ecmwf_")]},
                 var,
+                bbox,
             ): var
             for var in variables
         }
@@ -83,46 +88,76 @@ def get_ecmwf(
     return rasters
 
 
-def _fetch_variable(client, collection_id, request, var_key) -> tuple[str, xr.DataArray]:
-    """Submit and download a single variable request, returning (var_key, DataArray)."""
-    with tempfile.NamedTemporaryFile(suffix=".grib", delete=True) as tmp:
-        remote = client.submit(collection_id, request)
-        remote.download(tmp.name)
-        datasets = cfgrib.open_datasets(tmp.name)
+def _fetch_variable(
+    client, collection_id, request, var_key, bbox: BoundingBox
+) -> tuple[str, xr.DataArray]:
+    """Submit and download a single variable request, returning (var_key, DataArray).
 
-        das = []
-        for ds in datasets:
-            if (ds.longitude > 180).any():
-                ds = ds.assign_coords(longitude=(ds.longitude + 180) % 360 - 180)
-                ds = ds.sortby("longitude")
-            v = list(ds.data_vars)[0]
-            da = ds[v].load()
-            das.append(da)
+    Tries the full request (with month/day/time) first. If the CDS job fails —
+    which happens for static fields like lake_total_depth that don't accept
+    temporal parameters — retries with year-only.
+    """
+    tmp = tempfile.NamedTemporaryFile(suffix=".grib", delete=False)
+    tmp_path = tmp.name
+    tmp.close()
 
-        da = (
-            das[0]
-            if len(das) == 1
-            else xr.merge(das, compat="override", join="override")[list(das[0].data_vars)[0]]
-        )
-        da = da.rename({"longitude": "x", "latitude": "y"})
-        if "time" in da.dims:
-            da = da.mean(dim="time", skipna=True)
+    try:
+        da = _download_and_read(client, collection_id, request, tmp_path, bbox)
+    except Exception as e:
+        # Static fields (e.g. lake_total_depth) reject month/day/time —
+        # retry with year only
+        if "MultiAdaptorNoDataError" in str(e) or "400" in str(e) or "failed" in str(e).lower():
+            static_request = {k: v for k, v in request.items() if k not in ("month", "day", "time")}
+            da = _download_and_read(client, collection_id, static_request, tmp_path, bbox)
+        else:
+            raise
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
     return var_key, da
 
 
+def _download_and_read(client, collection_id, request, tmp_path, bbox: BoundingBox) -> xr.DataArray:
+    """Submit a CDS request, download to tmp_path, and return a georeferenced DataArray."""
+    remote = client.submit(collection_id, request)
+    remote.download(tmp_path)
+
+    da = rioxarray.open_rasterio(tmp_path)
+
+    # Average multiple bands (time steps)
+    if "band" in da.dims and da.sizes["band"] > 1:
+        da = da.mean(dim="band", skipna=True)
+    else:
+        da = da.squeeze("band", drop=True)
+
+    # Rename spatial dims to x/y if needed
+    if "x" not in da.dims or "y" not in da.dims:
+        da = da.rename({list(da.dims)[-1]: "x", list(da.dims)[-2]: "y"})
+
+    # Assign correct spatial coordinates from the bbox — GRIB2 has no embedded geotransform
+    ny, nx = da.sizes["y"], da.sizes["x"]
+    xs = [bbox.xmin + (i + 0.5) * (bbox.xmax - bbox.xmin) / nx for i in range(nx)]
+    ys = [bbox.ymax - (i + 0.5) * (bbox.ymax - bbox.ymin) / ny for i in range(ny)]
+    da = da.assign_coords(x=xs, y=ys)
+    da = da.rio.write_crs("EPSG:4326")
+
+    return da.load()
+
+
 if __name__ == "__main__":
-    bbox = BoundingBox([-2, 21, -1.2416, 21.8564])
+    # bbox = BoundingBox([-2, 21, -1.2416, 21.8564])
+    bbox = BoundingBox([106.54, 52.23, 107, 52.54])
 
     start = datetime.strptime("2019-01-01", "%Y-%m-%d")
     end = datetime.strptime("2019-12-31", "%Y-%m-%d")
 
-    var = "ecmwf_glacier_mask"
+    var = "ecmwf_2m_dewpoint_temperature"
 
     r = get_ecmwf(
         bbox=bbox,
         variables=[var],
-        api_keys={"ecmwf_api_key": "f12aaef4-9be5-4fe2-a9a9-c8d99646ea6d"},
+        api_keys={"ecmwf_api_key": ""},
         date_range=(start, end),
     )
 
