@@ -26,5 +26,5 @@ def header_ui():
 
 @module.server
 def header_server(input, output, session):
-    """Server-side header logic (currently no-op)."""
+    """Server-side header logic."""
     pass
