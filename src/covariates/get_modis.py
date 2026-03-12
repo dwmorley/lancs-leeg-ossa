@@ -14,64 +14,64 @@ from src.utils.bounding_box import BoundingBox
 
 MODIS_CONFIGS = {
     # modis-16A3GF-061 / modis-16A2-061 - Net Evapotranspiration
-    "ET_500m": {"aggregation": ["mean"], "nodata": 6553},
-    "LE_500m": {"aggregation": ["mean"], "nodata": 327630000},
-    "PET_500m": {"aggregation": ["mean"], "nodata": 6553},
-    "PLE_500m": {"aggregation": ["mean"], "nodata": 327630000},
+    "ET_500m": {"aggregation": ["avg"], "nodata": 6553},
+    "LE_500m": {"aggregation": ["avg"], "nodata": 327630000},
+    "PET_500m": {"aggregation": ["avg"], "nodata": 6553},
+    "PLE_500m": {"aggregation": ["avg"], "nodata": 327630000},
     # modis-11A2-061 / modis-11A1-061 / modis-21A2-061 - Land Surface Temperature
-    "LST_Day_1KM": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "LST_Night_1KM": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "LST_Day_1km": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "LST_Night_1km": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "Emis_31": {"aggregation": ["mean"], "nodata": None},
-    "Emis_32": {"aggregation": ["mean"], "nodata": None},
-    "Emis_29": {"aggregation": ["mean"], "nodata": None},
+    "LST_Day_1KM": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "LST_Night_1KM": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "LST_Day_1km": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "LST_Night_1km": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "Emis_31": {"aggregation": ["avg"], "nodata": None},
+    "Emis_32": {"aggregation": ["avg"], "nodata": None},
+    "Emis_29": {"aggregation": ["avg"], "nodata": None},
     # modis-17A2H-061 / modis-17A2HGF-061 / modis-17A3HGF-061 - Gross/Net Primary Productivity
-    "Gpp_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 3.2762},
-    "PsnNet_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 3.2762},
-    "Npp_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 3.2762},
+    "Gpp_500m": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": 3.2762},
+    "PsnNet_500m": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": 3.2762},
+    "Npp_500m": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": 3.2762},
     # modis-09A1-061 - Surface Reflectance 8-Day (500m)
-    "sur_refl_b01": {"aggregation": ["mean"], "nodata": None},
-    "sur_refl_b02": {"aggregation": ["mean"], "nodata": None},
-    "sur_refl_b03": {"aggregation": ["mean"], "nodata": None},
-    "sur_refl_b04": {"aggregation": ["mean"], "nodata": None},
-    "sur_refl_b05": {"aggregation": ["mean"], "nodata": None},
-    "sur_refl_b06": {"aggregation": ["mean"], "nodata": None},
-    "sur_refl_b07": {"aggregation": ["mean"], "nodata": None},
+    "sur_refl_b01": {"aggregation": ["avg"], "nodata": None},
+    "sur_refl_b02": {"aggregation": ["avg"], "nodata": None},
+    "sur_refl_b03": {"aggregation": ["avg"], "nodata": None},
+    "sur_refl_b04": {"aggregation": ["avg"], "nodata": None},
+    "sur_refl_b05": {"aggregation": ["avg"], "nodata": None},
+    "sur_refl_b06": {"aggregation": ["avg"], "nodata": None},
+    "sur_refl_b07": {"aggregation": ["avg"], "nodata": None},
     # modis-09Q1-061 - Surface Reflectance 8-Day (250m)
     # sur_refl_b01 / sur_refl_b02 shared with above
     # modis-43A4-061 - Nadir BRDF-Adjusted Reflectance (NBAR) Daily
-    "Nadir_Reflectance_Band1": {"aggregation": ["mean"], "nodata": None},
-    "Nadir_Reflectance_Band2": {"aggregation": ["mean"], "nodata": None},
-    "Nadir_Reflectance_Band3": {"aggregation": ["mean"], "nodata": None},
-    "Nadir_Reflectance_Band4": {"aggregation": ["mean"], "nodata": None},
-    "Nadir_Reflectance_Band5": {"aggregation": ["mean"], "nodata": None},
-    "Nadir_Reflectance_Band6": {"aggregation": ["mean"], "nodata": None},
-    "Nadir_Reflectance_Band7": {"aggregation": ["mean"], "nodata": None},
+    "Nadir_Reflectance_Band1": {"aggregation": ["avg"], "nodata": None},
+    "Nadir_Reflectance_Band2": {"aggregation": ["avg"], "nodata": None},
+    "Nadir_Reflectance_Band3": {"aggregation": ["avg"], "nodata": None},
+    "Nadir_Reflectance_Band4": {"aggregation": ["avg"], "nodata": None},
+    "Nadir_Reflectance_Band5": {"aggregation": ["avg"], "nodata": None},
+    "Nadir_Reflectance_Band6": {"aggregation": ["avg"], "nodata": None},
+    "Nadir_Reflectance_Band7": {"aggregation": ["avg"], "nodata": None},
     # modis-13Q1-061 - Vegetation Indices 16-Day (250m)
-    "250m_16_days_EVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "250m_16_days_NDVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "250m_16_days_NIR_reflectance": {"aggregation": ["mean"], "nodata": None},
-    "250m_16_days_MIR_reflectance": {"aggregation": ["mean"], "nodata": None},
-    "250m_16_days_red_reflectance": {"aggregation": ["mean"], "nodata": None},
-    "250m_16_days_blue_reflectance": {"aggregation": ["mean"], "nodata": None},
+    "250m_16_days_EVI": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "250m_16_days_NDVI": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "250m_16_days_NIR_reflectance": {"aggregation": ["avg"], "nodata": None},
+    "250m_16_days_MIR_reflectance": {"aggregation": ["avg"], "nodata": None},
+    "250m_16_days_red_reflectance": {"aggregation": ["avg"], "nodata": None},
+    "250m_16_days_blue_reflectance": {"aggregation": ["avg"], "nodata": None},
     # modis-13A1-061 - Vegetation Indices 16-Day (500m)
-    "500m_16_days_EVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "500m_16_days_NDVI": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "500m_16_days_NIR_reflectance": {"aggregation": ["mean"], "nodata": None},
-    "500m_16_days_MIR_reflectance": {"aggregation": ["mean"], "nodata": None},
-    "500m_16_days_red_reflectance": {"aggregation": ["mean"], "nodata": None},
-    "500m_16_days_blue_reflectance": {"aggregation": ["mean"], "nodata": None},
+    "500m_16_days_EVI": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "500m_16_days_NDVI": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "500m_16_days_NIR_reflectance": {"aggregation": ["avg"], "nodata": None},
+    "500m_16_days_MIR_reflectance": {"aggregation": ["avg"], "nodata": None},
+    "500m_16_days_red_reflectance": {"aggregation": ["avg"], "nodata": None},
+    "500m_16_days_blue_reflectance": {"aggregation": ["avg"], "nodata": None},
     # modis-15A2H-061 / modis-15A3H-061 - Leaf Area Index/FPAR
-    "Lai_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 25.4},
-    "Fpar_500m": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": 2.54},
+    "Lai_500m": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": 25.4},
+    "Fpar_500m": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": 2.54},
     # modis-10A2-061 - Snow Cover 8-day
-    "Maximum_Snow_Extent": {"aggregation": ["mean"], "nodata": None},
-    "Eight_Day_Snow_Cover": {"aggregation": ["mean"], "nodata": None},
+    "Maximum_Snow_Extent": {"aggregation": ["avg"], "nodata": None},
+    "Eight_Day_Snow_Cover": {"aggregation": ["avg"], "nodata": None},
     # modis-10A1-061 - Snow Cover Daily
-    "NDSI_Snow_Cover": {"aggregation": ["mean", "min", "max", "sd", "ampl"], "nodata": None},
-    "Snow_Albedo_Daily_Tile": {"aggregation": ["mean"], "nodata": None},
-    "NDSI": {"aggregation": ["mean"], "nodata": -3.2768},
+    "NDSI_Snow_Cover": {"aggregation": ["avg", "min", "max", "sd", "ampl"], "nodata": None},
+    "Snow_Albedo_Daily_Tile": {"aggregation": ["avg"], "nodata": None},
+    "NDSI": {"aggregation": ["avg"], "nodata": -3.2768},
 }
 
 
@@ -95,7 +95,6 @@ def get_modis(
     -------
     dict[str, xarray.DataArray] or None
         Dictionary of rasters, where keys are variable name with aggregation method,
-        or None if no MODIS tiles were found for the requested AOI/date range.
     """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -110,6 +109,7 @@ def get_modis(
 
     # Nothing found for the AOI/date range
     if len(items) == 0:
+        print(f"No MODIS tiles found for requested AOI/date range. {variable} will be skipped.")
         return None
 
     stack = stackstac.stack(
@@ -146,7 +146,7 @@ def get_modis(
     return rasters
 
 
-def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.DataArray, None]:
+def aggregate_ts(da_raster: xr.DataArray, method: str = "avg") -> Union[xr.DataArray, None]:
     """Aggregate a time series of rasters using the specified method.
 
     Parameters
@@ -166,7 +166,7 @@ def aggregate_ts(da_raster: xr.DataArray, method: str = "mean") -> Union[xr.Data
         return None
 
     methods = {
-        "mean": lambda da: da.mean(dim="time", skipna=True),
+        "avg": lambda da: da.mean(dim="time", skipna=True),
         "min": lambda da: da.min(dim="time", skipna=True),
         "max": lambda da: da.max(dim="time", skipna=True),
         "sd": lambda da: da.std(dim="time", skipna=True),

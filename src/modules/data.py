@@ -7,7 +7,13 @@ from faicons import icon_svg
 from shiny import module, reactive, render, ui
 
 from runner_extract import run_extraction
-from src.constants import COVARIATE_OPTIONS, END_DATE, GRID_SAMPLE_SIZE, START_DATE
+from src.constants import (
+    COVARIATE_OPTIONS,
+    END_DATE,
+    GRID_SAMPLE_SIZE,
+    RESPONSE_OPTIONS,
+    START_DATE,
+)
 from src.utils.bounding_box import BoundingBox
 from src.utils.downloads import save_csv
 
@@ -22,15 +28,26 @@ def data_ui():
                 [
                     # Left column
                     ui.tags.div(
+                        ui.span("Land Cover variable"),
+                        ui.tags.div(
+                            ui.input_checkbox_group(
+                                "response_vars",
+                                "",
+                                choices=RESPONSE_OPTIONS,
+                                selected=["io_landcoverio"],
+                            ),
+                            class_="checkbox-wrapper",
+                            style="flex: 0.5;",
+                        ),
+                        ui.span("Covariate variables"),
                         ui.tags.div(
                             ui.input_checkbox_group(
                                 "covariate_vars",
                                 "",
                                 choices=COVARIATE_OPTIONS,
-                                selected=["landcover"],
-                                # inline=True,
                             ),
                             class_="checkbox-wrapper",
+                            style="flex: 3.5;",
                         ),
                         class_="column-content",
                     ),
@@ -97,16 +114,24 @@ def data_ui():
 def data_server(input, output, session, reactive_values):
     """Server logic for data extraction UI, handling user inputs and running extraction."""
     drawn_shapes = reactive_values["drawn_shapes"]
+    _prev_response_var = reactive.Value("io_landcoverio")
 
-    # Ensure landcover is always selected
+    # Enforce single-select behaviour on response_vars
     @reactive.effect
-    @reactive.event(input.covariate_vars)
-    def _keep_landcover_selected() -> None:
-        current_vars = input.covariate_vars()
-        if current_vars is None or "landcover" not in current_vars:
-            # Re-add landcover if it was unchecked
-            new_vars = list((current_vars or [])) + ["landcover"]
-            ui.update_checkbox_group("covariate_vars", selected=new_vars)
+    @reactive.event(input.response_vars)
+    def _keep_response_single() -> None:
+        current = list(input.response_vars() or [])
+        prev = _prev_response_var.get()
+        if len(current) == 0:
+            # Nothing selected — restore previous
+            ui.update_checkbox_group("response_vars", selected=[prev])
+        elif len(current) > 1:
+            # More than one selected — keep only the newly added item
+            new = next((v for v in current if v != prev), current[-1])
+            _prev_response_var.set(new)
+            ui.update_checkbox_group("response_vars", selected=[new])
+        else:
+            _prev_response_var.set(current[0])
 
     @render.text
     @reactive.event(drawn_shapes, input.sample_size)
@@ -140,13 +165,14 @@ def data_server(input, output, session, reactive_values):
         api_keys["ecmwf_api_key"] = reactive_values["ecmwf_api_key"].get()
 
         # Get selected variables and parameters
-        selected_vars = input.covariate_vars()
-        if len(selected_vars) <= 2:
+        selected_vars = list(input.covariate_vars())
+        if len(selected_vars) < 2:
             ui.notification_show(
                 "Please select at least two additional variables to landcover.",
                 type="warning",
             )
             return
+        selected_vars.append(input.response_vars()[0])
 
         # Get current bounds
         bounds = drawn_shapes.get()
@@ -250,7 +276,7 @@ def extract_pre_checks(selected_vars: List[str], date_range: Tuple[date, date]) 
 
     warnings = []
 
-    if "landcover" in selected_vars:
+    if "io_landcoverio" in selected_vars:
         if end_date.year < 2017 or end_date.year > 2023:
             warnings.append(
                 "Selected date range is outside the available for landcover data (2017-2023)."

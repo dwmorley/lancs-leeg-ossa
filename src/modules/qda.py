@@ -5,6 +5,7 @@ from datetime import datetime
 from io import BytesIO
 
 import matplotlib.pyplot as plt
+import numpy as np
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
@@ -138,6 +139,11 @@ def qda_server(input, output, session, reactive_values):
             ui.notification_show(
                 "Please run the data extraction first, or upload a csv", type="warning"
             )
+            return
+
+        constant_cols = extracted_df.columns[np.where(extracted_df.std(axis=0) == 0)[0]].tolist()
+        if len(constant_cols) > 0:
+            ui.notification_show(f"data contains constant columns: {constant_cols}", type="error")
             return
 
         # Run QDA analysis

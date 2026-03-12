@@ -9,7 +9,7 @@ import xarray
 from src.utils.bounding_box import BoundingBox
 
 
-def get_lulc(
+def get_iolulc(
     bbox: BoundingBox,
     year: int = 2023,
 ) -> xarray.DataArray:
@@ -67,13 +67,16 @@ def get_lulc(
     da_raster.attrs["class"] = class_names
     da_raster.attrs["start_time"] = f"{year}-01-01T00:00:00Z"
     da_raster.attrs["end_time"] = f"{year}-12-31T00:00:00Z"
-    da_raster["band"] = "landcover"
+    da_raster["band"] = "io_landcoverio"
+
+    # Remove water
+    da_raster = da_raster.where(da_raster != 0)
 
     return da_raster
 
 
 if __name__ == "__main__":
-    get_lulc(
+    get_iolulc(
         # bbox=BoundingBox([-5, 31.0, 8.2968, 32.0]),
         bbox=BoundingBox([1.5, 6.0, 2.1, 7.0]),
         year=2020,

@@ -30,6 +30,6 @@ def get_iso3_codes(bbox: BoundingBox) -> List[str]:
 
     query_box = box(bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax)
     intersecting = world[world.geometry.intersects(query_box)]
-    iso3_codes = intersecting["ISO_A3"].tolist()
+    iso3_codes = intersecting["ADM0_A3"].tolist()
 
     return iso3_codes

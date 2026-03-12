@@ -1,18 +1,19 @@
 """Utilities and runner entrypoint for extraction tasks used by OSSA."""
 
 import time
-from datetime import datetime
-from typing import List
+from datetime import datetime, timezone
+from typing import Callable, List
 
 import pandas as pd
 import xarray as xr
 from pystac_client.exceptions import APIError
 from shiny import ui
 
-from src.constants import COVARIATE_OPTIONS
+from src.constants import COVARIATE_OPTIONS, RESPONSE_OPTIONS
 from src.covariates.get_dem import get_dem
 from src.covariates.get_ecmwf import get_ecmwf
-from src.covariates.get_lulc import get_lulc
+from src.covariates.get_esalulc import get_esalulc
+from src.covariates.get_iolulc import get_iolulc
 from src.covariates.get_modis import get_modis
 from src.covariates.get_roaddensity import get_roaddensity
 from src.covariates.get_soilgrids import get_soilgrids
@@ -36,7 +37,7 @@ def run_extraction(
     bbox : BoundingBox
         Area of interest.
     variables : list[str]
-        Covariate keys to extract (see COVARIATE_OPTIONS).
+        Covariate keys to extract
     date_range : tuple[datetime, datetime]
         Date range to determine raster years.
     sample_size : int
@@ -51,30 +52,70 @@ def run_extraction(
     pandas.DataFrame
         Sampled covariate values at the requested grid points.
     """
+    variable_lut = {**COVARIATE_OPTIONS, **RESPONSE_OPTIONS}
+
+    # Ensure exactly one response variable (from RESPONSE_OPTIONS) is present
+    response_keys = [k for k in RESPONSE_OPTIONS.keys() if k in variables]
+    if len(response_keys) != 1:
+        # User-facing notification when running via the UI
+        try:
+            if len(response_keys) == 0:
+                ui.notification_show(
+                    "No response variable selected. Please include exactly one response variable.",
+                    type="error",
+                )
+            else:
+                ui.notification_show(
+                    "Multiple response variables selected. Please select exactly one response variable.",
+                    type="error",
+                )
+        except Exception:
+            # Fallback print for non-UI contexts
+            if len(response_keys) == 0:
+                print("No response variable selected. Please include exactly one response variable")
+            else:
+                print(
+                    "Multiple response variables selected. Please select exactly one response variable."
+                )
+        # Fail-fast: stop extraction
+        raise ValueError(
+            f"Expected exactly one response variable from {list(RESPONSE_OPTIONS.keys())}, got: {response_keys}"
+        )
+
     # The maximum year from date_range
     year = max(date_range[0].year, date_range[1].year)
 
-    # fmt: off
-    variable_funcs = {
-        "landcover": lambda: get_lulc(bbox=bbox, year=year),
-        "dem": lambda: get_dem(bbox=bbox, res=30),
+    # Set a default UTC TZ to avoid errors
+    tz = timezone.utc
+
+    def _to_utc(d) -> datetime:
+        if not isinstance(d, datetime):
+            d = datetime(d.year, d.month, d.day)
+        return d.replace(tzinfo=tz) if d.tzinfo is None else d
+
+    date_range = (_to_utc(date_range[0]), _to_utc(date_range[1]))
+
+    variable_funcs: dict[str, Callable] | Callable = {
+        "io_landcoverio": lambda: get_iolulc(bbox=bbox, year=year),
+        "esa_ccilc": lambda: get_esalulc(bbox=bbox, year=year),
         "wp_1km_unadj": lambda: get_worldpop(bbox=bbox, year=year),
-        "modis_ET_500m": lambda: get_modis(bbox=bbox, variable="ET_500m", date_range=date_range),
-        "modis_LST_Day_1KM": lambda: get_modis(bbox=bbox, variable="LST_Day_1KM", date_range=date_range),
-        "modis_Gpp_500m": lambda: get_modis(bbox=bbox, variable="Gpp_500m", date_range=date_range),
     }
     for var in variables:
         if var.startswith("terraclimate_"):
-            variable_funcs[var] = lambda v=var: get_terraclimate(bbox=bbox, variable=v.split("terraclimate_")[1], date_range=date_range)
+            variable_funcs[var] = lambda v=var: get_terraclimate(
+                bbox=bbox, variable=v.split("terraclimate_")[1], date_range=date_range
+            )
         elif var.startswith("grip_"):
-            road_type = int(var.split("grip_")[1])
+            road_type = int(var.split("_")[1])
             variable_funcs[var] = lambda rt=road_type: get_roaddensity(bbox=bbox, road_type=rt)
         elif var.startswith("sg_"):
             variable_funcs[var] = lambda v=var: get_soilgrids(bbox=bbox, variable=v.split("sg_")[1])
-    # fmt: on
-
-    if "landcover" not in variables:
-        raise ValueError("Landcover must be included in the selected variables.")
+        elif var.startswith("modis_"):
+            variable_funcs[var] = lambda v=var: get_modis(
+                bbox=bbox, variable=v.split("modis_")[1], date_range=date_range
+            )
+        elif var.startswith("cop_"):
+            variable_funcs[var] = lambda v=var: get_dem(bbox=bbox, res=int(v.split("_")[2]))
 
     # The points to sample the rasters at
     grid = bbox.sampling_grid(sample_size)
@@ -87,12 +128,12 @@ def run_extraction(
 
         # We can do these as batch at the end
         if var.startswith("ecmwf_"):
-            ecmwfs.append(var.removeprefix("ecmwf_"))
+            ecmwfs.append(var)
             continue
 
         progress.set(
             value=int((i / len(variables)) * 100),
-            message=f"Processing {COVARIATE_OPTIONS[var]}...",
+            message=f"Processing {variable_lut.get(var, var)}...",
         )
 
         func = variable_funcs.get(var)
@@ -131,7 +172,7 @@ def run_extraction(
         # If raster retrieval failed (None), skip this variable and continue.
         if raster is None:
             ui.notification_show(
-                f"Skipping {COVARIATE_OPTIONS[var]} — failed to retrieve data.",
+                f"Skipping {variable_lut[var]} — failed to retrieve data.",
                 type="warning",
                 duration=None,
             )
@@ -154,9 +195,11 @@ def run_extraction(
 
     if len(ecmwfs):
 
+        queue = ", ".join([variable_lut[v] for v in ecmwfs])
+
         progress.set(
             value=int(((len(variables) - len(ecmwfs)) / len(variables)) * 100),
-            message=f"Processing ERA5 variable(s)...{ecmwfs}",
+            message=f"Processing ERA5 variable(s)... {queue}",
         )
 
         rasters = get_ecmwf(
@@ -172,13 +215,18 @@ def run_extraction(
             )
         else:
             for var, raster in rasters.items():
-                raster = _ensure_spatial_index(raster)
-                df[var] = raster.sel(x=x, y=y, method="nearest").values
+                if raster.size == 0:
+                    ui.notification_show(
+                        f"ECMWF variable {variable_lut.get(var, var)} not found for the AOI/date range. Skipped.",
+                        type="warning",
+                    )
+                else:
+                    raster = _ensure_spatial_index(raster)
+                    df[var] = raster.sel(x=x, y=y, method="nearest").values
 
     progress.set(value=100, message="Finalising...")
 
     df = df.dropna()
-    df = df[df["landcover"] != 0]
 
     return df
 

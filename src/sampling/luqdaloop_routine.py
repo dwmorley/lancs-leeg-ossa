@@ -583,10 +583,10 @@ def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataA
 
 if __name__ == "__main__":
 
-    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260302_112805.csv")
+    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260312_145912.csv")
 
-    X = df[["dem", "LST_Day_1KM_mean", "LST_Day_1KM_min", "LST_Day_1KM_max"]].values
-    y = df["landcover"].values.astype(int)
+    X = df[["cop_dem_30", "wp_1km_unadj", "grip_1_highway"]].values
+    y = df["esa_ccilc"].values.astype(int)
     grid = df[["longitude", "latitude"]].values
 
     results = luqdaloop(X, y, grid, nx=8)

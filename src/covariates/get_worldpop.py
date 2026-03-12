@@ -42,6 +42,8 @@ def get_worldpop(
         url = f"https://data.worldpop.org/GIS/Population/Global_2000_2020_1km_UNadj/{year}/{iso3}/{iso3.lower()}_ppp_{year}_1km_Aggregated_UNadj.tif"
 
         response = requests.get(url, timeout=30)
+        if response.status_code == 404:
+            print(f"DEBUG: Possibly malformed URL: {url}")
 
         with MemoryFile(response.content) as memfile:
             da = rxr.open_rasterio(memfile)
@@ -64,7 +66,7 @@ def get_worldpop(
 if __name__ == "__main__":
 
     year = 2019
-    bbox = BoundingBox([-1.9143, 40.1718, --1.5184, 40.3815])
+    bbox = BoundingBox([3.8644, 44.2689, 4.6865, 44.5155])
 
     merged = get_worldpop(bbox, year)
 

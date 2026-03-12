@@ -3,6 +3,8 @@
 import pandas as pd
 from shiny import module, reactive, render, ui
 
+from src.constants import RESPONSE_OPTIONS
+
 
 @module.ui
 def load_ui():
@@ -66,32 +68,39 @@ def load_server(input, output, session, reactive_values):
         if not file_info:
             return
 
+        def _fail(msg: str) -> None:
+            ui.notification_show(msg, type="error")
+            reactive_values["extracted_df"] = None
+            _reset_counter.set(_reset_counter() + 1)
+
         try:
             # Read the uploaded CSV file
             extracted_df = pd.read_csv(file_info[0]["datapath"])
-
             columns = extracted_df.columns
+            suffixes_to_strip = ["_avg", "_min", "_max", "_sd", "_ampl"]
+            columns = [
+                (
+                    col.rsplit("_", 1)[0]
+                    if any(col.endswith(suffix) for suffix in suffixes_to_strip)
+                    else col
+                )
+                for col in columns
+            ]
 
-            # Required columns: latitude, longitude and landcover
-            required = {"latitude", "longitude", "landcover"}
-            missing = required.difference(columns)
+            missing = {"latitude", "longitude"}.difference(columns)
             if missing:
-                ui.notification_show(
-                    f"CSV file is missing required columns: {', '.join(sorted(missing))}",
-                    type="error",
-                )
-                reactive_values["extracted_df"] = None
-                _reset_counter.set(_reset_counter() + 1)
-                return
+                return _fail(f"CSV file is missing required columns: {', '.join(sorted(missing))}")
 
-            if len(extracted_df.columns) <= 4:
-                ui.notification_show(
-                    "CSV file must contain more than one covariate",
-                    type="error",
+            response_keys = [k for k in RESPONSE_OPTIONS if k in columns]
+            if len(response_keys) == 0:
+                return _fail("CSV file must contain exactly one response variable; none found.")
+            if len(response_keys) > 1:
+                return _fail(
+                    "CSV file contains multiple response variables. Please include exactly one."
                 )
-                reactive_values["extracted_df"] = None
-                _reset_counter.set(_reset_counter() + 1)
-                return
+
+            if len(columns) <= 4:
+                return _fail("CSV file must contain more than one covariate.")
 
             # Get bounds from latitude and longitude columns
             north = extracted_df["latitude"].max()
@@ -150,6 +159,4 @@ def load_server(input, output, session, reactive_values):
                 duration=3,
             )
         except Exception as e:
-            ui.notification_show(f"Error reading CSV file: {str(e)}", type="error")
-            reactive_values["extracted_df"] = None
-            _reset_counter.set(_reset_counter() + 1)
+            _fail(f"Error reading CSV file: {str(e)}")

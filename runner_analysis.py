@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from src.constants import RESPONSE_OPTIONS
 from src.sampling.asd_routine import glmmPQL_via_rpy2
 from src.sampling.lcp_routine import lcp
 from src.sampling.luqdaloop_routine import luqdaloop, newdata_to_raster, plot_wilks_lambda
@@ -39,8 +40,15 @@ def do_qda_and_lcp(
         Fraction of 'G' to 'I' points
 
     """
-    X = df.drop(columns=["longitude", "latitude", "landcover"]).values
-    y = df["landcover"].values.astype(int).astype(str)
+    response = [k for k in RESPONSE_OPTIONS.keys() if k in df.columns]
+    if len(response) != 1:
+        raise ValueError(
+            f"DataFrame must contain exactly one response variable from: {RESPONSE_OPTIONS.values()}."
+        )
+    response = response[0]
+
+    X = df.drop(columns=["longitude", "latitude", response]).values
+    y = df[response].values.astype(int).astype(str)
     spatial_grid = df[["longitude", "latitude"]].values
 
     # Do QDA

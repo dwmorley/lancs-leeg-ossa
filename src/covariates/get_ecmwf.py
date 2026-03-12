@@ -11,6 +11,7 @@ import xarray as xr
 from ecmwf.datastores import Client
 from requests.exceptions import HTTPError
 
+from src.constants import RESPONSE_OPTIONS
 from src.utils.bounding_box import BoundingBox
 
 os.environ.setdefault("ECCODES_DEFINITION_PATH", "")
@@ -83,7 +84,7 @@ def get_ecmwf(
         }
         for future in as_completed(futures):
             var_key, da = future.result()
-            rasters[f"{var_key}_mean"] = da
+            rasters[var_key] = da
 
     return rasters
 
@@ -110,7 +111,7 @@ def _fetch_variable(
             static_request = {k: v for k, v in request.items() if k not in ("month", "day", "time")}
             da = _download_and_read(client, collection_id, static_request, tmp_path, bbox)
         else:
-            raise
+            da = xr.DataArray()  # TODO: sort skipping
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
@@ -126,8 +127,13 @@ def _download_and_read(client, collection_id, request, tmp_path, bbox: BoundingB
     da = rioxarray.open_rasterio(tmp_path)
 
     # Average multiple bands (time steps)
+    var = request["variable"][0]
     if "band" in da.dims and da.sizes["band"] > 1:
-        da = da.mean(dim="band", skipna=True)
+        if var in RESPONSE_OPTIONS.keys():
+            # if categorical, use mode
+            da = da.mode(dim="band", skipna=True).isel(mode=0)
+        else:
+            da = da.mean(dim="band", skipna=True)
     else:
         da = da.squeeze("band", drop=True)
 
@@ -142,25 +148,30 @@ def _download_and_read(client, collection_id, request, tmp_path, bbox: BoundingB
     da = da.assign_coords(x=xs, y=ys)
     da = da.rio.write_crs("EPSG:4326")
 
+    if var == "soil_type":
+        da = da.where(da != 0)
+    elif var in ["type_of_high_vegetation", "type_of_low_vegetation"]:
+        da = da.where(~da.isin([14, 15]))
+
     return da.load()
 
 
 if __name__ == "__main__":
-    # bbox = BoundingBox([-2, 21, -1.2416, 21.8564])
-    bbox = BoundingBox([106.54, 52.23, 107, 52.54])
+    bbox = BoundingBox([-2, 21, -1.2416, 21.8564])
+    # bbox = BoundingBox([106.54, 52.23, 107, 52.54])
 
     start = datetime.strptime("2019-01-01", "%Y-%m-%d")
     end = datetime.strptime("2019-12-31", "%Y-%m-%d")
 
-    var = "ecmwf_2m_dewpoint_temperature"
+    var = "soil_temperature_level_3"
 
     r = get_ecmwf(
         bbox=bbox,
         variables=[var],
-        api_keys={"ecmwf_api_key": ""},
+        api_keys={"ecmwf_api_key": "f12aaef4-9be5-4fe2-a9a9-c8d99646ea6d"},
         date_range=(start, end),
     )
 
     import rasterio  # noqa: F401
 
-    r[f"{var}_mean"].rio.write_crs("epsg:4326").rio.to_raster(f"{var}.tif")
+    r[var].rio.write_crs("epsg:4326").rio.to_raster(f"{var}.tif")
