@@ -57,7 +57,6 @@ def run_extraction(
     # Ensure exactly one response variable (from RESPONSE_OPTIONS) is present
     response_keys = [k for k in RESPONSE_OPTIONS.keys() if k in variables]
     if len(response_keys) != 1:
-        # User-facing notification when running via the UI
         try:
             if len(response_keys) == 0:
                 ui.notification_show(
@@ -70,7 +69,6 @@ def run_extraction(
                     type="error",
                 )
         except Exception:
-            # Fallback print for non-UI contexts
             if len(response_keys) == 0:
                 print("No response variable selected. Please include exactly one response variable")
             else:
