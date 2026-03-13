@@ -23,7 +23,8 @@ RESPONSE_OPTIONS = {
 COVARIATE_OPTIONS = {
     "cop_dem_30": "Copernicus Digital Elevation Model (30m)",
     "cop_dem_90": "Copernicus Digital Elevation Model (90m)",
-    "wp_1km_unadj": "World Pop 1km Unadjusted",
+    "wp_1km_unadj": "World Pop Population 1km Unadjusted",
+    "wp_1km": "World Pop Population 1km",
     "grip_0_all": "GRIP Road Density - All",
     "grip_1_highway": "GRIP Road Density - Highways",
     "grip_2_primary": "GRIP Road Density - Primary Roads",

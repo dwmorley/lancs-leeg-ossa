@@ -96,7 +96,8 @@ def run_extraction(
     variable_funcs: dict[str, Callable] | Callable = {
         "io_landcoverio": lambda: get_iolulc(bbox=bbox, year=year),
         "esa_ccilc": lambda: get_esalulc(bbox=bbox, year=year),
-        "wp_1km_unadj": lambda: get_worldpop(bbox=bbox, year=year),
+        "wp_1km_unadj": lambda: get_worldpop(bbox=bbox, year=year, adjusted=True),
+        "wp_1km": lambda: get_worldpop(bbox=bbox, year=year, adjusted=False),
     }
     for var in variables:
         if var.startswith("terraclimate_"):

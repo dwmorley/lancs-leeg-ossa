@@ -111,7 +111,7 @@ def _fetch_variable(
             static_request = {k: v for k, v in request.items() if k not in ("month", "day", "time")}
             da = _download_and_read(client, collection_id, static_request, tmp_path, bbox)
         else:
-            da = xr.DataArray()  # TODO: sort skipping
+            da = xr.DataArray()  # This var will be skipped
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     r = get_ecmwf(
         bbox=bbox,
         variables=[var],
-        api_keys={"ecmwf_api_key": "f12aaef4-9be5-4fe2-a9a9-c8d99646ea6d"},
+        api_keys={"ecmwf_api_key": ""},
         date_range=(start, end),
     )
 
