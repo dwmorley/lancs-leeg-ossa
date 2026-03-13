@@ -68,6 +68,8 @@ def qda_ui():
                             "lcp_grid",
                             "Proportion of grid locations (to close pairs)",
                             value=LCP_OPTIONS["grid"],
+                            min=0,
+                            max=1,
                             step=0.01,
                         ),
                     ],
@@ -98,6 +100,15 @@ def qda_ui():
 @module.server
 def qda_server(input, output, session, reactive_values):
     """Server-side logic for QDA."""
+
+    @reactive.effect
+    def _clamp_lcp_grid() -> None:
+        val = input.lcp_grid()
+        if val is not None:
+            if val < 0:
+                ui.update_numeric("lcp_grid", value=0)
+            elif val > 1:
+                ui.update_numeric("lcp_grid", value=1)
 
     @reactive.effect
     @reactive.event(input.save_qda)
