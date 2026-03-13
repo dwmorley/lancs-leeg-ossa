@@ -50,15 +50,10 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
         grid = round(total2 * grid2)
         g = np.round((counts / n_valid) * (total2 - grid)).astype(int)
         v[yy] = 1
-        yy = len(yy)
-    else:
-        yy = 0
 
+    # Sampling from each strata
     if np.sum(v) > total:
         v[np.argmax(v)] = np.max(v) - 1
-
-    print("Sampling from each strata")
-    print(v)
 
     y_coords, x_coords = map.coords[map.dims[0]], map.coords[map.dims[1]]
     x_min, x_max = float(x_coords.min()), float(x_coords.max())
@@ -80,15 +75,8 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
     dataframe = pd.DataFrame({"x": grid_pts[:, 0], "y": grid_pts[:, 1], "class": classes})
     dataframe = dataframe.dropna()
 
-    t = np.array([np.sum(dataframe["class"] == val) for val in xx])
-    print("Obtained from grid")
-    print(t)
-
-    b = v - t
-    print("Still needed")
-    print(b)
-    print("Theoretical for closed-pairs")
-    print(g)
+    t = np.array([np.sum(dataframe["class"] == val) for val in xx])  # Obtained from grid
+    b = v - t  # Still needed
 
     for i, val in enumerate(xx):
         if b[i] < g[i]:
@@ -98,13 +86,8 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
                 drop_idx = np.random.choice(idx, int(bb), replace=False)
                 dataframe = dataframe.drop(drop_idx)
 
-    t = np.array([np.sum(dataframe["class"] == val) for val in xx])
-    print("Corrected")
-    print(t)
-
-    v = v - t
-    print("still needed after correction")
-    print(v)
+    t = np.array([np.sum(dataframe["class"] == val) for val in xx])  # Corrected
+    v = v - t  # still needed after correction
 
     dataframe2_list = []
     for _, row in dataframe.iterrows():
@@ -156,9 +139,6 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
 
     final = pd.concat([dataframe, bb], ignore_index=True)
     final["type"] = ["G"] * len(dataframe) + ["I"] * len(bb)
-
-    if yy > 0:
-        print("Added inhibitory points to under represented classes")
 
     return final
 
