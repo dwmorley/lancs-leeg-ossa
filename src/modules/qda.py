@@ -80,15 +80,23 @@ def qda_ui():
         ),
         ui.tags.div(
             [
-                ui.input_action_button(
-                    "save_qda",
-                    ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
-                    class_="action-button",
+                ui.tooltip(
+                    ui.input_action_button(
+                        "save_qda",
+                        ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
+                        class_="action-button",
+                    ),
+                    "Export QDA/LCP results",
+                    options={"delay": {"show": 1000, "hide": 0}},
                 ),
-                ui.input_action_button(
-                    "run_qda",
-                    ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
-                    class_="action-button",
+                ui.tooltip(
+                    ui.input_action_button(
+                        "run_qda",
+                        ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
+                        class_="action-button",
+                    ),
+                    "Run QDA and LCP analysis",
+                    options={"delay": {"show": 1000, "hide": 0}},
                 ),
             ],
             class_="button-container",

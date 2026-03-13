@@ -71,15 +71,23 @@ def asd_ui():
         ),
         ui.tags.div(
             [
-                ui.input_action_button(
-                    "save_asd",
-                    ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
-                    class_="action-button",
+                ui.tooltip(
+                    ui.input_action_button(
+                        "save_asd",
+                        ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
+                        class_="action-button",
+                    ),
+                    "Export ASD results",
+                    options={"delay": {"show": 1000, "hide": 0}},
                 ),
-                ui.input_action_button(
-                    "run_asd",
-                    ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
-                    class_="action-button",
+                ui.tooltip(
+                    ui.input_action_button(
+                        "run_asd",
+                        ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
+                        class_="action-button",
+                    ),
+                    "Run ASD analysis",
+                    options={"delay": {"show": 1000, "hide": 0}},
                 ),
             ],
             class_="button-container",

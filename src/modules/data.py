@@ -92,15 +92,23 @@ def data_ui():
             ),
             ui.tags.div(
                 [
-                    ui.input_action_button(
-                        "export_csv",
-                        ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
-                        class_="action-button",
+                    ui.tooltip(
+                        ui.input_action_button(
+                            "export_csv",
+                            ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
+                            class_="action-button",
+                        ),
+                        "Export extracted data as CSV",
+                        options={"delay": {"show": 1000, "hide": 0}},
                     ),
-                    ui.input_action_button(
-                        "run_extraction",
-                        ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
-                        class_="action-button",
+                    ui.tooltip(
+                        ui.input_action_button(
+                            "run_extraction",
+                            ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
+                            class_="action-button",
+                        ),
+                        "Run data extraction",
+                        options={"delay": {"show": 1000, "hide": 0}},
                     ),
                 ],
                 class_="button-container",
@@ -177,7 +185,7 @@ def data_server(input, output, session, reactive_values):
         # Get current bounds
         bounds = drawn_shapes.get()
         if not bounds:
-            ui.notification_show("Please draw a rectangle on the map first.", type="warning")
+            ui.notification_show("Please define a rectangle on the map first.", type="warning")
             return
 
         # Check API keys for selected variables

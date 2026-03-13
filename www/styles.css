@@ -46,6 +46,33 @@
     box-shadow: 0 1px 5px rgba(0,0,0,0.65) !important;
 }
 
+/* Leaflet-style tooltips */
+.tooltip {
+    --bs-tooltip-bg: #fff;
+    --bs-tooltip-color: #222;
+    --bs-tooltip-border-radius: 3px;
+    --bs-tooltip-padding-x: 6px;
+    --bs-tooltip-padding-y: 6px;
+    --bs-tooltip-font-size: 0.75rem;
+    --bs-tooltip-opacity: 1;
+}
+.tooltip .tooltip-arrow {
+    display: none !important;
+}
+.tooltip-inner {
+    background-color: #fff !important;
+    color: #222 !important;
+    border: 1px solid #fff !important;
+    border-radius: 3px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+    white-space: nowrap !important;
+    text-align: left !important;
+    max-width: none !important;
+    font-family: "Helvetica Neue", Arial, Helvetica, sans-serif !important;
+    font-size: 0.75rem !important;
+    line-height: 1.5 !important;
+}
+
 * {
     margin: 0;
     padding: 0;

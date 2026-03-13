@@ -54,32 +54,6 @@ def run_extraction(
     """
     variable_lut = {**COVARIATE_OPTIONS, **RESPONSE_OPTIONS}
 
-    # Ensure exactly one response variable (from RESPONSE_OPTIONS) is present
-    response_keys = [k for k in RESPONSE_OPTIONS.keys() if k in variables]
-    if len(response_keys) != 1:
-        try:
-            if len(response_keys) == 0:
-                ui.notification_show(
-                    "No response variable selected. Please include exactly one response variable.",
-                    type="error",
-                )
-            else:
-                ui.notification_show(
-                    "Multiple response variables selected. Please select exactly one response variable.",
-                    type="error",
-                )
-        except Exception:
-            if len(response_keys) == 0:
-                print("No response variable selected. Please include exactly one response variable")
-            else:
-                print(
-                    "Multiple response variables selected. Please select exactly one response variable."
-                )
-        # Fail-fast: stop extraction
-        raise ValueError(
-            f"Expected exactly one response variable from {list(RESPONSE_OPTIONS.keys())}, got: {response_keys}"
-        )
-
     # The maximum year from date_range
     year = max(date_range[0].year, date_range[1].year)
 
