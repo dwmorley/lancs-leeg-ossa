@@ -187,7 +187,7 @@ def luqdaloop(
                 tb2[a[i]] = tb2[a[i]] - len(half_indices)
                 g2 = np.append(g2, u + str(g2[a[i]]))
                 break
-            elif i >= ng2:
+            if i == ng2 - 1:  # Equivalent to i>=ng2 in R's 1-indexed loop
                 split = True
         if ng2 >= nx:
             split = True
@@ -583,10 +583,26 @@ def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataA
 
 if __name__ == "__main__":
 
-    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260312_145912.csv")
+    df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260313_103021.csv")
 
-    X = df[["cop_dem_30", "wp_1km_unadj", "grip_1_highway"]].values
-    y = df["esa_ccilc"].values.astype(int)
+    X = df[
+        [
+            "cop_dem_30",
+            "wp_1km",
+            "grip_0_all",
+            "sur_refl_b07_avg",
+            "500m_16_days_EVI_avg",
+            "500m_16_days_EVI_min",
+            "500m_16_days_EVI_max",
+            "500m_16_days_EVI_sd",
+            "500m_16_days_EVI_ampl",
+            "terraclimate_def",
+            "sg_ocd",
+            "ecmwf_potential_evaporation",
+            "ecmwf_surface_pressure",
+        ]
+    ].values
+    y = df["io_landcoverio"].values.astype(int)
     grid = df[["longitude", "latitude"]].values
 
     results = luqdaloop(X, y, grid, nx=8)
