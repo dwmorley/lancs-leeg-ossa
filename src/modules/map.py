@@ -3,6 +3,7 @@
 import ipyleaflet as L
 import leafmap
 from ipyleaflet import DrawControl, LayersControl, WidgetControl
+from ipywidgets import Button
 from shiny import module, reactive
 from shinywidgets import output_widget, render_widget
 
@@ -147,6 +148,31 @@ def map_server(input, output, session, reactive_values):
             )
             m.add(legend_control)
 
+    def _zoom_to_layers(_btn=None):
+        m = m_ref.get("m")
+        if m is None:
+            return
+        all_lats, all_lons = [], []
+        for layer in m.layers:
+            if isinstance(layer, L.ImageOverlay):
+                bounds = layer.bounds  # [[south, west], [north, east]]
+                all_lats += [bounds[0][0], bounds[1][0]]
+                all_lons += [bounds[0][1], bounds[1][1]]
+            elif isinstance(layer, L.LayerGroup):
+                for sub in layer.layers:
+                    if hasattr(sub, "location"):
+                        all_lats.append(sub.location[0])
+                        all_lons.append(sub.location[1])
+        for feature in draw_control.data:
+            try:
+                coords = feature["geometry"]["coordinates"][0]
+                all_lons += [c[0] for c in coords]
+                all_lats += [c[1] for c in coords]
+            except (KeyError, IndexError, TypeError):
+                pass
+        if all_lats and all_lons:
+            m.fit_bounds([[min(all_lats), min(all_lons)], [max(all_lats), max(all_lons)]])
+
     @render_widget
     def map():
 
@@ -162,6 +188,16 @@ def map_server(input, output, session, reactive_values):
         m.add_basemap("Esri.WorldImagery")
         m.add(LayersControl(position="topright"))
         m.add(draw_control)
+
+        zoom_btn = Button(
+            icon="arrows-alt",
+            tooltip="Zoom to layers",
+            _dom_classes=["leaflet-style-btn"],
+            layout={"width": "30px", "height": "30px"},
+        )
+
+        zoom_btn.on_click(_zoom_to_layers)
+        m.add(WidgetControl(widget=zoom_btn, position="topleft", transparent_bg=True))
 
         # expose map instance for other modules
         m_ref["m"] = m
