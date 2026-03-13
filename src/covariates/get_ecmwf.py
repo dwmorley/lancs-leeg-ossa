@@ -148,6 +148,7 @@ def _download_and_read(client, collection_id, request, tmp_path, bbox: BoundingB
     da = da.assign_coords(x=xs, y=ys)
     da = da.rio.write_crs("EPSG:4326")
 
+    # remove water
     if var == "soil_type":
         da = da.where(da != 0)
     elif var in ["type_of_high_vegetation", "type_of_low_vegetation"]:
