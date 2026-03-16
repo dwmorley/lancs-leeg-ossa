@@ -9,6 +9,7 @@ import pystac_client
 import rioxarray  # noqa: F401
 import stackstac
 import xarray as xr
+from shiny import ui
 
 from src.utils.bounding_box import BoundingBox
 
@@ -109,7 +110,10 @@ def get_modis(
 
     # Nothing found for the AOI/date range
     if len(items) == 0:
-        print(f"No MODIS tiles found for requested AOI/date range. {variable} will be skipped.")
+        ui.notification_show(
+            f"No MODIS tiles found for requested AOI/date range. {variable} will be skipped.",
+            type="warning",
+        )
         return None
 
     stack = stackstac.stack(

@@ -122,15 +122,13 @@ def run_extraction(
                             delay = base_delay * (2**attempt)
                             time.sleep(delay)
                             continue
+
                         # Exhausted retries: notify and return None
-                        try:
-                            ui.notification_show(
-                                "The API request timed out after multiple attempts. "
-                                "Please try again later.",
-                                type="error",
-                            )
-                        except Exception:
-                            print("The API request timed out after multiple attempts.")
+                        ui.notification_show(
+                            "The API request timed out after multiple attempts. "
+                            "Please try again later.",
+                            type="error",
+                        )
                         return None
                     except Exception as e:
                         ui.notification_show(
