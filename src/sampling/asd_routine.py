@@ -2,17 +2,17 @@
 
 from typing import Callable
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rioxarray  # noqa: F401
 import rpy2.robjects as ro
 import xarray as xr
-from matplotlib.colors import BoundaryNorm
 from rpy2.rinterface_lib import callbacks as rpy2_callbacks
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
+
+RESOLUTION = 10  # TODO: That is, 10 interpolated grid cells between supplied sampling grid
 
 
 def glmmPQL_via_rpy2(
@@ -135,6 +135,9 @@ def _glmmPQL_via_rpy2_inner(
         ro.globalenv["data"] = data
         ro.globalenv["area"] = area
 
+        x_res = len(area["x"].unique()) * RESOLUTION
+        y_res = len(area["y"].unique()) * RESOLUTION
+
         # R console writes during glmmPQL will be picked up by the hook and
         # forwarded as detail text at this stage value/message.
         _prog(0.15, "Fitting model (glmmPQL)...")
@@ -160,11 +163,11 @@ def _glmmPQL_via_rpy2_inner(
 
         _prog(0.85, "Interpolating uncertainty grid")
         ro.r(
-            """
+            f"""
             modelgrid <- mba.surf(
                 cbind(area[, c("x", "y")], modelse$se.fit),
-                no.X = 100,
-                no.Y = 100,
+                no.X = {x_res},
+                no.Y = {y_res},
                 extend = TRUE
             )$xyz.est
         """
@@ -173,11 +176,11 @@ def _glmmPQL_via_rpy2_inner(
         if target == "H":
             _prog(0.88, "Interpolating fitted values grid")
             ro.r(
-                """
+                f"""
                 modelgridX <- mba.surf(
                     cbind(area[, c("x", "y")], modelse$fit),
-                    no.X = 100,
-                    no.Y = 100,
+                    no.X = {x_res},
+                    no.Y = {y_res},
                     extend = TRUE
                 )$xyz.est
             """
@@ -254,60 +257,7 @@ def _glmmPQL_via_rpy2_inner(
     da = xr.DataArray(z_grid, coords={"y": y_array, "x": x_array}, dims=["y", "x"])
     da.rio.write_crs("EPSG:4326", inplace=True)
 
-    # da.rio.to_raster("adaptive_sampling.tif")
-
     return da, x_df
-
-
-def asd_plot(plot_title: str, da: xr.DataArray, x_df: pd.DataFrame, z_grid: np.ndarray) -> None:
-    """Plot an ASD raster with sampled points overlaid.
-
-    Parameters
-    ----------
-    plot_title : str
-        Title to use for the matplotlib figure.
-    da : xarray.DataArray
-        The raster DataArray used to derive the plot extent. Expected to
-        have coordinate dims 'x' and 'y'.
-    x_df : pandas.DataFrame
-        DataFrame of sampled point locations. Must have columns 'x' and
-        'y' containing coordinates.
-    z_grid : numpy.ndarray
-        2-D array of raster values shaped to match the coordinates in
-        ``da`` (rows correspond to y coordinates, columns to x).
-
-    Returns
-    -------
-    None
-        Displays a matplotlib figure and returns None.
-    """
-    extent = (
-        float(da.x.min().values),
-        float(da.x.max().values),
-        float(da.y.min().values),
-        float(da.y.max().values),
-    )
-
-    vmin, vmax = z_grid.min(), z_grid.max()
-    bounds = np.linspace(vmin, vmax, 12)
-    cmap = plt.get_cmap("hot")
-    norm = BoundaryNorm(bounds, cmap.N)
-    fig, ax = plt.subplots(figsize=(10, 8))
-    im = ax.imshow(
-        z_grid,
-        extent=extent,
-        origin="lower",
-        cmap="hot",
-        norm=norm,
-    )
-    ax.set_title(plot_title)
-    cbar = plt.colorbar(im, ax=ax, boundaries=bounds, ticks=bounds)
-    cbar.set_label("Value")
-
-    ax.plot(x_df["x"], x_df["y"], "x", color="blue", markersize=10, markeredgewidth=2)
-
-    plt.tight_layout()
-    plt.show()
 
 
 if __name__ == "__main__":

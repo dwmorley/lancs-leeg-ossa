@@ -12,6 +12,7 @@ from runner_analysis import do_asd
 from src.constants import ASD_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.utils.downloads import save_artifacts_zip
+from src.utils.validate import validate_extracted_df
 
 
 @module.ui
@@ -48,7 +49,8 @@ def asd_ui():
                                 "asd_delta",
                                 "Inhibition distance (delta)",
                                 value=ASD_OPTIONS["delta"],
-                                step=0.01,
+                                min=0.001,
+                                step=0.001,
                             ),
                             ui.div(
                                 {"style": "padding-top: 12px;"},
@@ -135,7 +137,13 @@ def asd_server(input, output, session, reactive_values):
     async def _handle_run_asd() -> None:
 
         my_ossa_layers = reactive_values["my_ossa_layers"]
-        target = input.asd_target._value
+        extracted_df = reactive_values.get("extracted_df")
+        target = input.asd_target()
+
+        # TODO: area will come from Leaflet, not specified grid?.
+
+        if not validate_extracted_df(extracted_df):
+            pass  # TODO: for when not hard-typing Benin.
 
         # Capture the R callbacks
         msg_queue: queue.SimpleQueue[tuple] = queue.SimpleQueue()
@@ -144,7 +152,16 @@ def asd_server(input, output, session, reactive_values):
             msg_queue.put((value, message, detail))
 
         # Launch R computation in a thread so the event loop stays unblocked.
-        task = asyncio.create_task(asyncio.to_thread(do_asd, on_progress=_on_progress))
+        task = asyncio.create_task(
+            asyncio.to_thread(
+                do_asd,
+                df=extracted_df,
+                formulaf=input.asd_formulaf(),
+                formular=input.asd_formular(),
+                target=target,
+                on_progress=_on_progress,
+            )
+        )
 
         with ui.Progress(min=0, max=1) as p:
             p.set(0, message="Starting Adaptive Sampling...")

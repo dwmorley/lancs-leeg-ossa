@@ -87,20 +87,33 @@ def do_qda_and_lcp(
     }
 
 
-def do_asd(on_progress=None) -> dict[str, pd.DataFrame | xr.DataArray]:
+def do_asd(
+    df: pd.DataFrame,
+    formulaf: str,
+    formular: str,
+    target: str,
+    total: int = 15,
+    delta: float = 0.01,
+    on_progress=None,
+) -> dict[str, pd.DataFrame | xr.DataArray]:
     """Perform ASD sampling and analysis on the provided dataset."""
-    benin = pd.read_csv("test_data/benin.csv")
-    beningrid = pd.read_csv("test_data/beningrid.csv")
-    target = "H"
+    debug = True
+    if debug:
+        df = pd.read_csv("test_data/benin.csv")
+        area = pd.read_csv("test_data/beningrid.csv")
+        formulaf = "AnGam~Week+Elev+Soil"
+        formular = "~1|LCD"
+    else:
+        area = df[["longitude", "latitude"]]
 
     map_raster, sites = glmmPQL_via_rpy2(
-        formulaf="AnGam~Week+Elev+Soil",
-        formular="~1|LCD",
-        data=benin,
-        area=beningrid,
+        formulaf=formulaf,
+        formular=formular,
+        data=df,
+        area=area,
         target=target,
-        total=15,
-        delta=0.01,
+        total=total,
+        delta=delta,
         on_progress=on_progress,
     )
 
