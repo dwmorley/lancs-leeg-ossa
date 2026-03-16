@@ -67,8 +67,7 @@ def data_ui():
                                     "sample_size",
                                     ui.span("Sample size"),
                                     value=GRID_SAMPLE_SIZE,
-                                    min=1,
-                                    step=1,
+                                    step=10,
                                     width="120px",
                                 ),
                                 ui.div(
@@ -140,6 +139,13 @@ def data_server(input, output, session, reactive_values):
             ui.update_checkbox_group("response_vars", selected=[new])
         else:
             _prev_response_var.set(current[0])
+
+    @reactive.effect
+    @reactive.event(input.sample_size)
+    def _clamp_sample_size() -> None:
+        val = input.sample_size()
+        if val is not None and val < 1:
+            ui.update_numeric("sample_size", value=1)
 
     @render.text
     @reactive.event(drawn_shapes, input.sample_size)

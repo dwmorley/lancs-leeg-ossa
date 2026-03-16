@@ -1,11 +1,11 @@
-"""QDA UI and server components for OSSA's classification workflow."""
+"""QDA UI and server components."""
 
 import base64
 from datetime import datetime
 from io import BytesIO
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
-import numpy as np
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
@@ -13,6 +13,7 @@ from runner_analysis import do_qda_and_lcp
 from src.constants import LCP_OPTIONS, QDA_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.utils.downloads import save_artifacts_zip
+from src.utils.validate import validate_extracted_df
 
 
 @module.ui
@@ -131,11 +132,16 @@ def qda_server(input, output, session, reactive_values):
         lcp_sites = reactive_values["qda_lcp_results"]()["lcp_sites"]
         qda_raster = reactive_values["qda_lcp_results"]()["map_raster"]
         wilks_plot = reactive_values["qda_lcp_results"]()["wilks_plot"]
+        lcp_sites_gpkg = gpd.GeoDataFrame(
+            lcp_sites, geometry=gpd.points_from_xy(lcp_sites.x, lcp_sites.y), crs="EPSG:4326"
+        )
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         zip_path = save_artifacts_zip(
             zip_name=f"qda_lcp_results_{timestamp}.zip",
             csv_artifacts={"lcp_sites.csv": lcp_sites},
+            gpkg_artifacts={"lcp_sites.gpkg": lcp_sites_gpkg},
             raster_artifacts={"qda_raster.tif": qda_raster},
             figure_artifacts={"wilks_plot.png": wilks_plot},
         )
@@ -154,15 +160,7 @@ def qda_server(input, output, session, reactive_values):
         drawn_shapes = reactive_values["drawn_shapes"]
         my_ossa_layers = reactive_values["my_ossa_layers"]
 
-        if extracted_df is None:
-            ui.notification_show(
-                "Please run the data extraction first, or upload a csv", type="warning"
-            )
-            return
-
-        constant_cols = extracted_df.columns[np.where(extracted_df.std(axis=0) == 0)[0]].tolist()
-        if len(constant_cols) > 0:
-            ui.notification_show(f"data contains constant columns: {constant_cols}", type="error")
+        if not validate_extracted_df(extracted_df):
             return
 
         # Run QDA analysis

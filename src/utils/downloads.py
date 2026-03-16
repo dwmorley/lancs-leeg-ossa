@@ -39,6 +39,7 @@ def save_csv(csv_name: str, dataframe) -> Path:
 def save_artifacts_zip(
     zip_name: str,
     csv_artifacts: dict,
+    gpkg_artifacts: dict,
     raster_artifacts: dict,
     figure_artifacts: dict | None = None,
 ) -> Path:
@@ -52,6 +53,9 @@ def save_artifacts_zip(
         for filename, raster in raster_artifacts.items():
             raster.rio.to_raster(temp_path / filename)
 
+        for filename, gpkg in gpkg_artifacts.items():
+            gpkg.to_file(temp_path / filename, driver="GPKG")
+
         if figure_artifacts:
             for filename, figure in figure_artifacts.items():
                 figure.savefig(temp_path / filename, dpi=150, bbox_inches="tight")
@@ -62,6 +66,7 @@ def save_artifacts_zip(
             for filename in [
                 *csv_artifacts.keys(),
                 *raster_artifacts.keys(),
+                *gpkg_artifacts.keys(),
                 *(figure_artifacts.keys() if figure_artifacts else []),
             ]:
                 zf.write(temp_path / filename, arcname=filename)

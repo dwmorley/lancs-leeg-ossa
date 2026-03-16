@@ -40,11 +40,8 @@ def do_qda_and_lcp(
         Fraction of 'G' to 'I' points
 
     """
+    # Assuming df has already been validated.
     response = [k for k in RESPONSE_OPTIONS.keys() if k in df.columns]
-    if len(response) != 1:
-        raise ValueError(
-            f"DataFrame must contain exactly one response variable from: {RESPONSE_OPTIONS.values()}."
-        )
     response = response[0]
 
     X = df.drop(columns=["longitude", "latitude", response]).values

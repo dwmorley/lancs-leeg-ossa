@@ -4,6 +4,7 @@ import asyncio
 import queue
 from datetime import datetime
 
+import geopandas as gpd
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
@@ -113,10 +114,14 @@ def asd_server(input, output, session, reactive_values):
         asd_sites = reactive_values["asd_results"]()["asd_sites"]
         asd_raster = reactive_values["asd_results"]()["map_raster"]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        asd_sites_gpkg = gpd.GeoDataFrame(
+            asd_sites, geometry=gpd.points_from_xy(asd_sites.x, asd_sites.y), crs="EPSG:4326"
+        )
 
         zip_path = save_artifacts_zip(
             zip_name=f"asd_results_{timestamp}.zip",
             csv_artifacts={"asd_sites.csv": asd_sites},
+            gpkg_artifacts={"asd_sites.gpkg": asd_sites_gpkg},
             raster_artifacts={"asd_raster.tif": asd_raster},
         )
 
