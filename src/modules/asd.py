@@ -137,7 +137,7 @@ def asd_server(input, output, session, reactive_values):
     async def _handle_run_asd() -> None:
 
         my_ossa_layers = reactive_values["my_ossa_layers"]
-        extracted_df = reactive_values.get("extracted_df")
+        extracted_df = reactive_values["extracted_df"]()
         target = input.asd_target()
 
         # TODO: area will come from Leaflet, not specified grid?.

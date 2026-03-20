@@ -17,7 +17,7 @@ services:
     image: ghcr.io/dwmorley/lancs-leeg-ossa:latest
     pull_policy: always
     ports:
-      - "${PORT:-8000}:8000"
+      - "0:8000"
     volumes:
       - ${OUTPUT_DIR:-./output}:/app/output
     environment:
