@@ -92,3 +92,9 @@ To create a new docker image on GitHub:
 git tag v0.0.1
 git push origin v0.0.1
 ```
+
+GitHub actions will automatically create the package.
+
+To refresh the image in Docker Desktop, you can pull the latest image:
+```commandline
+docker pull ghcr.io/dwmorley/lancs-leeg-ossa:latest
