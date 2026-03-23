@@ -5,7 +5,7 @@ from pathlib import Path
 
 from shiny import App, reactive, run_app, ui
 
-from src.modules import aoi, asd, data, footer, header, load, map, qda
+from src.modules import aoi, asd, data, footer, header, load, map, qda, zssa
 
 page_dependencies = ui.tags.head(
     ui.tags.link(rel="stylesheet", type="text/css", href="styles.css"),
@@ -17,6 +17,7 @@ leaflet_map = map.map_ui("my_map")
 extent_boxes = aoi.aoi_ui("my_aoi")
 qda_ui = qda.qda_ui("my_qda")
 asd_ui = asd.asd_ui("my_asd")
+zssa_ui = zssa.zssa_ui("my_zssa")
 page_footer = footer.footer_ui("my_footer")
 load_csv = load.load_ui("my_load")
 
@@ -43,6 +44,10 @@ app_ui = ui.page_fluid(
                         ui.nav_panel(
                             "QDA & LCP",
                             qda_ui,
+                        ),
+                        ui.nav_panel(
+                            "ZSSA",
+                            zssa_ui,
                         ),
                         ui.nav_panel(
                             "ASD",
