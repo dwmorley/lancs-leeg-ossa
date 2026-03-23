@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
-from runner_analysis import do_qda
+from runner_analysis import do_lcp, do_qda
 from src.constants import COVARIATE_OPTIONS, LCP_OPTIONS, QDA_OPTIONS, RESPONSE_OPTIONS
-from src.plotting.maps import dataarray_to_image_overlay  # make_point_layer
+from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.sampling.luqdaloop_routine import make_qda_raster
 from src.utils.downloads import save_artifacts_zip
 from src.utils.validate import validate_extracted_df
@@ -87,12 +87,14 @@ def qda_ui():
                 ui.tags.div(
                     [
                         ui.h4("Lattice Close Pairs", class_="column-header"),
-                        ui.input_numeric(
+                        ui.input_slider(
                             "lcp_classes",
                             "Classes to use",
-                            value=None,
-                            min=1,
+                            value=1,
+                            min=2,
+                            max=QDA_OPTIONS["nx"],
                             step=1,
+                            ticks=False,
                         ),
                         ui.input_numeric(
                             "lcp_delta",
@@ -155,6 +157,7 @@ def qda_ui():
 @module.server
 def qda_server(input, output, session, reactive_values):
     """Server-side logic for QDA."""
+    _map_raster = reactive.Value(None)
 
     @reactive.effect
     def _update_qda_response_choices() -> None:
@@ -197,10 +200,9 @@ def qda_server(input, output, session, reactive_values):
             )
             return
 
-        # TODO: split to qda and lcp
-        lcp_sites = reactive_values["qda_lcp_results"]()["lcp_sites"]
-        qda_raster = reactive_values["qda_lcp_results"]()["map_raster"]
-        wilks_plot = reactive_values["qda_lcp_results"]()["wilks_plot"]
+        lcp_sites = reactive_values["lcp_results"]()["lcp_sites"]
+        qda_raster = reactive_values["qda_results"]()["map_raster"]
+        wilks_plot = reactive_values["qda_results"]()["wilks_plot"]
         lcp_sites_gpkg = gpd.GeoDataFrame(
             lcp_sites, geometry=gpd.points_from_xy(lcp_sites.x, lcp_sites.y), crs="EPSG:4326"
         )
@@ -249,9 +251,10 @@ def qda_server(input, output, session, reactive_values):
         reactive_values["qda_results"].set(results)
 
         # Update the UI with recommended number of classes and corresponding raster
-        ui.update_numeric("lcp_classes", value=results["best_n_classes"], min=1, max=input.qda_nx())
+        ui.update_slider("lcp_classes", value=results["best_n_classes"], min=2, max=input.qda_nx())
 
         map_raster = make_qda_raster(results["class_analysis"], results["best_n_classes"])
+        _map_raster.set(map_raster)
 
         drawn_shapes.set([])
         overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")
@@ -271,7 +274,7 @@ def qda_server(input, output, session, reactive_values):
         if not reactive_values["qda_results"]():
             ui.notification_show(
                 "Please run the QDA analysis first to see the Wilks' Lambda plot.",
-                type="warning",
+                type="error",
             )
             return
 
@@ -303,6 +306,77 @@ def qda_server(input, output, session, reactive_values):
             )
             return
 
+        df = reactive_values["qda_results"]()["class_analysis"]["WilksSummary"]
+
+        header = ui.tags.thead(
+            ui.tags.tr(
+                ui.tags.th(""),
+                *[ui.tags.th(col, style="text-align:right;") for col in df.columns],
+            )
+        )
+        body = ui.tags.tbody(
+            *[
+                ui.tags.tr(
+                    ui.tags.th(row, style="white-space:nowrap;"),
+                    *[ui.tags.td(f"{val:.4f}", style="text-align:right;") for val in df.loc[row]],
+                )
+                for row in df.index
+            ]
+        )
+        table = ui.tags.table(
+            header,
+            body,
+            class_="table table-sm table-bordered",
+        )
+
+        ui.modal_show(
+            ui.modal(
+                ui.tags.h5("Wilks' Lambda Cluster Statistics", style="margin-bottom:10px;"),
+                table,
+                title=None,
+                easy_close=True,
+                footer=ui.modal_button("Close"),
+                size="l",
+            )
+        )
+
+    @reactive.effect
+    @reactive.event(input.qda_nx)
+    def _handle_change_nx() -> None:
+        nx = input.qda_nx()
+        if nx is not None:
+            ui.update_slider("lcp_classes", max=nx, min=2)
+
+    @reactive.effect
+    @reactive.event(input.lcp_classes)
+    def _handle_lcp_classes() -> None:
+
+        results = reactive_values["qda_results"]()
+        if not results:
+            return
+
+        drawn_shapes = reactive_values["drawn_shapes"]
+        my_ossa_layers = reactive_values["my_ossa_layers"]
+
+        n = input.lcp_classes()
+
+        if (
+            results["class_analysis"]["NewData"] is None
+            or f"{n}cluster" not in results["class_analysis"]["NewData"]
+        ):
+            ui.notification_show(
+                f"QDA results do not contain a classification for {n} classes. Please choose a different number.",
+                type="error",
+            )
+            return
+
+        map_raster = make_qda_raster(results["class_analysis"], n)
+        _map_raster.set(map_raster)
+
+        drawn_shapes.set([])
+        overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")
+        my_ossa_layers.set([overlay])
+
     @reactive.effect
     @reactive.event(input.run_lcp)
     def _handle_run_lcp() -> None:
@@ -315,47 +389,22 @@ def qda_server(input, output, session, reactive_values):
             )
             return
 
-    @reactive.effect
-    @reactive.event(input.lcp_classes)
-    def _handle_lcp_classes() -> None:
-        # TODO: if QDA not existing, do not jump the numbers.
-        print("LCP classes changed, but LCP routine not implemented yet.")
+        drawn_shapes = reactive_values["drawn_shapes"]
+        my_ossa_layers = reactive_values["my_ossa_layers"]
+        map_raster = _map_raster()
 
-        # Run QDA analysis
-        # results = do_qda_and_lcp(
-        #     df=extracted_df,
-        #     nx=input.qda_nx(),
-        #     nn=input.qda_nn(),
-        #     delta=input.lcp_delta(),
-        #     zeta=input.lcp_zeta(),
-        #     total=input.lcp_total(),
-        #     grid=input.lcp_grid(),
-        # )
+        results = do_lcp(
+            map_raster=map_raster,
+            delta=input.lcp_delta(),
+            zeta=input.lcp_zeta(),
+            total=input.lcp_total(),
+            grid=input.lcp_grid(),
+        )
 
-        # # Remove drawn bbox from the map and add LCP overlays
-        # drawn_shapes.set([])
-        # map_raster = results["map_raster"]
-        # overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")
-        # lcp_df = results["lcp_sites"]
-        # points = make_point_layer(lcp_df, layer_name="LCP Sites")
-        # my_ossa_layers.set([overlay, points])
+        drawn_shapes.set([])
+        overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")
+        lcp_df = results["lcp_sites"]
+        points = make_point_layer(lcp_df, layer_name="LCP Sites")
+        my_ossa_layers.set([overlay, points])
 
-        # # Show Wilks plot in modal
-        # fig = results["wilks_plot"]
-        # buf = BytesIO()
-        # fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
-        # buf.seek(0)
-        # img_base64 = base64.b64encode(buf.read()).decode("utf-8")
-        # plt.close(fig)
-        # ui.modal_show(
-        #     ui.modal(
-        #         ui.HTML(
-        #             f'<img src="data:image/png;base64,{img_base64}" style="width:100%; max-width:800px;">'
-        #         ),
-        #         easy_close=True,
-        #         size="l",
-        #         footer=None,
-        #     )
-        # )
-
-        # reactive_values["qda_lcp_results"].set(results)
+        reactive_values["lcp_results"].set(results)

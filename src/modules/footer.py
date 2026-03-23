@@ -109,7 +109,11 @@ def footer_server(input, output, session, reactive_values):
                 ui.tags.div(
                     ui.tags.div(
                         ui.tags.img(src="lulogo.png", height="50px", style="margin-right: 20px;"),
-                        ui.tags.img(src="leegogo.webp", height="50px"),
+                        ui.tags.img(src="leegogo.webp", height="50px", style="margin-right: 20px;"),
+                        ui.tags.img(
+                            src="AnoSTEP logo.jpg", height="50px", style="margin-right: 20px;"
+                        ),
+                        ui.tags.img(src="ucsfn.jpg", height="50px"),
                         style="display:flex; align-items:center; justify-content:center; margin-bottom:20px;",
                     ),
                     ui.tags.h3(
@@ -149,6 +153,17 @@ def footer_server(input, output, session, reactive_values):
                             ui.tags.li(ui.tags.strong("and those people..."), " — funding"),
                         ),
                         style="text-align:justify;",
+                    ),
+                    ui.tags.hr(),
+                    ui.tags.p(
+                        "If you use the basemaps given by this application in your work, please cite them as follows: "
+                    ),
+                    ui.tags.p(
+                        ui.tags.strong("Open Street Map (OSM):"), " © OpenStreetMap contributors."
+                    ),
+                    ui.tags.p(
+                        ui.tags.strong("ESRI World Imagery:"),
+                        " © Esri — Source: Esri, i-cubed, USDA, USGS, AEG, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EarthWatch, © OpenStreetMap contributors, and the GIS User Community",
                     ),
                     ui.tags.hr(),
                     ui.tags.p(
