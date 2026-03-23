@@ -62,7 +62,6 @@ def load_server(input, output, session, reactive_values):
 
         updating_from_map = reactive_values["updating_from_map"]
         drawn_shapes = reactive_values["drawn_shapes"]
-        extracted_df = reactive_values["extracted_df"]
 
         file_info = input.data_file()
         if not file_info:
@@ -70,7 +69,7 @@ def load_server(input, output, session, reactive_values):
 
         def _fail(msg: str) -> None:
             ui.notification_show(msg, type="error")
-            reactive_values["extracted_df"] = None
+            reactive_values["extracted_df"].set(None)
             _reset_counter.set(_reset_counter() + 1)
 
         try:
@@ -151,7 +150,7 @@ def load_server(input, output, session, reactive_values):
             except Exception:
                 pass
 
-            reactive_values["extracted_df"] = extracted_df
+            reactive_values["extracted_df"].set(extracted_df)
 
             ui.notification_show(
                 f"Successfully loaded {len(extracted_df)} rows from {file_info[0]['name']}",

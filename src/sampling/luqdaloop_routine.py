@@ -246,47 +246,25 @@ def luqdaloop(
     )
     all["WilksSummary"] = inx_df
 
-    # ===== SELECT BEST NUMBER OF CLASSES =====
-    # Choose number of classes that maximizes improvement in Wilks' Lambda
-    wilks_values = inx_df.loc["Wilks"].values
-
-    # Calculate differences between sequential values
-    wilks_diff = wilks_values[1 : nx - 1] - wilks_values[2:nx]
-
-    # Find index where the biggest change occurs
-    best_idx = int(np.argmax(wilks_diff))
-    best = best_idx + 3
-
     # ===== CREATE FINAL OUTPUT =====
     # Combine all data with final classifications
-    best_key = f"{best}cluster"
-    if np.sum(N2) == 0:
-        cls = all[best_key]["classification"]
-        bestdata = np.column_stack([grid, X, y, prior, cls])
-        all["NewData"] = pd.DataFrame(bestdata)
-        all["NewData"].columns = (
-            ["grid1", "grid2"]
-            + [f"X{i}" for i in range(p)]
-            + ["OriginalClass"]
-            + [f"Prior{i}" for i in range(prior.shape[1])]
-            + ["BestClass"]
-        )
-    else:
-        cls = np.zeros(len(N2)).astype(str)
-        cls[N2 == 0] = all[best_key]["classification"]
-        cls[N2 == 1] = y[N2 == 1]
-        bestdata = np.column_stack([grid, X, y, prior, cls])
-        all["NewData"] = pd.DataFrame(bestdata)
-        all["NewData"].columns = (
-            ["grid1", "grid2"]
-            + [f"X{i}" for i in range(p)]
-            + ["OriginalClass"]
-            + [f"Prior{i}" for i in range(prior.shape[1])]
-            + ["BestClass"]
-        )
-
-        # counts_pd = pd.Series(all["NewData"]["BestClass"]).value_counts()
-        # print(counts_pd)
+    bestdata = np.column_stack([grid, X, y, prior])
+    all["NewData"] = pd.DataFrame(bestdata)
+    all["NewData"].columns = (
+        ["grid1", "grid2"]
+        + [f"X{i}" for i in range(p)]
+        + ["OriginalClass"]
+        + [f"Prior{i}" for i in range(prior.shape[1])]
+    )
+    for key in [k for k in all if k.endswith("cluster") and k[:-7].isdigit()]:
+        if all[key] is not None:
+            if np.sum(N2) == 0:
+                cls = all[key]["classification"]
+            else:
+                cls = np.zeros(len(N2)).astype(str)
+                cls[N2 == 0] = all[key]["classification"]
+                cls[N2 == 1] = y[N2 == 1]
+            all["NewData"][key] = cls
 
     return all
 
@@ -523,21 +501,15 @@ def plot_wilks_lambda(wilks: pd.Series, opt_classes: int, deficient_classes: int
     return fig
 
 
-def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataArray:
+def make_qda_raster(class_analysis, n_classes: int, round_coords: int = 6) -> xr.DataArray:
     """Convert LUQDA 'NewData' DataFrame into a raster DataArray.
-
-    The function expects `new_data` to contain columns 'x', 'y' and 'id'
-    (or equivalent column names), where 'id' is the class label or
-    integer value to rasterize. Coordinates are rounded to `round_coords`
-    decimal places to ensure a regular grid. The resulting xarray
-    DataArray uses 'y' and 'x' as dimensions and writes an EPSG:4326 CRS
-    on the returned DataArray if the rioxarray accessor is available.
 
     Parameters
     ----------
-    new_data : pandas.DataFrame
-        DataFrame with at least columns ['x', 'y', 'id']. Coordinates can
-        be numeric strings or floats; they will be cast to float.
+    class_analysis : LUQDA output dict
+        The dictionary returned by `luqdaloop` containing at least the 'NewData' DataFrame and the key for the best class assignment
+    n_classes : int
+        The number of classes in the best classification (used to identify the correct column in 'NewData').
     round_coords : int, optional
         Number of decimal places to round coordinates to when building the
         grid. Default is 6.
@@ -548,6 +520,16 @@ def newdata_to_raster(new_data: pd.DataFrame, round_coords: int = 6) -> xr.DataA
         A 2-D DataArray indexed by 'y' and 'x' containing the rasterized
         'id' values.
     """
+    best_key = f"{n_classes}cluster"
+
+    new_data = class_analysis["NewData"][["grid1", "grid2", best_key]].rename(
+        columns={"grid1": "x", "grid2": "y"}
+    )
+
+    unique_classes = new_data[best_key].unique()
+    label_to_index = {cls: i for i, cls in enumerate(unique_classes)}
+    new_data["id"] = new_data[best_key].map(label_to_index)
+
     df = new_data[["x", "y", "id"]].copy()
 
     df["x"] = df["x"].astype(float)
@@ -606,19 +588,3 @@ if __name__ == "__main__":
     grid = df[["longitude", "latitude"]].values
 
     results = luqdaloop(X, y, grid, nx=8)
-
-    new_data = results["NewData"][["grid1", "grid2", "BestClass"]].rename(
-        columns={"grid1": "x", "grid2": "y"}
-    )
-    rank_deficient = results.get("ExcludedClusters")
-    if rank_deficient is not None:
-        indx = 2 + X.shape[1]
-        n_excluded = len(np.unique(rank_deficient[:, indx]))
-    else:
-        n_excluded = 0
-
-    unique_classes = new_data["BestClass"].unique()
-    n_classes = len(unique_classes) - n_excluded
-
-    wilks = results["WilksSummary"].loc["Wilks"][1::]
-    plot_wilks_lambda(wilks, n_classes)

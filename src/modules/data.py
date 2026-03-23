@@ -174,7 +174,6 @@ def data_server(input, output, session, reactive_values):
     def _handle_run_extraction() -> None:
 
         api_keys = {}
-        extracted_df = reactive_values.get("extracted_df")
         drawn_shapes = reactive_values["drawn_shapes"]
         api_keys["ecmwf_api_key"] = reactive_values["ecmwf_api_key"].get()
 
@@ -227,7 +226,7 @@ def data_server(input, output, session, reactive_values):
                 progress=p,
             )
 
-        reactive_values["extracted_df"] = extracted_df
+        reactive_values["extracted_df"].set(extracted_df)
 
         try:
             map_ref = reactive_values.get("map_ref")
@@ -247,7 +246,7 @@ def data_server(input, output, session, reactive_values):
     @reactive.effect
     @reactive.event(input.export_csv)
     def _handle_export_csv() -> None:
-        df = reactive_values.get("extracted_df")
+        df = reactive_values["extracted_df"]()
         if df is None:
             ui.notification_show("No data to export. Run the extraction first.", type="warning")
             return
