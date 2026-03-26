@@ -27,6 +27,18 @@ def asd_ui():
                     [
                         ui.h4("Adaptive Sampling Design", class_="column-header"),
                         ui.div(
+                            ui.div(
+                                {"style": "padding-top: 12px;"},
+                                ui.input_radio_buttons(
+                                    "asd_model",
+                                    None,
+                                    choices={
+                                        "glmmPQL": "Penalized Quasi-Likelihood GLMM",
+                                        "spglm": "Spatial GLM",
+                                    },
+                                    selected="glmmPQL",
+                                ),
+                            ),
                             ui.input_text(
                                 "asd_formulaf",
                                 "Fixed effects formula",
@@ -151,6 +163,7 @@ def asd_server(input, output, session, reactive_values):
             msg_queue.put((value, message, detail))
 
         def do_asd(
+            model: str,
             df: pd.DataFrame,
             formulaf: str,
             formular: str,
@@ -170,6 +183,7 @@ def asd_server(input, output, session, reactive_values):
                 area = df[["longitude", "latitude"]]
 
             map_raster, sites = asd_via_rpy2(
+                model=model,
                 formulaf=formulaf,
                 formular=formular,
                 data=df,
@@ -189,6 +203,7 @@ def asd_server(input, output, session, reactive_values):
         task = asyncio.create_task(
             asyncio.to_thread(
                 do_asd,
+                model=input.asd_model(),
                 df=extracted_df,
                 formulaf=input.asd_formulaf(),
                 formular=input.asd_formular(),
