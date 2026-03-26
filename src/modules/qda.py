@@ -234,13 +234,17 @@ def qda_server(input, output, session, reactive_values):
         if not validate_extracted_df(extracted_df):
             return
 
-        response = input.qda_response()
-        if response is None:
+        if input.qda_response() is None:
             ui.notification_show(
                 "Please select, or ensure there is a valid response variable.",
                 type="error",
             )
             return
+        else:
+            response = next(
+                (k for k, v in RESPONSE_OPTIONS.items() if v == input.qda_response()),
+                input.qda_response(),
+            )
 
         # Do QDA
         X = extracted_df.drop(columns=["longitude", "latitude", response]).values
@@ -334,7 +338,15 @@ def qda_server(input, output, session, reactive_values):
             )
             return
 
+        # Make invalid clusters explicit in the table.
         df = reactive_values["qda_results"]()["class_analysis"]["WilksSummary"]
+        for c in df.columns:
+            if c != "1":
+                if (
+                    f"{c}cluster"
+                    not in reactive_values["qda_results"]()["class_analysis"]["NewData"]
+                ):
+                    df[c] = np.nan
 
         header = ui.tags.thead(
             ui.tags.tr(
@@ -415,6 +427,13 @@ def qda_server(input, output, session, reactive_values):
         if not qda:
             ui.notification_show(
                 "Please run the QDA analysis first before running LCP.",
+                type="error",
+            )
+            return
+
+        if f"{input.lcp_classes()}cluster" not in qda["class_analysis"]["NewData"]:
+            ui.notification_show(
+                f"QDA results do not contain a valid classification for {input.lcp_classes()} classes. Please choose a different number.",
                 type="error",
             )
             return
