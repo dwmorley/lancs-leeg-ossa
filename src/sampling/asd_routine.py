@@ -154,15 +154,15 @@ def _asd_via_rpy2_inner(
         if model == "glmmPQL":
             ro.r(
                 f"""
-                        model <- glmmPQL(
-                            {formulaf},
-                            random = {formular},
-                            data = data,
-                            correlation = corExp(form = ~x + y, nugget = T),
-                            family = poisson,
-                            verbose = TRUE
-                        )
-                    """
+                    model <- glmmPQL(
+                        {formulaf},
+                        random = {formular},
+                        data = data,
+                        correlation = corExp(form = ~x + y, nugget = T),
+                        family = poisson,
+                        verbose = TRUE
+                    )
+                """
             )
         elif model == "spglm":
             ro.r(
