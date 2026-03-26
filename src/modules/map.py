@@ -138,7 +138,10 @@ def map_server(input, output, session, reactive_values):
             for c in m.controls
             if not (
                 isinstance(c, WidgetControl)
-                and getattr(c.widget, "value", "").find("LCP Sites") != -1
+                and any(
+                    site in getattr(c.widget, "value", "")
+                    for site in ["LCP Sites", "ZSSA Sites", "ASD Sites"]
+                )
             )
         )
         # Add legend control if needed

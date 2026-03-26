@@ -5,14 +5,15 @@ import queue
 from datetime import datetime
 
 import geopandas as gpd
+import pandas as pd
+import xarray as xr
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
-from runner_analysis import do_asd
 from src.constants import ASD_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
+from src.sampling.asd_routine import glmmPQL_via_rpy2
 from src.utils.downloads import save_artifacts_zip
-from src.utils.validate import validate_extracted_df
 
 
 @module.ui
@@ -109,7 +110,7 @@ def asd_server(input, output, session, reactive_values):
         if not reactive_values["asd_results"]():
             ui.notification_show(
                 "Nothing to export. Please run the ASD analysis first.",
-                type="warning",
+                type="error",
             )
             return
 
@@ -141,15 +142,48 @@ def asd_server(input, output, session, reactive_values):
         target = input.asd_target()
 
         # TODO: area will come from Leaflet, not specified grid?.
-
-        if not validate_extracted_df(extracted_df):
-            pass  # TODO: for when not hard-typing Benin.
+        # TODO: Validate CSV input not for when not hard-typing Benin.
 
         # Capture the R callbacks
         msg_queue: queue.SimpleQueue[tuple] = queue.SimpleQueue()
 
         def _on_progress(value: float, message: str, detail: str = "") -> None:
             msg_queue.put((value, message, detail))
+
+        def do_asd(
+            df: pd.DataFrame,
+            formulaf: str,
+            formular: str,
+            target: str,
+            total: int = 15,
+            delta: float = 0.01,
+            on_progress=None,
+        ) -> dict[str, pd.DataFrame | xr.DataArray]:
+            """Perform ASD sampling and analysis on the provided dataset."""
+            debug = True
+            if debug:
+                df = pd.read_csv("test_data/benin.csv")
+                area = pd.read_csv("test_data/beningrid.csv")
+                formulaf = "AnGam~Week+Elev+Soil"
+                formular = "~1|LCD"
+            else:
+                area = df[["longitude", "latitude"]]
+
+            map_raster, sites = glmmPQL_via_rpy2(
+                formulaf=formulaf,
+                formular=formular,
+                data=df,
+                area=area,
+                target=target,
+                total=total,
+                delta=delta,
+                on_progress=on_progress,
+            )
+
+            return {
+                "map_raster": map_raster,
+                "asd_sites": sites,
+            }
 
         # Launch R computation in a thread so the event loop stays unblocked.
         task = asyncio.create_task(

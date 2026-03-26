@@ -83,6 +83,7 @@ def server(input, output, session):
         "qda_results": reactive.Value([]),
         "lcp_results": reactive.Value([]),
         "asd_results": reactive.Value([]),
+        "zssa_results": reactive.Value([]),
         "ecmwf_api_key": reactive.Value(""),
     }
 
@@ -92,6 +93,7 @@ def server(input, output, session):
     load.load_server("my_load", reactive_values)
     qda.qda_server("my_qda", reactive_values)
     asd.asd_server("my_asd", reactive_values)
+    zssa.zssa_server("my_zssa", reactive_values)
     footer.footer_server("my_footer", reactive_values)
 
 

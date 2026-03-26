@@ -3,8 +3,6 @@
 import pandas as pd
 from shiny import module, reactive, render, ui
 
-from src.constants import RESPONSE_OPTIONS
-
 
 @module.ui
 def load_ui():
@@ -75,31 +73,6 @@ def load_server(input, output, session, reactive_values):
         try:
             # Read the uploaded CSV file
             extracted_df = pd.read_csv(file_info[0]["datapath"])
-            columns = extracted_df.columns
-            suffixes_to_strip = ["_avg", "_min", "_max", "_sd", "_ampl"]
-            columns = [
-                (
-                    col.rsplit("_", 1)[0]
-                    if any(col.endswith(suffix) for suffix in suffixes_to_strip)
-                    else col
-                )
-                for col in columns
-            ]
-
-            missing = {"latitude", "longitude"}.difference(columns)
-            if missing:
-                return _fail(f"CSV file is missing required columns: {', '.join(sorted(missing))}")
-
-            response_keys = [k for k in RESPONSE_OPTIONS if k in columns]
-            if len(response_keys) == 0:
-                return _fail("CSV file must contain exactly one response variable; none found.")
-            if len(response_keys) > 1:
-                return _fail(
-                    "CSV file contains multiple response variables. Please include exactly one."
-                )
-
-            if len(columns) <= 4:
-                return _fail("CSV file must contain more than one covariate.")
 
             # Get bounds from latitude and longitude columns
             north = extracted_df["latitude"].max()

@@ -137,6 +137,13 @@ def make_point_layer(
             fill=False,
             fill_opacity=0.7,
         ),
+        "ZSSA Sites": lambda row: dict(
+            location=(row.latitude, row.longitude),
+            radius=8,
+            color="blue",
+            fill=False,
+            fill_opacity=0.7,
+        ),
     }
 
     if layer_name not in marker_config:
@@ -178,6 +185,15 @@ def point_layer_legend(name: str) -> HTML:
             <div style='background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 13px;'>
                 <b>ASD Sites</b><br>
                 <svg width='18' height='18' style='vertical-align:middle;margin-right:4px;'><circle cx='9' cy='9' r='7' stroke='gray' stroke-width='3' fill='none'/></svg> Sample Point<br>
+            </div>
+            """
+        )
+    elif name == "ZSSA Sites":
+        return HTML(
+            value="""
+            <div style='background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 13px;'>
+                <b>ZSSA Sites</b><br>
+                  <svg width='18' height='18' style='vertical-align:middle;margin-right:4px;'><circle cx='9' cy='9' r='7' stroke='blue' stroke-width='3' fill='none'/></svg> Proposed<br>
             </div>
             """
         )

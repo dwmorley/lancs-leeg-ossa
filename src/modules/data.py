@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Tuple
 from faicons import icon_svg
 from shiny import module, reactive, render, ui
 
-from runner_extract import run_extraction
 from src.constants import (
     COVARIATE_OPTIONS,
     END_DATE,
@@ -14,6 +13,7 @@ from src.constants import (
     RESPONSE_OPTIONS,
     START_DATE,
 )
+from src.covariates.runner_extract import run_extraction
 from src.utils.bounding_box import BoundingBox
 from src.utils.downloads import save_csv
 

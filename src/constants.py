@@ -178,3 +178,10 @@ ASD_OPTIONS = {
     "total": 15,
     "delta": 0.01,
 }
+
+ZSSA_OPTIONS = {
+    "iterations": 100,
+    "init": 20,
+    "add": [10, 20, 30, 50],
+    "from_glm": False,
+}

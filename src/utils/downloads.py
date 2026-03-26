@@ -38,23 +38,26 @@ def save_csv(csv_name: str, dataframe) -> Path:
 
 def save_artifacts_zip(
     zip_name: str,
-    csv_artifacts: dict,
-    gpkg_artifacts: dict,
-    raster_artifacts: dict,
+    csv_artifacts: dict | None = None,
+    gpkg_artifacts: dict | None = None,
+    raster_artifacts: dict | None = None,
     figure_artifacts: dict | None = None,
 ) -> Path:
     """Save dataframe/raster/figure artifacts to a single zip in Downloads."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
 
-        for filename, dataframe in csv_artifacts.items():
-            dataframe.to_csv(temp_path / filename, index=False)
+        if csv_artifacts:
+            for filename, dataframe in csv_artifacts.items():
+                dataframe.to_csv(temp_path / filename, index=False)
 
-        for filename, raster in raster_artifacts.items():
-            raster.rio.to_raster(temp_path / filename)
+        if raster_artifacts:
+            for filename, raster in raster_artifacts.items():
+                raster.rio.to_raster(temp_path / filename)
 
-        for filename, gpkg in gpkg_artifacts.items():
-            gpkg.to_file(temp_path / filename, driver="GPKG")
+        if gpkg_artifacts:
+            for filename, gpkg in gpkg_artifacts.items():
+                gpkg.to_file(temp_path / filename, driver="GPKG")
 
         if figure_artifacts:
             for filename, figure in figure_artifacts.items():
@@ -64,9 +67,9 @@ def save_artifacts_zip(
         zip_path.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for filename in [
-                *csv_artifacts.keys(),
-                *raster_artifacts.keys(),
-                *gpkg_artifacts.keys(),
+                *(csv_artifacts.keys() if csv_artifacts else []),
+                *(raster_artifacts.keys() if raster_artifacts else []),
+                *(gpkg_artifacts.keys() if gpkg_artifacts else []),
                 *(figure_artifacts.keys() if figure_artifacts else []),
             ]:
                 zf.write(temp_path / filename, arcname=filename)

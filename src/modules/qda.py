@@ -6,15 +6,16 @@ from io import BytesIO
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from faicons import icon_svg
 from shiny import module, reactive, ui
 
-from runner_analysis import do_lcp, do_qda
 from src.constants import COVARIATE_OPTIONS, LCP_OPTIONS, QDA_OPTIONS, RESPONSE_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
-from src.sampling.luqdaloop_routine import make_qda_raster
+from src.sampling.lcp_routine import lcp
+from src.sampling.luqdaloop_routine import luqdaloop, make_qda_raster, plot_wilks_lambda
 from src.utils.downloads import save_artifacts_zip
-from src.utils.validate import validate_extracted_df
 
 
 @module.ui
@@ -193,7 +194,7 @@ def qda_server(input, output, session, reactive_values):
     @reactive.effect
     @reactive.event(input.save_qdalcp)
     def _handle_save_qdalcp() -> None:
-        if not reactive_values["lcp_results"]() and not reactive_values["qda_results"]():
+        if not reactive_values["lcp_results"]() or not reactive_values["qda_results"]():
             ui.notification_show(
                 "Nothing to export. Please run the QDA/LCP analysis first.",
                 type="error",
@@ -201,7 +202,6 @@ def qda_server(input, output, session, reactive_values):
             return
 
         lcp_sites = reactive_values["lcp_results"]()["lcp_sites"]
-        qda_raster = reactive_values["qda_results"]()["map_raster"]
         wilks_plot = reactive_values["qda_results"]()["wilks_plot"]
         lcp_sites_gpkg = gpd.GeoDataFrame(
             lcp_sites, geometry=gpd.points_from_xy(lcp_sites.x, lcp_sites.y), crs="EPSG:4326"
@@ -213,14 +213,14 @@ def qda_server(input, output, session, reactive_values):
             zip_name=f"qda_lcp_results_{timestamp}.zip",
             csv_artifacts={"lcp_sites.csv": lcp_sites},
             gpkg_artifacts={"lcp_sites.gpkg": lcp_sites_gpkg},
-            raster_artifacts={"qda_raster.tif": qda_raster},
+            raster_artifacts={"qda_raster.tif": _map_raster._value},
             figure_artifacts={"wilks_plot.png": wilks_plot},
         )
         plt.close(wilks_plot)
 
         ui.notification_show(
             f"Results saved to {zip_path}",
-            type="info",
+            type="message",
         )
 
     @reactive.effect
@@ -234,20 +234,48 @@ def qda_server(input, output, session, reactive_values):
         if not validate_extracted_df(extracted_df):
             return
 
-        if input.qda_response() is None:
+        response = input.qda_response()
+        if response is None:
             ui.notification_show(
                 "Please select, or ensure there is a valid response variable.",
                 type="error",
             )
             return
-        else:
-            response = next(
-                (k for k, v in RESPONSE_OPTIONS.items() if v == input.qda_response()),
-                input.qda_response(),
-            )
 
-        # Run QDA analysis
-        results = do_qda(df=extracted_df, response=response, nx=input.qda_nx(), nn=input.qda_nn())
+        # Do QDA
+        X = extracted_df.drop(columns=["longitude", "latitude", response]).values
+        y = extracted_df[response].values.astype(int).astype(str)
+        spatial_grid = extracted_df[["longitude", "latitude"]].values
+        nn = input.qda_nn()
+        nx = input.qda_nx()
+        class_analysis = luqdaloop(X=X, y=y, grid=spatial_grid, nn=nn, nx=nx)
+
+        # Find QDA-Wilks defined best class
+        wilks_values = class_analysis["WilksSummary"].loc["Wilks"].values
+        wilks_diff = wilks_values[1 : nx - 1] - wilks_values[2:nx]
+        best_idx = int(np.argmax(wilks_diff))
+        best = best_idx + 3
+        best_key = f"{best}cluster"
+
+        # Make the overall Wilks plot
+        rank_deficient = class_analysis.get("ExcludedClusters")
+        if rank_deficient is not None:
+            indx = 2 + X.shape[1]
+            n_excluded = len(np.unique(rank_deficient[:, indx]))
+        else:
+            n_excluded = 0
+
+        unique_classes = class_analysis["NewData"][best_key].unique()
+        n_classes = len(unique_classes) - n_excluded
+        wilks = class_analysis["WilksSummary"].loc["Wilks"][1::]
+        fig = plot_wilks_lambda(wilks, n_classes, n_excluded)
+
+        results = {
+            "best_n_classes": n_classes,
+            "wilks_plot": fig,
+            "class_analysis": class_analysis,
+        }
+
         reactive_values["qda_results"].set(results)
 
         # Update the UI with recommended number of classes and corresponding raster
@@ -264,7 +292,7 @@ def qda_server(input, output, session, reactive_values):
             ui.HTML(
                 f"QDA analysis recommends {results['best_n_classes']} classes.<br>You can adjust this after looking at the Wilks' Lambda statistics and plot."
             ),
-            type="info",
+            type="message",
         )
 
     @reactive.effect
@@ -344,7 +372,7 @@ def qda_server(input, output, session, reactive_values):
     @reactive.event(input.qda_nx)
     def _handle_change_nx() -> None:
         nx = input.qda_nx()
-        if nx is not None:
+        if nx is not None and not reactive_values["qda_results"]():
             ui.update_slider("lcp_classes", max=nx, min=2)
 
     @reactive.effect
@@ -373,7 +401,9 @@ def qda_server(input, output, session, reactive_values):
         map_raster = make_qda_raster(results["class_analysis"], n)
         _map_raster.set(map_raster)
 
+        reactive_values["lcp_results"] = reactive.Value([])
         drawn_shapes.set([])
+
         overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")
         my_ossa_layers.set([overlay])
 
@@ -393,13 +423,15 @@ def qda_server(input, output, session, reactive_values):
         my_ossa_layers = reactive_values["my_ossa_layers"]
         map_raster = _map_raster()
 
-        results = do_lcp(
-            map_raster=map_raster,
+        # Do LCP
+        sites = lcp(
+            map_raster,
             delta=input.lcp_delta(),
             zeta=input.lcp_zeta(),
             total=input.lcp_total(),
             grid=input.lcp_grid(),
         )
+        results = {"lcp_sites": sites}
 
         drawn_shapes.set([])
         overlay = dataarray_to_image_overlay(map_raster, categorical=True, name="LUQDA Classes")
@@ -408,3 +440,31 @@ def qda_server(input, output, session, reactive_values):
         my_ossa_layers.set([overlay, points])
 
         reactive_values["lcp_results"].set(results)
+
+    def validate_extracted_df(extracted_df: pd.DataFrame | None) -> bool:
+        """Validate extracted DataFrame before running analysis."""
+        if extracted_df is None:
+            ui.notification_show(
+                "Please run the data extraction first, or upload a csv", type="error"
+            )
+            return False
+
+        constant_cols = extracted_df.columns[np.where(extracted_df.std(axis=0) == 0)[0]].tolist()
+        if len(constant_cols) > 0:
+            ui.notification_show(f"Data contains constant columns: {constant_cols}", type="error")
+            return False
+
+        if "longitude" not in extracted_df.columns or "latitude" not in extracted_df.columns:
+            ui.notification_show(
+                "Data table must contain 'longitude' and 'latitude' columns.", type="error"
+            )
+            return False
+
+        if len(extracted_df.columns) <= 4:
+            ui.notification_show(
+                "DataFrame must contain more than one covariate column for analysis.",
+                type="error",
+            )
+            return False
+
+        return True
