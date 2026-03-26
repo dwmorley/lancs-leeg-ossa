@@ -48,10 +48,8 @@ def luqdaloop(
     nx : int, optional
         Maximum number of classes to explore when splitting. Must be larger
         than the number of unique classes in `y`.
-    test : int or None, optional
-        Optional indices reserved for testing/validation (currently
-        preserved for API compatibility; internal validation handling is
-        commented out in the current implementation).
+    test : int or None, Optional
+        Optional indices reserved for testing/validation
 
     Returns
     -------
@@ -287,8 +285,7 @@ def ls_da(X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None]
         row corresponds to sample-specific prior probabilities for each
         class.
     test : int or None, optional
-        Reserved test/validation indices (currently not used in the
-        computation; kept for API compatibility).
+        Cross Validation
 
     Returns
     -------
@@ -587,4 +584,4 @@ if __name__ == "__main__":
     y = df["io_landcoverio"].values.astype(int)
     grid = df[["longitude", "latitude"]].values
 
-    results = luqdaloop(X, y, grid, nx=8)
+    results = luqdaloop(X, y, grid, nx=8, test=10)

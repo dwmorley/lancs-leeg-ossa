@@ -12,7 +12,7 @@ from shiny import module, reactive, ui
 
 from src.constants import ASD_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
-from src.sampling.asd_routine import glmmPQL_via_rpy2
+from src.sampling.asd_routine import asd_via_rpy2
 from src.utils.downloads import save_artifacts_zip
 
 
@@ -169,7 +169,7 @@ def asd_server(input, output, session, reactive_values):
             else:
                 area = df[["longitude", "latitude"]]
 
-            map_raster, sites = glmmPQL_via_rpy2(
+            map_raster, sites = asd_via_rpy2(
                 formulaf=formulaf,
                 formular=formular,
                 data=df,
