@@ -75,9 +75,9 @@ if __name__ == "__main__":
 
     merged = get_terraclimate(
         bbox=bbox,
-        variable="aet",
+        variable="ppt",
         date_range=(start, end),
     )
 
     merged.rio.write_crs("EPSG:4326", inplace=True)
-    merged.rio.to_raster("terraclimate_aet.tif", compress="deflate", COMPRESS_LEVEL=9)
+    merged.rio.to_raster("terraclimate.tif", compress="deflate", COMPRESS_LEVEL=9)

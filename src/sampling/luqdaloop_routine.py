@@ -18,7 +18,7 @@ def luqdaloop(
     nn: float = 0.001,
     nx: int = 8,
     test: Union[int, None] = None,
-):
+) -> dict | str:
     """Perform localised discriminant analysis with class splitting and merging.
 
     This function implements a localised discriminant analysis routine that
@@ -63,6 +63,8 @@ def luqdaloop(
           `ls_da` with diagnostics for that clustering.
         - 'ExcludedClusters' (optional): array with information on any
           rank-deficient clusters that were excluded prior to analysis.
+    or str
+        If an error occurs (e.g. invalid input), a descriptive error message
 
     Raises
     ------
@@ -77,7 +79,7 @@ def luqdaloop(
     ng = len(g)
 
     if nx == ng:
-        raise ValueError("nx must be larger than the number of classes in y")
+        return "nx must be larger than the number of classes in y"
 
     # Track groups
     N2 = np.zeros(n)
@@ -146,7 +148,10 @@ def luqdaloop(
         all = {key: None for key in ["WilksSummary"] + cluster_keys + ["NewData"]}
 
     # ===== INITIAL LDA =====
-    all[f"{ng}cluster"] = ls_da(X=XX, y=yy, prior=prior_cleaned, test=test)
+    lda = ls_da(X=XX, y=yy, prior=prior_cleaned, test=test)
+    if isinstance(lda, str):
+        return lda
+    all[f"{ng}cluster"] = lda
     tb = np.array([len(np.where(yy == g[i])[0]) for i in range(ng)])
 
     # ===== SPLITTING PHASE =====
@@ -163,8 +168,11 @@ def luqdaloop(
 
     while not split:
         u = u + "C"
-        a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
-        a = np.argsort(-a)
+        try:
+            a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
+            a = np.argsort(-a)
+        except ValueError:
+            return "Cannot perform LDA - possibly you have requested too many clusters (nx) for the number of observations in your data"
 
         for i in range(ng2):
             half = round(tb2[a[i]] / 2)
@@ -180,7 +188,10 @@ def luqdaloop(
                 # counts_pd = pd.Series(y2).value_counts()
                 # print(counts_pd)
 
-                all[f"{ng2}cluster"] = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
+                lda = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
+                if isinstance(lda, str):
+                    return lda
+                all[f"{ng2}cluster"] = lda
                 tb2 = np.append(tb2, len(half_indices))
                 tb2[a[i]] = tb2[a[i]] - len(half_indices)
                 g2 = np.append(g2, u + str(g2[a[i]]))
@@ -201,8 +212,11 @@ def luqdaloop(
 
     while not merge:
         u = u + "C"
-        a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
-        a = np.argsort(-a)
+        try:
+            a = (tb2 - np.diag(all[f"{ng2}cluster"]["confusion"].values)) / tb2
+            a = np.argsort(-a)
+        except ValueError:
+            return "Cannot perform LDA - possibly you have requested too many clusters (nx) for the number of observations in your data"
 
         # Merge the two classes with the highest error rates
         y2[np.isin(y2, [g2[a[0]], g2[a[1]]])] = f"{u}{g2[a[0]]}.{g2[a[1]]}"
@@ -213,7 +227,10 @@ def luqdaloop(
         # counts_pd = pd.Series(y2).value_counts()
         # print(counts_pd)
 
-        all[f"{ng2}cluster"] = ls_da(X=XX, y=y2, prior=prior2, test=test)
+        lda = ls_da(X=XX, y=y2, prior=prior2, test=test)
+        if isinstance(lda, str):
+            return lda
+        all[f"{ng2}cluster"] = lda
 
         # Update tracking variables
         tb2[a[0]] = tb2[a[0]] + tb2[a[1]]
@@ -267,7 +284,9 @@ def luqdaloop(
     return all
 
 
-def ls_da(X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None] = None) -> dict:
+def ls_da(
+    X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None] = None
+) -> dict | str:
     """Run linear discriminant analysis with localized priors and return results.
 
     Performs LDA using QR decomposition and returns classification, scores,
@@ -302,12 +321,8 @@ def ls_da(X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None]
         - 'error_rate': scalar error value (1 - trace(confusion)).
         - 'Wlambda': Wilks' Lambda statistic for the grouping provided.
         - 'Nclasses': pandas.Series counts per class.
-
-    Raises
-    ------
-    ValueError
-        If a group is rank-deficient and the internal linear algebra
-        operations fail.
+    str
+        Error message if LDA cannot be performed
     """
     # Split into train/validation if test indices provided
     # if test is not None:
@@ -347,7 +362,7 @@ def ls_da(X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None]
             WMqr.append(qx1)
             ldet[k] = 2 * np.sum(np.log(np.abs(np.diag(R))))
         except LinAlgError:
-            raise ValueError(f"Rank deficiency in group {g[k]}")
+            return f"Rank deficiency in group for ng = {k + 1}, cannot perform LDA - check nx and your data"
 
     # Compute discriminant scores for training set
     disc = np.zeros((n, ng))

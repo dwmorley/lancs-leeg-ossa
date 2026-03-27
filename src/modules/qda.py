@@ -254,6 +254,14 @@ def qda_server(input, output, session, reactive_values):
         nx = input.qda_nx()
         class_analysis = luqdaloop(X=X, y=y, grid=spatial_grid, nn=nn, nx=nx)
 
+        # Check if class_analysis is a string (error message)
+        if isinstance(class_analysis, str):
+            ui.notification_show(
+                f"QDA analysis failed: {class_analysis}",
+                type="error",
+            )
+            return
+
         # Find QDA-Wilks defined best class
         wilks_values = class_analysis["WilksSummary"].loc["Wilks"].values
         wilks_diff = wilks_values[1 : nx - 1] - wilks_values[2:nx]
