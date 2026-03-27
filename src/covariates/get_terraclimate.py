@@ -47,7 +47,7 @@ def get_terraclimate(
     if variable not in possible:
         raise ValueError(f"Variable must be one of {possible}")
 
-    url = f"http://thredds.northwestknowledge.net:8080/thredds/dodsC/agg_terraclimate_{variable}_1958_CurrentYear_GLOBE.nc"
+    url = f"http://thredds.northwestknowledge.net:8080/thredds/dodsC/agg_terraclimate_{variable}_1950_CurrentYear_GLOBE.nc"
 
     ds = xr.open_dataset(url, chunks={"time": 12, "lat": 500, "lon": 500})
     da = ds[variable].sel(
