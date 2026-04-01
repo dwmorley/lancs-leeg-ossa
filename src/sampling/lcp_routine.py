@@ -7,7 +7,7 @@ import xarray as xr
 from scipy.spatial.distance import pdist, squareform
 
 
-def lcp(map, delta, zeta, total=30, grid=0.7):
+def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
     """Generate LCP sampling sites from an ecological classification map.
 
     Generate a sampling design combining grid and inhibitory (closed-pair)
@@ -25,6 +25,8 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
         Target total number of sample points (default is 30).
     grid : float or int, optional
         Fraction or number of grid points to include in the design (default is 0.7).
+    progress : optional
+        Object with a ``set(value, message)`` method for progress reporting.
 
     Returns
     -------
@@ -32,10 +34,16 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
         DataFrame with columns ['x', 'y', 'class', 'type'] where 'type' is
         'G' for grid points and 'I' for inhibitory points.
     """
+
+    def _p(value, message):
+        if progress is not None:
+            progress.set(value=value, message=message)
+
     np.random.seed(1234)
     grid2 = grid
     grid = round(total * grid)
 
+    _p(0, "Stratifying classes...")
     vv = map.values.flatten()
     xx = np.sort(np.unique(vv[~np.isnan(vv)]))
     n_valid = np.sum(~np.isnan(vv))
@@ -66,6 +74,7 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
     xg, yg = np.meshgrid(x_grid, y_grid)
     grid_pts = np.column_stack([xg.ravel(), yg.ravel()])[:n_grid]
 
+    _p(1, "Sampling grid points...")
     classes = map.sel(
         x=xr.DataArray(grid_pts[:, 0], dims="points"),
         y=xr.DataArray(grid_pts[:, 1], dims="points"),
@@ -90,6 +99,7 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
     v = v - t  # still needed after correction
 
     dataframe2_list = []
+    _p(2, "Generating close pairs...")
     for _, row in dataframe.iterrows():
         x_range = np.arange(row["x"] + delta, row["x"] + zeta - delta + delta, delta)
         y_range = np.arange(row["y"] + delta, row["y"] + zeta - delta + delta, delta)
@@ -115,6 +125,7 @@ def lcp(map, delta, zeta, total=30, grid=0.7):
         dataframe2 = pd.DataFrame(columns=["x", "y", "v"])
 
     bb = []
+    _p(3, "Selecting inhibitory points...")
     for i, val in enumerate(xx):
         if v[i] > 0:
             x_idx = dataframe2[dataframe2["v"] == val].index.tolist()

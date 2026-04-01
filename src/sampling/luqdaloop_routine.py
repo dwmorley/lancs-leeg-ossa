@@ -18,6 +18,7 @@ def luqdaloop(
     nn: float = 0.001,
     nx: int = 8,
     test: Union[int, None] = None,
+    progress=None,
 ) -> dict | str:
     """Perform localised discriminant analysis with class splitting and merging.
 
@@ -81,6 +82,14 @@ def luqdaloop(
     if nx == ng:
         return "nx must be larger than the number of classes in y"
 
+    _step = 0
+
+    def _progress(message):
+        nonlocal _step
+        if progress is not None:
+            progress.set(value=_step, message=message)
+        _step += 1
+
     # Track groups
     N2 = np.zeros(n)
     G2 = np.zeros(ng)
@@ -89,10 +98,16 @@ def luqdaloop(
     # Compute local priors based on neighbours if not provided
     if prior is None:
         prior = np.zeros((n, ng))
-        diff = np.abs(grid[:, None, :] - grid[None, :, :])
-        mask = np.all(diff < nn, axis=2)
+        chunk_size = max(1, n // 20)
+        mask = np.zeros((n, n), dtype=bool)
+        for start in range(0, n, chunk_size):
+            end = min(start + chunk_size, n)
+            diff = np.abs(grid[start:end, None, :] - grid[None, :, :])
+            mask[start:end] = np.all(diff < nn, axis=2)
+            _progress(f"Computing neighbourhood matrix ({end}/{n})...")
 
         for k, group in enumerate(g):
+            _progress(f"Computing local priors (class {k + 1}/{ng})...")
             class_mask = y == group
             neighbor_counts = (mask & class_mask[None, :]).sum(axis=1)
             total_neighbors = mask.sum(axis=1) + ng
@@ -152,6 +167,7 @@ def luqdaloop(
         all = {key: None for key in ["WilksSummary"] + cluster_keys + ["NewData"]}
 
     # ===== INITIAL LDA =====
+    _progress("Running initial LDA...")
     lda = ls_da(X=XX, y=yy, prior=prior_cleaned, test=test)
     if isinstance(lda, str):
         return lda
@@ -192,6 +208,7 @@ def luqdaloop(
                 counts_pd = pd.Series(y2).value_counts()
                 print(counts_pd)
 
+                _progress(f"Splitting classes ({ng2}/{nx})...")
                 lda = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
                 if isinstance(lda, str):
                     return lda
@@ -231,6 +248,7 @@ def luqdaloop(
         counts_pd = pd.Series(y2).value_counts()
         print(counts_pd)
 
+        _progress(f"Merging classes ({ng2})...")
         lda = ls_da(X=XX, y=y2, prior=prior2, test=test)
         if isinstance(lda, str):
             return lda

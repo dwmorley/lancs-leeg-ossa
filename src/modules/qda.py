@@ -255,13 +255,15 @@ def qda_server(input, output, session, reactive_values):
         if not validate_extracted_df(extracted_df, response):
             return
 
-        # Do QDA
         X = extracted_df.drop(columns=["longitude", "latitude", response]).values
         y = extracted_df[response].values.astype(int).astype(str)
         spatial_grid = extracted_df[["longitude", "latitude"]].values
         nn = input.qda_nn()
         nx = input.qda_nx()
-        class_analysis = luqdaloop(X=X, y=y, grid=spatial_grid, nn=nn, nx=nx)
+
+        # ~20 matrix chunks + ng prior steps + 1 initial LDA + up to (nx*2) split/merge iterations
+        with ui.Progress(min=0, max=20 + len(np.unique(y)) + 1 + (nx * 2)) as p:
+            class_analysis = luqdaloop(X=X, y=y, grid=spatial_grid, nn=nn, nx=nx, progress=p)
 
         # Check if class_analysis is a string (error message)
         if isinstance(class_analysis, str):
@@ -460,14 +462,16 @@ def qda_server(input, output, session, reactive_values):
         my_ossa_layers = reactive_values["my_ossa_layers"]
         map_raster = _map_raster()
 
-        # Do LCP
-        sites = lcp(
-            map_raster,
-            delta=input.lcp_delta(),
-            zeta=input.lcp_zeta(),
-            total=input.lcp_total(),
-            grid=input.lcp_grid(),
-        )
+        with ui.Progress(min=0, max=4) as p:
+            sites = lcp(
+                map_raster,
+                delta=input.lcp_delta(),
+                zeta=input.lcp_zeta(),
+                total=input.lcp_total(),
+                grid=input.lcp_grid(),
+                progress=p,
+            )
+
         results = {"lcp_sites": sites}
 
         drawn_shapes.set([])
