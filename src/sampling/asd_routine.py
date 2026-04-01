@@ -8,11 +8,14 @@ import rioxarray  # noqa: F401
 import rpy2.robjects as ro
 import xarray as xr
 from rpy2.rinterface_lib import callbacks as rpy2_callbacks
+from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
+from scipy.spatial import cKDTree
 
-RESOLUTION = 10  # TODO: That is, 10 interpolated grid cells between supplied sampling grid
+from src.covariates.get_iolulc import get_iolulc
+from src.utils.bounding_box import BoundingBox
 
 
 def asd_via_rpy2(
@@ -24,6 +27,7 @@ def asd_via_rpy2(
     target: str,
     total: float = 15,
     delta: float = 0.01,
+    resolution: int = 10,
     on_progress: Callable[[float, str, str], None] | None = None,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
     """Fit a GLMM via R and produce an interpolated raster.
@@ -38,11 +42,9 @@ def asd_via_rpy2(
     formular : str
         A formula string describing the random structure (e.g. "~1|LCD").
     data : pandas.DataFrame
-        Observational data passed to the R model. Must contain columns
-        referenced by `formulaf` and coordinate columns named 'x' and 'y'.
+        Observational data passed to the R model.
     area : pandas.DataFrame
-        Prediction grid (data frame with 'x' and 'y') on which predictions
-        and prediction standard errors will be computed.
+        Prediction grid
     target : {'H','U'}
         If 'H' request raster of fitted values and uncertainties; if 'U'
         request raster of uncertainties only. Defaults to 'H'.
@@ -51,6 +53,8 @@ def asd_via_rpy2(
     delta : float
         Minimum allowed pairwise distance (in the same units as 'x'/'y')
         for the thinning step.
+    resolution : int
+        Multiplier for the resolution of the output raster relative to the grid
     on_progress : callable, optional
         If provided, called as ``on_progress(value, message, detail)`` where
         *value* is a float in [0, 1] indicating overall progress, *message*
@@ -97,6 +101,7 @@ def asd_via_rpy2(
             target=target,
             total=total,
             delta=delta,
+            resolution=resolution,
             on_progress=on_progress,
             _state=_state,
         )
@@ -114,6 +119,7 @@ def _asd_via_rpy2_inner(
     target: str,
     total: float = 15,
     delta: float = 0.01,
+    resolution: int = 10,
     on_progress: Callable[[float, str, str], None] | None = None,
     _state: dict | None = None,
 ) -> tuple[xr.DataArray, pd.DataFrame]:
@@ -139,87 +145,86 @@ def _asd_via_rpy2_inner(
     elif model == "spglm":
         importr("spmodel")
 
-    with localconverter(pandas2ri.converter):
-        _prog(0.10, "Transferring data to R")
-        ro.globalenv["data"] = data
-        ro.globalenv["area"] = area
+    try:
+        with localconverter(pandas2ri.converter):
+            _prog(0.10, "Transferring data to R")
 
-        if formulaf != "":
-            cols = data.columns.tolist()
-            formula_columns = [col for col in cols if col in formular]
-            for col in formula_columns:
-                ro.r(f"data${col} <- as.factor(data${col})")
+            # Rename longitude/latitude to x/y (case-insensitive) for R compatibility
+            def _rename_lonlat_to_xy(df):
+                col_map = {}
+                for col in df.columns:
+                    if col.lower() == "longitude":
+                        col_map[col] = "x"
+                    elif col.lower() == "latitude":
+                        col_map[col] = "y"
+                return df.rename(columns=col_map)
 
-        _prog(0.15, f"Fitting model ({model})...")
-        if model == "glmmPQL":
-            ro.r(
-                f"""
-                    model <- glmmPQL(
-                        {formulaf},
-                        random = {formular},
-                        data = data,
-                        correlation = corExp(form = ~x + y, nugget = T),
-                        family = poisson,
-                        verbose = TRUE
-                    )
-                """
-            )
-        elif model == "spglm":
-            ro.r(
-                f"""
-                    model <- spglm(
-                        {formulaf},
-                        random = {formular},
-                        xcoord= x,
-                        ycoord= y,
-                        family = poisson,
-                        data = data,
-                        spcov_type = "exponential",
-                        estmethod="ml",
-                        verbose = TRUE
-                    )
-                    """
+            data = _rename_lonlat_to_xy(data)
+            area = _rename_lonlat_to_xy(area)
+
+            x_res = len(area["x"].unique()) * resolution
+            y_res = len(area["y"].unique()) * resolution
+
+            ymax = area["y"].max()
+            ymin = area["y"].min()
+            xmax = area["x"].max()
+            xmin = area["x"].min()
+            lclu = get_iolulc(
+                bbox=BoundingBox([xmin, ymin, xmax, ymax]),
+                year=2023,
             )
 
-        _prog(0.75, "Predicting standard errors")
-        x_res = len(area["x"].unique()) * RESOLUTION
-        y_res = len(area["y"].unique()) * RESOLUTION
+            ro.globalenv["data"] = data
+            ro.globalenv["area"] = area
 
-        if model == "glmmPQL":
-            ro.r(
-                """
-                modelse <- predictSE(model, newdata=area)
-            """
-            )
-            ro.r(
-                f"""
-                modelgrid <- mba.surf(
-                    cbind(area[, c("x", "y")], modelse$se.fit),
-                    no.X = {x_res},
-                    no.Y = {y_res},
-                    extend = TRUE
-                )$xyz.est
-            """
-            )
-        elif model == "spglm":
-            ro.r("""modelse <- predict(model,newdata=area,interval="confidence")""")
-            ro.r(
-                f"""
-                modelgrid <- mba.surf(
-                    cbind(area[,1:2],abs(modelse[,3]-modelse[,2])),
-                    no.X={x_res},
-                    no.Y={y_res},
-                    extend=TRUE
-                )$xyz.est"""
-            )
+            if formulaf != "":
+                cols = data.columns.tolist()
+                formula_columns = [col for col in cols if col in formular]
+                for col in formula_columns:
+                    ro.r(f"data${col} <- as.factor(data${col})")
 
-        if target == "H":
-            _prog(0.88, "Interpolating fitted values grid")
+            _prog(0.15, f"Fitting model ({model})...")
             if model == "glmmPQL":
                 ro.r(
                     f"""
-                    modelgridX <- mba.surf(
-                        cbind(area[, c("x", "y")], modelse$fit),
+                        model <- glmmPQL(
+                            {formulaf},
+                            random = {formular},
+                            data = data,
+                            correlation = corExp(form = ~x + y, nugget = T),
+                            family = poisson,
+                            verbose = TRUE
+                        )
+                    """
+                )
+            elif model == "spglm":
+                ro.r(
+                    f"""
+                        model <- spglm(
+                            {formulaf},
+                            random = {formular},
+                            xcoord= x,
+                            ycoord= y,
+                            family = poisson,
+                            data = data,
+                            spcov_type = "exponential",
+                            estmethod="ml",
+                            verbose = TRUE
+                        )
+                        """
+                )
+
+            _prog(0.75, "Predicting standard errors")
+            if model == "glmmPQL":
+                ro.r(
+                    """
+                    modelse <- predictSE(model, newdata=area)
+                """
+                )
+                ro.r(
+                    f"""
+                    modelgrid <- mba.surf(
+                        cbind(area[, c("x", "y")], modelse$se.fit),
                         no.X = {x_res},
                         no.Y = {y_res},
                         extend = TRUE
@@ -227,74 +232,132 @@ def _asd_via_rpy2_inner(
                 """
                 )
             elif model == "spglm":
+                ro.r("""modelse <- predict(model,newdata=area,interval="confidence")""")
                 ro.r(
                     f"""
-                    modelgridX <- mba.surf(
-                        cbind(area[,1:2], modelse[,1]),
+                    modelgrid <- mba.surf(
+                        cbind(area[, c("x", "y")],abs(modelse[,3]-modelse[,2])),
                         no.X={x_res},
                         no.Y={y_res},
                         extend=TRUE
-                    )$xyz.est
+                    )$xyz.est"""
+                )
+
+            if target == "H":
+                _prog(0.88, "Interpolating fitted values grid")
+                if model == "glmmPQL":
+                    ro.r(
+                        f"""
+                        modelgridX <- mba.surf(
+                            cbind(area[, c("x", "y")], modelse$fit),
+                            no.X = {x_res},
+                            no.Y = {y_res},
+                            extend = TRUE
+                        )$xyz.est
                     """
-                )
-            ro.r(
-                """
-                x <- cbind(
-                    expand.grid(modelgrid[[1]], modelgrid[[2]]),
-                    c(modelgridX[[3]]),
-                    c(modelgrid[[3]])
-                )
-            """
-            )
-            ro.r(
-                """
-                x <- x[order(x[,3],x[,4],decreasing=T),]
-            """
-            )
-            the_raster = "modelgridX"
-            colnames = """colnames(x)=c("x","y","Fit","Uncertainty")"""
+                    )
+                elif model == "spglm":
+                    ro.r(
+                        f"""
+                        modelgridX <- mba.surf(
+                            cbind(area[, c("x", "y")], modelse[,1]),
+                            no.X={x_res},
+                            no.Y={y_res},
+                            extend=TRUE
+                        )$xyz.est
+                        """
+                    )
 
-        if target == "U":
-            ro.r("""x=cbind(expand.grid(modelgrid[[1]],modelgrid[[2]]),c(modelgrid[[3]]))""")
-            ro.r("""xx=sort(x[,3],decreasing=T,index.return=T)$ix""")
-            ro.r("""x=x[xx,]""")
-            the_raster = "modelgrid"
-            colnames = """colnames(x)=c("x","y","Uncertainty")"""
+        def _extract_r_grid(r_name: str):
+            ro.r(f"{r_name}_x <- {r_name}$x")
+            ro.r(f"{r_name}_y <- {r_name}$y")
+            ro.r(f"{r_name}_z <- {r_name}$z")
+            r_x = ro.globalenv[f"{r_name}_x"]
+            r_y = ro.globalenv[f"{r_name}_y"]
+            r_z = ro.globalenv[f"{r_name}_z"]
 
-        _prog(0.90, "Selecting sample locations")
-        ro.r("""xx=dist(x[,1:2])""")
-        ro.r("""xx=as.matrix(xx)""")
-        ro.r("""b=nrow(xx)""")
-        ro.r(f"""xx=lapply(2:b,function(y)which(xx[(y-1),y:b]<={delta})+(y-1))""")
-        ro.r("""xx=unique(unlist(xx))""")
-        ro.r("""x=x[-xx,]""")
-        ro.r(f"""x=x[1:{total},]""")
-        ro.r(colnames)
+            with localconverter(pandas2ri.converter):
+                x_array = pandas2ri.rpy2py(r_x)
+                y_array = pandas2ri.rpy2py(r_y)
+                z_array = pandas2ri.rpy2py(r_z)
+            z_grid = z_array.reshape(len(x_array), len(y_array), order="F").T
+            da = xr.DataArray(z_grid, coords={"y": y_array, "x": x_array}, dims=["y", "x"])
+            da.rio.write_crs("EPSG:4326", inplace=True)
+            return da, x_array, y_array, z_array
 
-    _prog(0.95, "Finalising")
-    ro.r(
-        f"""
-        image <- setNames(
-            data.frame({the_raster}$x, {the_raster}$y, {the_raster}$z),
-            c("x", "y", "z")
+        # Make the raster
+        _prog(0.75, "Making rasters")
+        modelgrid, modelgrid_x_array, modelgrid_y_array, modelgrid_z_array = _extract_r_grid(
+            "modelgrid"
         )
-    """
-    )
+        if target == "H":
+            modelgridX, modelgridX_x_array, modelgridX_y_array, modelgridX_z_array = (
+                _extract_r_grid("modelgridX")
+            )
+            da = modelgridX
+        else:
+            modelgridX = None
+            da = modelgrid
 
-    # sample point locations
-    x_df = ro.globalenv["x"]
-    with localconverter(pandas2ri.converter):
-        x_df = pandas2ri.rpy2py(x_df)
+        _prog(0.80, "Selecting sample locations")
+        x_coords = modelgrid.coords["x"].values
+        y_coords = modelgrid.coords["y"].values
 
-    x_array = np.array(ro.r(f"{the_raster}$x")).flatten()
-    y_array = np.array(ro.r(f"{the_raster}$y")).flatten()
-    z_array = np.array(ro.r(f"{the_raster}$z"))
-    z_grid = z_array.reshape(len(x_array), len(y_array)).T
+        if target == "H":
+            x = pd.DataFrame(
+                {
+                    0: np.repeat(x_coords, len(y_coords)),
+                    1: np.tile(y_coords, len(x_coords)),
+                    2: modelgridX.values.ravel(order="F"),
+                    3: modelgrid.values.ravel(order="F"),
+                }
+            )
+            sort_cols = ["Fit", "Uncertainty"]
+            col_names = ["x", "y", "Fit", "Uncertainty"]
+        else:
+            x = pd.DataFrame(
+                {
+                    0: np.repeat(x_coords, len(y_coords)),
+                    1: np.tile(y_coords, len(x_coords)),
+                    2: modelgrid.values.ravel(order="F"),
+                }
+            )
+            sort_cols = ["Uncertainty"]
+            col_names = ["x", "y", "Uncertainty"]
 
-    da = xr.DataArray(z_grid, coords={"y": y_array, "x": x_array}, dims=["y", "x"])
-    da.rio.write_crs("EPSG:4326", inplace=True)
+        x.columns = col_names
+        x = x.sort_values(by=sort_cols, ascending=False).reset_index(drop=True)
 
-    return da, x_df
+        # Mask out points in the sea (where lulc raster is NaN)
+        lulc_values = lclu.sel(
+            x=xr.DataArray(x["x"].values, dims="points"),
+            y=xr.DataArray(x["y"].values, dims="points"),
+            method="nearest",
+        ).values
+        x["lulc"] = lulc_values
+        x = x[~np.isnan(x["lulc"])].reset_index(drop=True)
+        x = x.drop(columns=["lulc"])
+
+        coords = x.iloc[:, 0:2].values
+        tree = cKDTree(coords)
+        to_remove = {j for i, j in tree.query_pairs(delta)}
+
+        x = x.drop(index=list(to_remove)).reset_index(drop=True).iloc[:total]
+
+        _prog(0.95, "Finalising")
+
+        return da, x
+
+    except RRuntimeError as r_err:
+        msg = str(r_err)
+        if on_progress is not None:
+            on_progress(1.0, "R Error", msg)
+        raise RuntimeError(f"R error during ASD computation: {msg}")
+    except Exception as e:
+        msg = str(e)
+        if on_progress is not None:
+            on_progress(1.0, "Python Error", msg)
+        raise
 
 
 if __name__ == "__main__":

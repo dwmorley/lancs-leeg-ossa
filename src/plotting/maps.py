@@ -75,7 +75,7 @@ def dataarray_to_image_overlay(
 
         ax.imshow(data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest")
     else:
-        vmin, vmax = data.min(), data.max()
+        vmin, vmax = np.nanmin(data), np.nanmax(data)
         cuts = np.linspace(vmin, vmax, 12)
         cmap = plt.get_cmap("hot")
         norm = BoundaryNorm(cuts, cmap.N)

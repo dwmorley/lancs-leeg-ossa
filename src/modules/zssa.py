@@ -201,13 +201,16 @@ def zssa_server(input, output, session, reactive_values):
                 type="error",
             )
             return
+
         # TODO: Time (cols == 5) is not yet supported
-        if len(cols) != 4:
+        if "SD" not in cols or "Mean" not in cols:
             ui.notification_show(
-                "Data must contain just two covariate columns for ZSSA analysis, e.g. Mean & SD",
+                "Data must contain just covariate columns for ZSSA analysis: Mean & SD",
                 type="error",
             )
             return
+        else:
+            extracted_df = extracted_df[["longitude", "latitude", "SD", "Mean"]]
 
         ni = input.zssa_iter()
         add = number_list()

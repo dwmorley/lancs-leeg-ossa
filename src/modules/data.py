@@ -1,5 +1,6 @@
 """Data UI/server module for extracting and previewing covariates."""
 
+import asyncio
 from datetime import date, datetime
 from typing import Any, Dict, List, Tuple
 
@@ -171,7 +172,7 @@ def data_server(input, output, session, reactive_values):
 
     @reactive.effect
     @reactive.event(input.run_extraction)
-    def _handle_run_extraction() -> None:
+    async def _handle_run_extraction() -> None:
 
         api_keys = {}
         drawn_shapes = reactive_values["drawn_shapes"]
@@ -206,6 +207,16 @@ def data_server(input, output, session, reactive_values):
         if not b_checked:
             return
 
+        if any(var in ("wp_1km_unadj", "wp_1km") for var in selected_vars):
+            end_date = input.covariate_dates()[1]
+            input.covariate_dates()
+            if end_date.year > 2020:
+                ui.notification_show(
+                    f"Specified year ({end_date.year}) is outside the available range for WorldPop data (2000-2020). Taking 2020 data for the end year.",
+                    type="warning",
+                    duration=None,
+                )
+
         extents = bounds[0]["bounds"]
         north = extents["north"]
         south = extents["south"]
@@ -217,13 +228,31 @@ def data_server(input, output, session, reactive_values):
         with ui.Progress(min=0, max=100) as p:
             p.set(message="Starting extraction...", value=0)
 
-            extracted_df = run_extraction(
-                bbox=bbox,
-                variables=selected_vars,
-                date_range=input.covariate_dates(),
-                sample_size=input.sample_size(),
-                api_keys=api_keys,
-                progress=p,
+            loop = asyncio.get_event_loop()
+
+            # Read all reactive inputs NOW, in the reactive context, before
+            # handing off to the executor thread (which has no reactive context).
+            _date_range = input.covariate_dates()
+            _sample_size = input.sample_size()
+
+            # run_extraction (and its internal thread pool) is entirely blocking.
+            # run_in_executor keeps the Shiny event loop free during the wait.
+            # ui.Progress.set() must be called from the event loop thread, so we
+            # wrap it in a thread-safe shim that posts updates back via the loop.
+            class _SafeProgress:
+                def set(self, value=None, message=None):
+                    loop.call_soon_threadsafe(lambda v=value, m=message: p.set(value=v, message=m))
+
+            extracted_df = await loop.run_in_executor(
+                None,
+                lambda: run_extraction(
+                    bbox=bbox,
+                    variables=selected_vars,
+                    date_range=_date_range,
+                    sample_size=_sample_size,
+                    api_keys=api_keys,
+                    progress=_SafeProgress(),
+                ),
             )
 
         reactive_values["extracted_df"].set(extracted_df)
@@ -240,7 +269,7 @@ def data_server(input, output, session, reactive_values):
         ui.notification_show(
             "Data extraction complete!",
             type="message",
-            duration=3,
+            duration=None,
         )
 
     @reactive.effect
@@ -313,12 +342,6 @@ def extract_pre_checks(selected_vars: List[str], date_range: Tuple[date, date]) 
                 "Selected start date is outside the available for Terraclimate data (>=1950)."
             )
 
-    if any("wp_1km_unadj" in var for var in selected_vars):
-        if start_date.year < 2000 or end_date.year > 2020:
-            warnings.append(
-                "Selected date range is outside the available for World Pop data (2000-2020)."
-            )
-
     if warnings:
         message = ui.tags.div(
             ui.tags.strong("Could not run extraction due to the following issues:"),
@@ -326,7 +349,7 @@ def extract_pre_checks(selected_vars: List[str], date_range: Tuple[date, date]) 
             ui.tags.br(),
             *[ui.tags.div(f"• {warning}", ui.tags.br()) for warning in warnings],
         )
-        ui.notification_show(message, type="error")
+        ui.notification_show(message, type="error", duration=None)
         return False
 
     return True

@@ -84,7 +84,7 @@ def luqdaloop(
     # Track groups
     N2 = np.zeros(n)
     G2 = np.zeros(ng)
-    # L2 = []  # Test indices for each group
+    L2 = []
 
     # Compute local priors based on neighbours if not provided
     if prior is None:
@@ -120,6 +120,10 @@ def luqdaloop(
             # print(f"rank deficiency in group {g[k]}, this group will stay unchanged")
             N2[nkk] = 1
             G2[k] = 1
+
+        if test is not None:
+            xx = list(np.random.choice(nkk, size=test, replace=False))
+            L2.append(xx)
 
     # Exclude rank-deficient groups
     if np.sum(N2) > 0:
@@ -185,8 +189,8 @@ def luqdaloop(
                 prior2.iloc[:, a[i]] = prior2.iloc[:, a[i]] / 2
                 ng2 = ng2 + 1
 
-                # counts_pd = pd.Series(y2).value_counts()
-                # print(counts_pd)
+                counts_pd = pd.Series(y2).value_counts()
+                print(counts_pd)
 
                 lda = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
                 if isinstance(lda, str):
@@ -224,8 +228,8 @@ def luqdaloop(
         prior2 = np.delete(prior2, a[1], axis=1)
         ng2 -= 1
 
-        # counts_pd = pd.Series(y2).value_counts()
-        # print(counts_pd)
+        counts_pd = pd.Series(y2).value_counts()
+        print(counts_pd)
 
         lda = ls_da(X=XX, y=y2, prior=prior2, test=test)
         if isinstance(lda, str):
@@ -263,6 +267,9 @@ def luqdaloop(
 
     # ===== CREATE FINAL OUTPUT =====
     # Combine all data with final classifications
+
+    # TODO: Add the test_indices as in the R code.
+
     bestdata = np.column_stack([grid, X, y, prior])
     all["NewData"] = pd.DataFrame(bestdata)
     all["NewData"].columns = (
@@ -324,22 +331,22 @@ def ls_da(
     str
         Error message if LDA cannot be performed
     """
-    # Split into train/validation if test indices provided
-    # if test is not None:
-    #     XV = X[test, :]
-    #     X = np.delete(X, test, axis=0)
-    #
-    #     priorV = prior[test, :]
-    #     prior = np.delete(prior, test, axis=0)
-    #
-    #     V = len(test)
-    #
-    #     yV = y[test]
-    #     y = np.delete(y, test)
-    #
-    #     # Compute group means for validation set
-    #     unique_yV = np.sort(np.unique(yV))
-    #     GMV = [XV[yV == g].mean(axis=0) for g in unique_yV]  # noqa: F841
+    if test is not None:
+        rng = np.random.default_rng()
+        test_indices = rng.choice(len(y), size=test, replace=False)
+        train_indices = np.setdiff1d(np.arange(len(y)), test_indices)
+
+        XV, yV = X[test_indices], y[test_indices]
+        X, y = X[train_indices], y[train_indices]
+        priorV = prior[test_indices] if prior is not None else None
+        prior = prior[train_indices] if prior is not None else None
+
+        # Compute group means for validation set
+        # unique_yV = np.sort(np.unique(y))
+        # gmv = [X[y == group].mean(axis=0) for group in unique_yV]
+    else:
+        XV, yV, priorV = None, None, None
+        # gmv = None
 
     n = X.shape[0]
     p = X.shape[1]
@@ -388,10 +395,26 @@ def ls_da(
     conf = pd.crosstab(y_cat, pred_cat, rownames=["original"], colnames=["predicted"], dropna=False)
     err = 1 - np.trace(conf.values)
 
-    # Wilks' Lambda test statistic
+    if test is not None:
+        ng = len(g)
+        Disc2 = np.zeros((test, ng))
+        for k in range(ng):
+            Xk = np.tile(gm[k], (test, 1))
+            dev = (XV - Xk) @ WMqr[k]
+            Disc2[:, k] = 0.5 * np.sum(dev**2, axis=1) + 0.5 * ldet[k] - np.log(priorV[:, k])
+        Disc2 = np.exp(-(Disc2 - np.min(Disc2, axis=1, keepdims=True)))
+        pred = Disc2 / np.sum(Disc2, axis=1, keepdims=True)
+        pred_class2 = g[np.argmax(pred, axis=1)]
+        conf2 = pd.crosstab(
+            pd.Categorical(yV, categories=g), pd.Categorical(pred_class2, categories=g)
+        )
+        err2 = 1 - np.trace(conf2.values) / np.sum(conf2.values)
+        lambda2 = Wilks_test(XV, yV)
+    else:
+        Disc2, pred_class2, conf2, err2, lambda2 = None, None, None, None, None
+
     lambda_stat = Wilks_test(X, y)
 
-    # Results dictionary for training set
     res = {
         "WMqr": [wm.copy() for wm in WMqr],
         "gm": [gm.copy() for gm in gm],
@@ -405,6 +428,17 @@ def ls_da(
         "Nclasses": pd.Series(y).value_counts().sort_index(),
         "Classes": y.copy(),
     }
+
+    if test is not None:
+        res.update(
+            {
+                "xscores": Disc2.copy(),
+                "xclassification": pred_class2.copy(),
+                "xconfusion": conf2.copy(),
+                "xerror_rate": err2,
+                "xWlambda": lambda2,
+            }
+        )
 
     return res
 
@@ -578,6 +612,7 @@ def make_qda_raster(class_analysis, n_classes: int, round_coords: int = 6) -> xr
 if __name__ == "__main__":
 
     df = pd.read_csv("/Users/david/Downloads/ossa_extracted_20260313_103021.csv")
+    df = df[df["io_landcoverio"] != 5]
 
     X = df[
         [
@@ -599,4 +634,6 @@ if __name__ == "__main__":
     y = df["io_landcoverio"].values.astype(int)
     grid = df[["longitude", "latitude"]].values
 
-    results = luqdaloop(X, y, grid, nx=8, test=10)
+    results = luqdaloop(X, y, grid, nx=8, test=None)
+
+    b = 0

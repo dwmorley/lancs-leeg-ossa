@@ -8,12 +8,14 @@ import geopandas as gpd
 import pandas as pd
 import xarray as xr
 from faicons import icon_svg
-from shiny import module, reactive, ui
+from shiny import module, reactive, render, ui
 
 from src.constants import ASD_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.sampling.asd_routine import asd_via_rpy2
 from src.utils.downloads import save_artifacts_zip
+
+DEBUG = True
 
 
 @module.ui
@@ -77,11 +79,27 @@ def asd_ui():
                                     selected=ASD_OPTIONS["target"],
                                 ),
                             ),
+                            ui.input_numeric(
+                                "asd_resolution",
+                                "Surface sampling resolution",
+                                value=ASD_OPTIONS["resolution"],
+                                min=10,
+                                step=10,
+                            ),
                         ),
                     ],
                     class_="column-content text-inputs-column",
                 ),
-                # Right column (empty for now)
+                # Right column
+                ui.tags.div(
+                    [
+                        ui.h4("Available Response", class_="column-header"),
+                        ui.output_ui("response_columns"),
+                        ui.br(),
+                        ui.h4("Available Variables", class_="column-header"),
+                        ui.output_ui("prediction_columns"),
+                    ]
+                ),
             ],
             class_="content-columns",
         ),
@@ -151,10 +169,11 @@ def asd_server(input, output, session, reactive_values):
 
         my_ossa_layers = reactive_values["my_ossa_layers"]
         extracted_df = reactive_values["extracted_df"]()
+        prediction_df = reactive_values["prediction_df"]()
         target = input.asd_target()
 
-        # TODO: area will come from Leaflet, not specified grid?.
-        # TODO: Validate CSV input not for when not hard-typing Benin.
+        if not validate_extracted_df(extracted_df):
+            return
 
         # Capture the R callbacks
         msg_queue: queue.SimpleQueue[tuple] = queue.SimpleQueue()
@@ -164,33 +183,31 @@ def asd_server(input, output, session, reactive_values):
 
         def do_asd(
             model: str,
-            df: pd.DataFrame,
+            training_df: pd.DataFrame,
+            prediction_df: pd.DataFrame,
             formulaf: str,
             formular: str,
             target: str,
             total: int = 15,
             delta: float = 0.01,
+            resolution: int = 10,
             on_progress=None,
         ) -> dict[str, pd.DataFrame | xr.DataArray]:
             """Perform ASD sampling and analysis on the provided dataset."""
-            debug = True
-            if debug:
-                df = pd.read_csv("test_data/benin.csv")
-                area = pd.read_csv("test_data/beningrid.csv")
+            if DEBUG:
                 formulaf = "AnGam~Week+Elev+Soil"
                 formular = "~1|LCD"
-            else:
-                area = df[["longitude", "latitude"]]
 
             map_raster, sites = asd_via_rpy2(
                 model=model,
                 formulaf=formulaf,
                 formular=formular,
-                data=df,
-                area=area,
+                data=training_df,
+                area=prediction_df,
                 target=target,
                 total=total,
                 delta=delta,
+                resolution=resolution,
                 on_progress=on_progress,
             )
 
@@ -200,33 +217,48 @@ def asd_server(input, output, session, reactive_values):
             }
 
         # Launch R computation in a thread so the event loop stays unblocked.
-        task = asyncio.create_task(
-            asyncio.to_thread(
-                do_asd,
-                model=input.asd_model(),
-                df=extracted_df,
-                formulaf=input.asd_formulaf(),
-                formular=input.asd_formular(),
-                target=target,
-                on_progress=_on_progress,
+        try:
+            task = asyncio.create_task(
+                asyncio.to_thread(
+                    do_asd,
+                    model=input.asd_model(),
+                    training_df=extracted_df,
+                    prediction_df=prediction_df,
+                    formulaf=input.asd_formulaf(),
+                    formular=input.asd_formular(),
+                    target=target,
+                    resolution=input.asd_resolution(),
+                    on_progress=_on_progress,
+                )
             )
-        )
 
-        with ui.Progress(min=0, max=1) as p:
-            p.set(0, message="Starting Adaptive Sampling...")
-            while not task.done():
-                await asyncio.sleep(0.1)
-                # Apply all queued updates; final one will be the most recent.
+            with ui.Progress(min=0, max=1) as p:
+                p.set(0, message="Starting Adaptive Sampling...")
+                while not task.done():
+                    await asyncio.sleep(0.1)
+                    # Apply all queued updates; final one will be the most recent.
+                    while not msg_queue.empty():
+                        value, message, detail = msg_queue.get_nowait()
+                        p.set(value, message=message, detail=detail)
+                # Drain any last items after the task finishes.
                 while not msg_queue.empty():
                     value, message, detail = msg_queue.get_nowait()
                     p.set(value, message=message, detail=detail)
-            # Drain any last items after the task finishes.
-            while not msg_queue.empty():
-                value, message, detail = msg_queue.get_nowait()
-                p.set(value, message=message, detail=detail)
-            p.set(1, message="Done")
+                p.set(1, message="Done")
 
-        results = task.result()
+            results = task.result()
+
+            if results["asd_sites"].isnull().values.any():
+                ui.notification_show(
+                    "ASD analysis model created, but required sites number of sites could not be identified, please check model parameters and your input data.",
+                    type="error",
+                    duration=None,
+                )
+                return
+
+        except Exception as e:
+            ui.notification_show(f"ASD analysis failed: {str(e)}", type="error", duration=None)
+            return
 
         if target == "H":
             plot_title = "ASD Hotspot"
@@ -254,6 +286,7 @@ def asd_server(input, output, session, reactive_values):
             lon_max = float(lons.max())
 
             # Do not draw a rectangle; just instruct the map to fit these bounds.
+            drawn_shapes.set([])
             map_ref = reactive_values.get("map_ref")
             if map_ref is not None:
                 m = map_ref.get("m")
@@ -264,3 +297,53 @@ def asd_server(input, output, session, reactive_values):
                         pass
 
         reactive_values["asd_results"].set(results)
+
+    @render.ui
+    def response_columns():
+        prediction_df = reactive_values["prediction_df"]()
+        training_df = reactive_values["extracted_df"]()
+        if prediction_df is not None and training_df is not None:
+            response_cols = set(training_df.columns) - set(prediction_df.columns)
+            response_cols -= {"longitude", "latitude"}
+            if response_cols:
+                return ui.tags.div(
+                    ui.tags.ul(
+                        [ui.tags.li(col) for col in sorted(response_cols)],
+                        style="list-style-type: disc; margin-left: 2px; margin-bottom: 0;",
+                    ),
+                    style="border: 1px solid #ccc; border-radius: 6px; padding: 12px; background: #f9f9f9; margin-top: 8px; margin-bottom: 8px;",
+                )
+            else:
+                return ui.div("No candidate response variable found")
+        else:
+            return ui.div("Training and/or Prediction data not loaded.")
+
+    @render.ui
+    def prediction_columns():
+        prediction_df = reactive_values["prediction_df"]()
+        training_df = reactive_values["extracted_df"]()
+        if prediction_df is not None and training_df is not None:
+            common_cols = set(prediction_df.columns) & set(training_df.columns)
+            common_cols -= {"longitude", "latitude"}
+            if common_cols:
+                return ui.tags.div(
+                    ui.tags.ul(
+                        [ui.tags.li(col) for col in sorted(common_cols)],
+                        style="list-style-type: disc; margin-left: 2px; margin-bottom: 0;",
+                    ),
+                    style="border: 1px solid #ccc; border-radius: 6px; padding: 12px; background: #f9f9f9; margin-top: 8px; margin-bottom: 8px;",
+                )
+            else:
+                return ui.div(
+                    "Loaded Training and Prediction data have no common columns other than coordinates."
+                )
+        else:
+            return ui.div("")
+
+    def validate_extracted_df(extracted_df: pd.DataFrame | None) -> bool:
+        """Validate extracted DataFrame before running analysis."""
+        if extracted_df is None:
+            ui.notification_show("Please upload a csv containing your data", type="error")
+            return False
+
+        return True

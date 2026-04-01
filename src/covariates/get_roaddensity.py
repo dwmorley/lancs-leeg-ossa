@@ -3,43 +3,41 @@
 import os
 import zipfile
 
+import numpy as np
 import requests
-import xarray as xr
 
 from src.utils.bounding_box import BoundingBox
 from src.utils.downloads import get_downloads_folder
 
 
-def get_roaddensity(
+def get_roaddensity_points(
     bbox: BoundingBox,
+    xs: np.ndarray,
+    ys: np.ndarray,
     road_type: int = 0,
-) -> xr.DataArray:
-    """Return road density raster clipped to the bounding box.
-
-    Road density data from the Global Roads Inventory Project (GRIP), version 4.
+) -> np.ndarray:
+    """Sample GRIP road density at specific lon/lat coordinates.
 
     Parameters
     ----------
     bbox : BoundingBox
-        Area of interest to clip to.
+        Area of interest (used for download only).
+    xs : np.ndarray
+        Longitudes (EPSG:4326) of sample points.
+    ys : np.ndarray
+        Latitudes (EPSG:4326) of sample points.
     road_type : int, optional
-        Road type code (default 0). Options are:
-
-        0 - All road types combined (total density).
-        1 - Highways.
-        2 - Primary roads.
-        3 - Secondary roads.
-        4 - Tertiary roads.
-        5 - Local roads.
+        Road type code (0 = all roads combined).
 
     Returns
     -------
-    xarray.DataArray
-        Clipped road density raster.
+    np.ndarray
+        Road density values (m/km²) at each point (NaN where no data).
     """
+    import rasterio
+
     type_str = "total" if road_type == 0 else f"tp{road_type}"
 
-    # Download the zip file
     zipfilename = f"GRIP4_density_{type_str}.zip"
     url = f"https://dataportaal.pbl.nl/downloads/GRIP4/{zipfilename}"
     downloaddir = get_downloads_folder()
@@ -56,13 +54,18 @@ def get_roaddensity(
     with zipfile.ZipFile(zippath, "r") as zip_ref:
         zip_ref.extractall(exdir)
 
-    # Get rasters
     asc_file = next(f for f in os.listdir(exdir) if f.endswith("dens_m_km2.asc"))
-    raster = xr.open_dataarray(os.path.join(exdir, asc_file), engine="rasterio")
-    raster.rio.write_crs("EPSG:4326", inplace=True)
-    raster_clipped = raster.rio.clip_box(
-        bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, allow_one_dimensional_raster=True
-    )
+    asc_path = os.path.join(exdir, asc_file)
+
+    values = np.full(len(xs), np.nan)
+
+    with rasterio.open(asc_path) as src:
+        nodata = src.nodata
+        coords = list(zip(xs, ys))
+        sampled = np.array([v[0] for v in src.sample(coords)], dtype=float)
+        if nodata is not None:
+            sampled[sampled == nodata] = np.nan
+        values = sampled
 
     try:
         os.remove(zippath)
@@ -72,14 +75,4 @@ def get_roaddensity(
     except Exception:
         pass
 
-    return raster_clipped
-
-
-if __name__ == "__main__":
-
-    bbox = BoundingBox([-2.502, 42.698, -2.2, 43.0850])
-
-    merged = get_roaddensity(bbox=bbox)
-
-    merged.rio.write_crs("EPSG:4326", inplace=True)
-    merged.rio.to_raster("roads.tif", compress="deflate", COMPRESS_LEVEL=9)
+    return values

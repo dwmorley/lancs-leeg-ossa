@@ -1,36 +1,37 @@
 """Helpers to fetch and process digital elevation model (DEM) rasters for AOIs."""
 
-from typing import Literal
-
 import numpy as np
 import planetary_computer
 import pystac_client
-import rioxarray  # noqa: F401
-import stackstac
-import xarray
+import rasterio
+from pyproj import Transformer
 
 from src.utils.bounding_box import BoundingBox
 
-# TODO: This dataset has a known issue with 1 pixel wide NaN edge artefacts
 
-
-def get_dem(
+def get_dem_points(
     bbox: BoundingBox,
-    res: int = Literal[30, 90],
-) -> xarray.DataArray:
-    """Fetch and clip a DEM raster for the bounding box at the requested resolution.
+    xs: np.ndarray,
+    ys: np.ndarray,
+    res: int = 30,
+) -> np.ndarray:
+    """Sample Copernicus DEM at specific lon/lat coordinates.
 
     Parameters
     ----------
     bbox : BoundingBox
-        Area of interest.
+        Bounding box used to search for tiles.
+    xs : np.ndarray
+        Longitudes (EPSG:4326) of sample points.
+    ys : np.ndarray
+        Latitudes (EPSG:4326) of sample points.
     res : int, optional
-        Desired spatial resolution in metres (default: 30).
+        DEM resolution in metres (30 or 90).
 
     Returns
     -------
-    xarray.DataArray
-        DEM raster clipped to the AOI.
+    np.ndarray
+        Elevation values at each point (NaN where no data).
     """
     catalog = pystac_client.Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
@@ -41,25 +42,31 @@ def get_dem(
         collections=[f"cop-dem-glo-{res}"],
         bbox=bbox.to_list(),
     )
+    items = list(search.items())
 
-    items = [item for item in search.items()]
+    values = np.full(len(xs), np.nan)
 
-    stack = stackstac.stack(
-        items,
-        fill_value=np.nan,
-        bounds_latlon=bbox.to_tuple(),
-        epsg=4326,
-    )
-    da_raster = stack.mean(dim=["time"]).compute()
+    for item in items:
+        href = item.assets["data"].href
+        with rasterio.open(href) as src:
+            tile_crs = src.crs
+            transformer = Transformer.from_crs("EPSG:4326", tile_crs, always_xy=True)
+            tile_xs, tile_ys = transformer.transform(xs, ys)
 
-    da_raster.rio.write_crs("epsg:4326")
-    # da_raster.rio.to_raster(f"dem_{res}m.tif", compress="deflate", COMPRESS_LEVEL=9)
+            left, bottom, right, top = src.bounds
+            in_tile = (
+                (tile_xs >= left) & (tile_xs <= right) & (tile_ys >= bottom) & (tile_ys <= top)
+            )
+            if not in_tile.any():
+                continue
 
-    return da_raster
+            coords = list(zip(tile_xs[in_tile], tile_ys[in_tile]))
+            sampled = np.array([v[0] for v in src.sample(coords)], dtype=float)
+            # nodata is typically -32767 or large negative
+            sampled[sampled <= -9999] = np.nan
 
+            mask = in_tile.nonzero()[0]
+            overwrite = np.isnan(values[mask])
+            values[mask] = np.where(overwrite, sampled, values[mask])
 
-if __name__ == "__main__":
-    get_dem(
-        bbox=BoundingBox([-2.502, 42.698, -2.2, 43.0850]),
-        res=30,
-    )
+    return values

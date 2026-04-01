@@ -231,9 +231,6 @@ def qda_server(input, output, session, reactive_values):
         drawn_shapes = reactive_values["drawn_shapes"]
         my_ossa_layers = reactive_values["my_ossa_layers"]
 
-        if not validate_extracted_df(extracted_df):
-            return
-
         if input.qda_response() is None:
             ui.notification_show(
                 "Please select, or ensure there is a valid response variable.",
@@ -245,6 +242,18 @@ def qda_server(input, output, session, reactive_values):
                 (k for k, v in RESPONSE_OPTIONS.items() if v == input.qda_response()),
                 input.qda_response(),
             )
+
+        constant_cols = extracted_df.columns[np.where(extracted_df.std(axis=0) == 0)[0]].tolist()
+        if len(constant_cols) > 0:
+            ui.notification_show(
+                f"Data contains constant columns: {constant_cols}. I have dropped these",
+                type="warning",
+                duration=None,
+            )
+            extracted_df = extracted_df.drop(columns=constant_cols)
+
+        if not validate_extracted_df(extracted_df, response):
+            return
 
         # Do QDA
         X = extracted_df.drop(columns=["longitude", "latitude", response]).values
@@ -259,6 +268,7 @@ def qda_server(input, output, session, reactive_values):
             ui.notification_show(
                 f"QDA analysis failed: {class_analysis}",
                 type="error",
+                duration=None,
             )
             return
 
@@ -468,17 +478,12 @@ def qda_server(input, output, session, reactive_values):
 
         reactive_values["lcp_results"].set(results)
 
-    def validate_extracted_df(extracted_df: pd.DataFrame | None) -> bool:
+    def validate_extracted_df(extracted_df: pd.DataFrame | None, response: str) -> bool:
         """Validate extracted DataFrame before running analysis."""
         if extracted_df is None:
             ui.notification_show(
                 "Please run the data extraction first, or upload a csv", type="error"
             )
-            return False
-
-        constant_cols = extracted_df.columns[np.where(extracted_df.std(axis=0) == 0)[0]].tolist()
-        if len(constant_cols) > 0:
-            ui.notification_show(f"Data contains constant columns: {constant_cols}", type="error")
             return False
 
         if "longitude" not in extracted_df.columns or "latitude" not in extracted_df.columns:
@@ -491,6 +496,33 @@ def qda_server(input, output, session, reactive_values):
             ui.notification_show(
                 "DataFrame must contain more than one covariate column for analysis.",
                 type="error",
+            )
+            return False
+
+        response_data = extracted_df[response]
+
+        is_integer_valued = pd.api.types.is_integer_dtype(response_data) or (
+            pd.api.types.is_float_dtype(response_data)
+            and response_data.dropna().apply(float.is_integer).all()
+        )
+        if not is_integer_valued:
+            ui.notification_show(
+                f"Response variable '{response}' must be categorical.",
+                type="error",
+            )
+            return False
+
+        if response_data.nunique() < 2:
+            ui.notification_show(
+                f"Response variable '{response}' must contain at least 2 unique classes.",
+                type="error",
+            )
+            return False
+
+        if response_data.nunique() > 20:
+            ui.notification_show(
+                f"Response variable '{response}' contains more than 20 unique classes, which may lead to unstable QDA results. Consider reducing the number of classes or choosing a different response variable.",
+                type="warning",
             )
             return False
 

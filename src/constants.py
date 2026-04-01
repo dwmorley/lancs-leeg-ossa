@@ -177,6 +177,7 @@ ASD_OPTIONS = {
     "target": "H",
     "total": 15,
     "delta": 0.01,
+    "resolution": 10,
 }
 
 ZSSA_OPTIONS = {

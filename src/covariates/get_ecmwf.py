@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import List
 
-import rioxarray  # noqa: F401 - registers the .rio accessor
+import numpy as np
 import xarray as xr
 from ecmwf.datastores import Client
 from requests.exceptions import HTTPError
@@ -16,163 +16,241 @@ from src.utils.bounding_box import BoundingBox
 
 os.environ.setdefault("ECCODES_DEFINITION_PATH", "")
 
+_COLLECTION = "reanalysis-era5-land"
 
-def get_ecmwf(
-    bbox: BoundingBox,
-    variables: List[str],
-    api_keys: dict[str, str],
-    date_range: tuple[datetime, datetime],
-) -> dict[str, xr.DataArray] | None:
-    """Fetch and prepare ECMWF ERA5-Land rasters for the AOI and variables.
 
-    Parameters
-    ----------
-    bbox : BoundingBox
-        Area of interest to fetch the ECMWF rasters for.
-    variables : list[str]
-        ECMWF variable keys to fetch (e.g. 'ecmwf_runoff)
-    api_keys : dict[str, str]
-        API keys for data sources, e.g. {"ecmwf_api_key": "my key"}
-    date_range : tuple[datetime, datetime]
-        Start and end of the date range to fetch (inclusive).
-
-    Returns
-    -------
-    dict[str, xarray.DataArray] or None
-        Dictionary of rasters, where keys are variable names, or None if there was an error
-        Time series mean averaged.
-    """
-    url = "https://cds.climate.copernicus.eu/api"
-    api_key = api_keys.get("ecmwf_api_key")
-
-    try:
-        client = Client(key=api_key, url=url)
-        client.check_authentication()
-    except HTTPError:
-        return None
-
-    collection_id = "reanalysis-era5-land"
-
+def _build_base_request(bbox: BoundingBox, date_range: tuple[datetime, datetime]) -> dict:
+    """Build the shared CDS request dict (no variable key yet)."""
     date_start, date_end = date_range
     all_dates = [date_start + timedelta(days=i) for i in range((date_end - date_start).days + 1)]
-    years = sorted({str(d.year) for d in all_dates})
-    months = sorted({str(d.month).zfill(2) for d in all_dates})
-    days = sorted({str(d.day).zfill(2) for d in all_dates})
-
-    request = {
-        "year": years,
-        "month": months,
-        "day": days,
+    return {
+        "year": sorted({str(d.year) for d in all_dates}),
+        "month": sorted({str(d.month).zfill(2) for d in all_dates}),
+        "day": sorted({str(d.day).zfill(2) for d in all_dates}),
         "time": ["00:00"],
-        "data_format": "grib",
+        "data_format": "netcdf",
         "download_format": "unarchived",
         "area": [bbox.ymax, bbox.xmin, bbox.ymin, bbox.xmax],
     }
 
-    rasters = {}
-    with ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(
-                _fetch_variable,
-                client,
-                collection_id,
-                {**request, "variable": [var.removeprefix("ecmwf_")]},
-                var,
-                bbox,
-            ): var
-            for var in variables
-        }
-        for future in as_completed(futures):
-            var_key, da = future.result()
-            rasters[var_key] = da
 
-    return rasters
+def _download_to_tempfile(client: Client, request: dict) -> str:
+    """Submit a CDS job, block until complete, download to a temp file, return its path."""
+    remote = client.submit(_COLLECTION, request)
+    with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
+        tmp_path = tmp.name
+    remote.download(tmp_path)  # blocks until the job completes, handles retries
+    return tmp_path
 
 
-def _fetch_variable(
-    client, collection_id, request, var_key, bbox: BoundingBox
-) -> tuple[str, xr.DataArray]:
-    """Submit and download a single variable request, returning (var_key, DataArray).
+def _read_netcdf_file(tmp_path: str, cds_var_names: list[str]) -> dict[str, xr.DataArray]:
+    """Open a NetCDF4 file and return one time-averaged DataArray per variable."""
+    ds = xr.open_dataset(tmp_path, engine="netcdf4")
 
-    Tries the full request (with month/day/time) first. If the CDS job fails —
-    which happens for static fields like lake_total_depth that don't accept
-    temporal parameters — retries with year-only.
-    """
-    tmp = tempfile.NamedTemporaryFile(suffix=".grib", delete=False)
-    tmp_path = tmp.name
-    tmp.close()
+    rename_map = {}
+    if "latitude" in ds.dims:
+        rename_map["latitude"] = "y"
+    if "longitude" in ds.dims:
+        rename_map["longitude"] = "x"
+    if rename_map:
+        ds = ds.rename(rename_map)
 
+    # Reverse lookup: normalised long_name → cds_request_name
+    # e.g. "Soil temperature level 3" → "soil_temperature_level_3"
+    long_name_lut = {n.lower().replace(" ", "_"): n for n in cds_var_names}
+    _categorical = {k.removeprefix("ecmwf_") for k in RESPONSE_OPTIONS}
+
+    results: dict[str, xr.DataArray] = {}
+    for short_name in ds.data_vars:
+        da = ds[short_name]
+        attr_long = da.attrs.get("long_name", "")
+        cds_name = long_name_lut.get(attr_long.lower().replace(" ", "_"), short_name)
+
+        da = da.astype(float)
+
+        if "valid_time" in da.dims:
+            da = da.rename({"valid_time": "time"})
+
+        if "time" in da.dims and da.sizes["time"] > 1:
+            if cds_name in _categorical:
+                from scipy import stats as _stats
+
+                arr = da.values
+                mode_vals = _stats.mode(arr, axis=0, keepdims=False, nan_policy="omit").mode
+                da = xr.DataArray(mode_vals, dims=["y", "x"], coords={"y": da.y, "x": da.x})
+            else:
+                da = da.mean(dim="time", skipna=True)
+        elif "time" in da.dims:
+            da = da.isel(time=0)
+
+        if cds_name == "soil_type":
+            da = da.where(da != 0)
+        elif cds_name in ("type_of_high_vegetation", "type_of_low_vegetation"):
+            da = da.where(~da.isin([14, 15]))
+
+        results[cds_name] = da.load()
+
+    return results
+
+
+def _fetch_batch(
+    client: Client,
+    request: dict,
+    cds_var_names: list[str],
+    bbox: BoundingBox,
+) -> dict[str, xr.DataArray]:
+    """Submit one CDS request for multiple variables, return dict of DataArrays."""
+    tmp_path = _download_to_tempfile(client, {**request, "variable": cds_var_names})
     try:
-        da = _download_and_read(client, collection_id, request, tmp_path, bbox)
-    except Exception as e:
-        # Static fields (e.g. lake_total_depth) reject month/day/time —
-        # retry with year only
-        if "MultiAdaptorNoDataError" in str(e) or "400" in str(e) or "failed" in str(e).lower():
-            static_request = {k: v for k, v in request.items() if k not in ("month", "day", "time")}
-            da = _download_and_read(client, collection_id, static_request, tmp_path, bbox)
-        else:
-            da = xr.DataArray()  # This var will be skipped
+        return _read_netcdf_file(tmp_path, cds_var_names)
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
-    return var_key, da
+
+def _fetch_batch_with_static_fallback(
+    client: Client,
+    base_request: dict,
+    cds_var_names: list[str],
+    bbox: BoundingBox,
+) -> dict[str, xr.DataArray]:
+    """Try a batch request; if it fails (static fields), retry variable-by-variable.
+
+    Static fields like ``lake_total_depth`` reject month/day/time parameters.
+    When the whole batch fails we fall back to individual requests so one
+    awkward variable doesn't block the rest.
+    """
+    try:
+        return _fetch_batch(client, base_request, cds_var_names, bbox)
+    except Exception as batch_err:
+        if not (
+            "MultiAdaptorNoDataError" in str(batch_err)
+            or "400" in str(batch_err)
+            or "failed" in str(batch_err).lower()
+        ):
+            raise
+
+    # Batch failed — retry each variable individually, using year-only for static fields
+    static_request = {k: v for k, v in base_request.items() if k not in ("month", "day", "time")}
+
+    results: dict[str, xr.DataArray] = {}
+    with ThreadPoolExecutor(max_workers=min(len(cds_var_names), 4)) as pool:
+        futures = {
+            pool.submit(
+                _fetch_one_with_fallback, client, base_request, static_request, var, bbox
+            ): var
+            for var in cds_var_names
+        }
+        for f in as_completed(futures):
+            try:
+                results.update(f.result())
+            except Exception:
+                pass
+
+    return results
 
 
-def _download_and_read(client, collection_id, request, tmp_path, bbox: BoundingBox) -> xr.DataArray:
-    """Submit a CDS request, download to tmp_path, and return a georeferenced DataArray."""
-    remote = client.submit(collection_id, request)
-    remote.download(tmp_path)
+def _fetch_one_with_fallback(
+    client: Client,
+    base_request: dict,
+    static_request: dict,
+    cds_var: str,
+    bbox: BoundingBox,
+) -> dict[str, xr.DataArray]:
+    """Try a single-variable batch; fall back to the static (year-only) request."""
+    try:
+        return _fetch_batch(client, base_request, [cds_var], bbox)
+    except Exception as e:
+        if "MultiAdaptorNoDataError" in str(e) or "400" in str(e) or "failed" in str(e).lower():
+            return _fetch_batch(client, static_request, [cds_var], bbox)
+        raise
 
-    da = rioxarray.open_rasterio(tmp_path)
 
-    # Average multiple bands (time steps)
-    var = request["variable"][0]
-    if "band" in da.dims and da.sizes["band"] > 1:
-        if var in RESPONSE_OPTIONS.keys():
-            # if categorical, use mode
-            da = da.mode(dim="band", skipna=True).isel(mode=0)
-        else:
-            da = da.mean(dim="band", skipna=True)
-    else:
-        da = da.squeeze("band", drop=True)
+def _make_client(api_key: str) -> Client:
+    """Create a CDS client tuned for fast interactive use."""
+    return Client(
+        key=api_key,
+        url="https://cds.climate.copernicus.eu/api",
+        progress=False,  # no progress-bar overhead
+        sleep_max=1,  # poll every ≤1 s instead of the default 120 s
+    )
 
-    # Rename spatial dims to x/y if needed
-    if "x" not in da.dims or "y" not in da.dims:
-        da = da.rename({list(da.dims)[-1]: "x", list(da.dims)[-2]: "y"})
 
-    # Assign correct spatial coordinates from the bbox — GRIB2 has no embedded geotransform
-    ny, nx = da.sizes["y"], da.sizes["x"]
-    xs = [bbox.xmin + (i + 0.5) * (bbox.xmax - bbox.xmin) / nx for i in range(nx)]
-    ys = [bbox.ymax - (i + 0.5) * (bbox.ymax - bbox.ymin) / ny for i in range(ny)]
-    da = da.assign_coords(x=xs, y=ys)
-    da = da.rio.write_crs("EPSG:4326")
+def get_ecmwf_points(
+    bbox: BoundingBox,
+    xs: np.ndarray,
+    ys: np.ndarray,
+    variables: List[str],
+    api_keys: dict[str, str],
+    date_range: tuple[datetime, datetime],
+) -> dict[str, np.ndarray] | None:
+    """Sample ECMWF ERA5-Land values at specific lon/lat coordinates.
 
-    # remove water
-    if var == "soil_type":
-        da = da.where(da != 0)
-    elif var in ["type_of_high_vegetation", "type_of_low_vegetation"]:
-        da = da.where(~da.isin([14, 15]))
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest.
+    xs : np.ndarray
+        Longitudes (EPSG:4326) of sample points.
+    ys : np.ndarray
+        Latitudes (EPSG:4326) of sample points.
+    variables : list[str]
+        ECMWF variable keys to fetch (e.g. ['ecmwf_runoff']).
+    api_keys : dict[str, str]
+        API keys, e.g. {"ecmwf_api_key": "my_key"}.
+    date_range : tuple[datetime, datetime]
+        Start and end of the date range (inclusive).
 
-    return da.load()
+    Returns
+    -------
+    dict[str, np.ndarray] or None
+        {variable_key: values_array} at each sample point, or None on auth failure.
+        Every point is guaranteed a value (NaN where no data).
+    """
+    api_key = api_keys.get("ecmwf_api_key")
+
+    try:
+        client = _make_client(api_key)
+    except HTTPError:
+        return None
+
+    base_request = _build_base_request(bbox, date_range)
+    cds_vars = [v.removeprefix("ecmwf_") for v in variables]
+    var_lut = dict(zip(cds_vars, variables))  # cds_name → app key
+
+    # Single batch submission for all variables
+    da_dict = _fetch_batch_with_static_fallback(client, base_request, cds_vars, bbox)
+
+    if not da_dict:
+        return None
+
+    x_pts = xr.DataArray(xs, dims="points")
+    y_pts = xr.DataArray(ys, dims="points")
+
+    results: dict[str, np.ndarray] = {}
+    for cds_var, da in da_dict.items():
+        if da is None or da.size == 0:
+            continue
+        app_key = var_lut.get(cds_var, cds_var)
+        sampled = da.sel(x=x_pts, y=y_pts, method="nearest").values.astype(float)
+        results[app_key] = sampled
+
+    return results
 
 
 if __name__ == "__main__":
     bbox = BoundingBox([-2, 21, -1.2416, 21.8564])
-    # bbox = BoundingBox([106.54, 52.23, 107, 52.54])
 
     start = datetime.strptime("2019-01-01", "%Y-%m-%d")
     end = datetime.strptime("2019-12-31", "%Y-%m-%d")
 
     var = "soil_temperature_level_3"
+    xy = bbox.sampling_grid(5000)
+    x = xy[:, 0]
+    y = xy[:, 1]
 
-    r = get_ecmwf(
-        bbox=bbox,
-        variables=[var],
-        api_keys={"ecmwf_api_key": ""},
-        date_range=(start, end),
+    r = get_ecmwf_points(
+        bbox, x, y, [var], {"ecmwf_api_key": "f12aaef4-9be5-4fe2-a9a9-c8d99646ea6d"}, (start, end)
     )
 
-    import rasterio  # noqa: F401
-
-    r[var].rio.write_crs("epsg:4326").rio.to_raster(f"{var}.tif")
+    print(r)

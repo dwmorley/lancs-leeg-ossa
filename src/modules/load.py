@@ -6,17 +6,13 @@ from shiny import module, reactive, render, ui
 
 @module.ui
 def load_ui():
-    """Create the UI portion of the load-data module.
-
-    Returns
-    -------
-    shiny.ui.Tag
-        A UI fragment containing a file input control and a header used in
-        the main application layout.
-    """
+    """Create the UI portion of the load-data module."""
     return ui.div(
         ui.tags.div(
-            ui.output_ui("file_input_container"),
+            [
+                ui.output_ui("file_input_training_container"),
+                ui.output_ui("file_input_prediction_container"),
+            ],
             class_="input-section",
         ),
         class_="tab-content",
@@ -42,12 +38,37 @@ def load_server(input, output, session, reactive_values):
     """
     _reset_counter = reactive.Value(0)
 
+    def normalize_lat_lon_columns(df):
+        # Candidates for latitude and longitude (case-insensitive)
+        lat_candidates = {"y", "lat", "latitude"}
+        lon_candidates = {"x", "long", "lng", "longitude"}
+        col_map = {}
+        for col in df.columns:
+            col_lower = col.lower()
+            if col_lower in lat_candidates:
+                col_map[col] = "latitude"
+            elif col_lower in lon_candidates:
+                col_map[col] = "longitude"
+        return df.rename(columns=col_map)
+
     @render.ui
-    def file_input_container():
-        _reset_counter()  # take dependency so re-render is triggered on reset
+    def file_input_training_container():
+        _reset_counter()
         return ui.input_file(
-            "data_file",
-            ui.h4("Import Data"),
+            "data_training_file",
+            ui.h4("Import Training Data"),
+            accept=[".csv"],
+            multiple=False,
+            width="100%",
+            placeholder="Upload a previously saved CSV file",
+        )
+
+    @render.ui
+    def file_input_prediction_container():
+        _reset_counter()
+        return ui.input_file(
+            "data_prediction_file",
+            ui.h4("Import Prediction Data"),
             accept=[".csv"],
             multiple=False,
             width="100%",
@@ -55,13 +76,13 @@ def load_server(input, output, session, reactive_values):
         )
 
     @reactive.effect
-    @reactive.event(input.data_file)
-    def _handle_data_file() -> None:
+    @reactive.event(input.data_training_file)
+    def _handle_data_training_file() -> None:
 
         updating_from_map = reactive_values["updating_from_map"]
         drawn_shapes = reactive_values["drawn_shapes"]
 
-        file_info = input.data_file()
+        file_info = input.data_training_file()
         if not file_info:
             return
 
@@ -73,6 +94,7 @@ def load_server(input, output, session, reactive_values):
         try:
             # Read the uploaded CSV file
             extracted_df = pd.read_csv(file_info[0]["datapath"])
+            extracted_df = normalize_lat_lon_columns(extracted_df)
 
             # Get bounds from latitude and longitude columns
             north = extracted_df["latitude"].max()
@@ -127,6 +149,33 @@ def load_server(input, output, session, reactive_values):
 
             ui.notification_show(
                 f"Successfully loaded {len(extracted_df)} rows from {file_info[0]['name']}",
+                type="message",
+                duration=3,
+            )
+        except Exception as e:
+            _fail(f"Error reading CSV file: {str(e)}")
+
+    @reactive.effect
+    @reactive.event(input.data_prediction_file)
+    def _handle_data_prediction_file() -> None:
+        file_info = input.data_prediction_file()
+        if not file_info:
+            return
+
+        def _fail(msg: str) -> None:
+            ui.notification_show(msg, type="error")
+            reactive_values["prediction_df"].set(None)
+            _reset_counter.set(_reset_counter() + 1)
+
+        try:
+            # Read the uploaded CSV file
+            prediction_df = pd.read_csv(file_info[0]["datapath"])
+            prediction_df = normalize_lat_lon_columns(prediction_df)
+
+            reactive_values["prediction_df"].set(prediction_df)
+
+            ui.notification_show(
+                f"Successfully loaded {len(prediction_df)} rows from {file_info[0]['name']}",
                 type="message",
                 duration=3,
             )

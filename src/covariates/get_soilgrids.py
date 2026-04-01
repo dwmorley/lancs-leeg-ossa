@@ -4,59 +4,12 @@ import os
 import re
 import tempfile
 
+import numpy as np
 import rioxarray
 import xarray as xr
 from soilgrids import SoilGrids
 
 from src.utils.bounding_box import BoundingBox
-
-
-def get_soilgrids(bbox: BoundingBox, variable: str) -> xr.DataArray:
-    """Download SoilGrids data for a variable and return a thickness-weighted average over the 0-30cm profile.
-
-    Parameters
-    ----------
-    bbox : BoundingBox
-        Area of interest to fetch the SoilGrids data for.
-    variable : str
-        SoilGrids variable to fetch (e.g. 'phh2o')
-
-    Returns
-    -------
-    xarray.DataArray
-        Thickness-weighted average of the variable over the 0-30cm soil profile
-
-    """
-    soil_grids = SoilGrids()
-
-    variable = variable.removeprefix("sg_")
-
-    _, coverages = SoilGrids()._get_service_and_coverage_list(variable)
-    mean_coverages = [c for c in coverages if c.endswith("_mean")]
-
-    west, south, east, north = bbox.to_soilgrids()
-
-    layers = []
-    weights = []
-    for coverage_id in mean_coverages:
-        thickness = _parse_thickness(coverage_id)
-        if thickness is None:
-            continue
-        da = _fetch_layer(soil_grids, variable, coverage_id, west, south, east, north)
-        layers.append(da)
-        weights.append(thickness)
-
-    if not layers:
-        raise ValueError(f"No layers found within 0-30cm for variable '{variable}'")
-
-    total_weight = sum(weights)
-    weighted: xr.DataArray = xr.zeros_like(layers[0])
-    for da, w in zip(layers, weights):
-        weighted = weighted + da * (w / total_weight)
-    weighted.attrs["long_name"] = f"{variable} 0-30cm weighted mean"
-    weighted.attrs["weights_cm"] = weights
-
-    return weighted
 
 
 def _parse_thickness(coverage_id: str) -> int | None:
@@ -109,7 +62,58 @@ def _fetch_layer(
     return da
 
 
-if __name__ == "__main__":
-    bbox = BoundingBox([-2.7, 43.2, -2.502, 43.5])
-    r = get_soilgrids(bbox=bbox, variable="phh2o")
-    r.rio.to_raster("sg.tif", compress="deflate", COMPRESS_LEVEL=9)
+def get_soilgrids_points(
+    bbox: BoundingBox,
+    xs: np.ndarray,
+    ys: np.ndarray,
+    variable: str,
+) -> np.ndarray:
+    """Sample SoilGrids 0-30 cm weighted-mean values at specific lon/lat coordinates.
+
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Area of interest used to download the tiles.
+    xs : np.ndarray
+        Longitudes (EPSG:4326) of sample points.
+    ys : np.ndarray
+        Latitudes (EPSG:4326) of sample points.
+    variable : str
+        SoilGrids variable to fetch (e.g. 'phh2o').
+
+    Returns
+    -------
+    np.ndarray
+        Thickness-weighted average values at each point (NaN where no data).
+    """
+    soil_grids = SoilGrids()
+    variable = variable.removeprefix("sg_")
+
+    _, coverages = SoilGrids()._get_service_and_coverage_list(variable)
+    mean_coverages = [c for c in coverages if c.endswith("_mean")]
+
+    west, south, east, north = bbox.to_soilgrids()
+
+    layers = []
+    weights = []
+    for coverage_id in mean_coverages:
+        thickness = _parse_thickness(coverage_id)
+        if thickness is None:
+            continue
+        da = _fetch_layer(soil_grids, variable, coverage_id, west, south, east, north)
+        layers.append(da)
+        weights.append(thickness)
+
+    if not layers:
+        raise ValueError(f"No layers found within 0-30cm for variable '{variable}'")
+
+    total_weight = sum(weights)
+    weighted: xr.DataArray = xr.zeros_like(layers[0])
+    for da, w in zip(layers, weights):
+        weighted = weighted + da * (w / total_weight)
+
+    x_pts = xr.DataArray(xs, dims="points")
+    y_pts = xr.DataArray(ys, dims="points")
+    sampled = weighted.sel(x=x_pts, y=y_pts, method="nearest").values.astype(float)
+
+    return sampled

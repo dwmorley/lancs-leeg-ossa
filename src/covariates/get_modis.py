@@ -76,80 +76,6 @@ MODIS_CONFIGS = {
 }
 
 
-def get_modis(
-    bbox: BoundingBox,
-    variable: str,
-    date_range: tuple[datetime, datetime],
-) -> Dict[str, xr.DataArray] | None:
-    """Fetch and prepare MODIS rasters for the AOI, variable, and year.
-
-    Parameters
-    ----------
-    bbox : BoundingBox
-        Area of interest to fetch the MODIS rasters for.
-    variable : str
-        MODIS variable to fetch (e.g. 'ET_500m')
-    date_range : tuple[datetime, datetime]
-        Date range
-
-    Returns
-    -------
-    dict[str, xarray.DataArray] or None
-        Dictionary of rasters, where keys are variable name with aggregation method,
-    """
-    catalog = pystac_client.Client.open(
-        "https://planetarycomputer.microsoft.com/api/stac/v1",
-        modifier=planetary_computer.sign_inplace,
-    )
-
-    variable = variable.removeprefix("modis_")
-    collection = get_collection(variable)
-
-    search = catalog.search(collections=[collection], bbox=bbox.to_list(), datetime=date_range)
-    items = search.item_collection()
-
-    # Nothing found for the AOI/date range
-    if len(items) == 0:
-        ui.notification_show(
-            f"No MODIS tiles found for requested AOI/date range. {variable} will be skipped.",
-            type="warning",
-        )
-        return None
-
-    stack = stackstac.stack(
-        items,
-        dtype=np.dtype("float64"),
-        fill_value=np.nan,
-        assets=[variable],
-        epsg=4326,
-        bounds=bbox.to_tuple(),
-        rescale=True,
-        chunksize="auto",
-    )
-
-    # Mask nodata values
-    nodata_value = MODIS_CONFIGS[variable]["nodata"]
-    if nodata_value is not None:
-        if nodata_value < 0:
-            stack = stack.where(stack > nodata_value, np.nan)
-        else:
-            stack = stack.where(stack < nodata_value, np.nan)
-
-    # Mosaic the stack into a single raster on spatial dimensions.
-    da_raster = stackstac.mosaic(stack, dim="band", nodata=np.nan)
-
-    # Perform temporal aggregation if needed
-    rasters = {}
-    aggregation_methods = MODIS_CONFIGS[variable]["aggregation"]
-    if aggregation_methods:
-        for method in aggregation_methods:
-            rasters[f"{variable}_{method}"] = aggregate_ts(da_raster, method=method)
-    else:
-        rasters[f"{variable}"] = da_raster
-
-    return rasters
-
-
 def aggregate_ts(da_raster: xr.DataArray, method: str = "avg") -> Union[xr.DataArray, None]:
     """Aggregate a time series of rasters using the specified method.
 
@@ -214,19 +140,107 @@ def get_collection(var: str) -> str:
     raise Exception(f"Variable {var} not found in MODIS collections.")
 
 
+def get_modis_points(
+    bbox: BoundingBox,
+    xs: np.ndarray,
+    ys: np.ndarray,
+    variable: str,
+    date_range: tuple[datetime, datetime],
+) -> Dict[str, np.ndarray] | None:
+    """Sample MODIS values at specific lon/lat coordinates.
+
+    Builds the same spatially-mosaicked stack as :func:`get_modis`, applies
+    the same temporal aggregation, then samples each aggregated raster at the
+    supplied point coordinates using nearest-neighbour lookup.  Every (xs, ys)
+    pair is guaranteed an output value (NaN where the raster contains no data).
+
+    Parameters
+    ----------
+    bbox : BoundingBox
+        Bounding box used to search for MODIS tiles.
+    xs : np.ndarray
+        Longitudes (EPSG:4326) of sample points.
+    ys : np.ndarray
+        Latitudes (EPSG:4326) of sample points.
+    variable : str
+        MODIS variable to fetch (e.g. 'ET_500m').
+    date_range : tuple[datetime, datetime]
+        Date range.
+
+    Returns
+    -------
+    dict[str, np.ndarray] or None
+        Dictionary of {aggregation_key: values_array}, or None if no data found.
+        Each array has the same length as *xs* / *ys*.
+    """
+    catalog = pystac_client.Client.open(
+        "https://planetarycomputer.microsoft.com/api/stac/v1",
+        modifier=planetary_computer.sign_inplace,
+    )
+
+    variable = variable.removeprefix("modis_")
+    collection = get_collection(variable)
+
+    search = catalog.search(collections=[collection], bbox=bbox.to_list(), datetime=date_range)
+    items = search.item_collection()
+
+    if len(items) == 0:
+        ui.notification_show(
+            f"No MODIS tiles found for requested AOI/date range. {variable} will be skipped.",
+            type="warning",
+        )
+        return None
+
+    stack = stackstac.stack(
+        items,
+        dtype=np.dtype("float64"),
+        fill_value=np.nan,
+        assets=[variable],
+        epsg=4326,
+        bounds=bbox.to_tuple(),
+        rescale=True,
+        chunksize="auto",
+    )
+
+    nodata_value = MODIS_CONFIGS[variable]["nodata"]
+    if nodata_value is not None:
+        if nodata_value < 0:
+            stack = stack.where(stack > nodata_value, np.nan)
+        else:
+            stack = stack.where(stack < nodata_value, np.nan)
+
+    da_raster = stackstac.mosaic(stack, dim="band", nodata=np.nan).load()
+    x_pts = xr.DataArray(xs, dims="points")
+    y_pts = xr.DataArray(ys, dims="points")
+
+    results: Dict[str, np.ndarray] = {}
+    for method in MODIS_CONFIGS[variable]["aggregation"]:
+        agg = aggregate_ts(da_raster, method=method)
+        if agg is None:
+            agg = da_raster.isel(time=0) if "time" in da_raster.dims else da_raster
+
+        sampled = agg.sel(x=x_pts, y=y_pts, method="nearest").values.astype(float)
+        results[f"{variable}_{method}"] = sampled
+
+    return results if results else None
+
+
 if __name__ == "__main__":
 
     start = datetime.strptime("2019-01-01", "%Y-%m-%d")
     end = datetime.strptime("2019-03-01", "%Y-%m-%d")
 
-    var = "LST_Day_1KM"
+    var = "ET_500m"
 
-    r = get_modis(
-        bbox=BoundingBox([-2.7, 43.2, -2.502, 43.5]),
+    bbox = BoundingBox([38.6, 6.17, 41, 7.36])
+    xy = bbox.sampling_grid(5000)
+    x = xy[:, 0]
+    y = xy[:, 1]
+    points = get_modis_points(
+        bbox=bbox,
         variable=var,
         date_range=(start, end),
+        xs=x,
+        ys=y,
     )
-
-    if r is not None:
-        r[f"{var}_sd"].rio.write_crs("epsg:4326")
-        r[f"{var}_sd"].rio.to_raster("modis.tif", compress="deflate", COMPRESS_LEVEL=9)
+    b = 0
