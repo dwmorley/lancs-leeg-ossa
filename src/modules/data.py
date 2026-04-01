@@ -243,7 +243,7 @@ def data_server(input, output, session, reactive_values):
                 def set(self, value=None, message=None):
                     loop.call_soon_threadsafe(lambda v=value, m=message: p.set(value=v, message=m))
 
-            extracted_df = await loop.run_in_executor(
+            extracted_df, notifications = await loop.run_in_executor(
                 None,
                 lambda: run_extraction(
                     bbox=bbox,
@@ -256,6 +256,15 @@ def data_server(input, output, session, reactive_values):
             )
 
         reactive_values["extracted_df"].set(extracted_df)
+
+        # Show any notifications collected during extraction (must be done in
+        # the session context, not from within the executor thread).
+        for n in notifications:
+            ui.notification_show(
+                n["message"],
+                type=n.get("type", "default"),
+                duration=n.get("duration", 5),
+            )
 
         try:
             map_ref = reactive_values.get("map_ref")

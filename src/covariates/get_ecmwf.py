@@ -9,7 +9,6 @@ from typing import List
 import numpy as np
 import xarray as xr
 from ecmwf.datastores import Client
-from requests.exceptions import HTTPError
 
 from src.constants import RESPONSE_OPTIONS
 from src.utils.bounding_box import BoundingBox
@@ -166,22 +165,12 @@ def _fetch_one_with_fallback(
         raise
 
 
-def _make_client(api_key: str) -> Client:
-    """Create a CDS client tuned for fast interactive use."""
-    return Client(
-        key=api_key,
-        url="https://cds.climate.copernicus.eu/api",
-        progress=False,  # no progress-bar overhead
-        sleep_max=1,  # poll every ≤1 s instead of the default 120 s
-    )
-
-
 def get_ecmwf_points(
     bbox: BoundingBox,
     xs: np.ndarray,
     ys: np.ndarray,
     variables: List[str],
-    api_keys: dict[str, str],
+    client: Client,
     date_range: tuple[datetime, datetime],
 ) -> dict[str, np.ndarray] | None:
     """Sample ECMWF ERA5-Land values at specific lon/lat coordinates.
@@ -196,8 +185,6 @@ def get_ecmwf_points(
         Latitudes (EPSG:4326) of sample points.
     variables : list[str]
         ECMWF variable keys to fetch (e.g. ['ecmwf_runoff']).
-    api_keys : dict[str, str]
-        API keys, e.g. {"ecmwf_api_key": "my_key"}.
     date_range : tuple[datetime, datetime]
         Start and end of the date range (inclusive).
 
@@ -207,13 +194,6 @@ def get_ecmwf_points(
         {variable_key: values_array} at each sample point, or None on auth failure.
         Every point is guaranteed a value (NaN where no data).
     """
-    api_key = api_keys.get("ecmwf_api_key")
-
-    try:
-        client = _make_client(api_key)
-    except HTTPError:
-        return None
-
     base_request = _build_base_request(bbox, date_range)
     cds_vars = [v.removeprefix("ecmwf_") for v in variables]
     var_lut = dict(zip(cds_vars, variables))  # cds_name → app key
@@ -236,21 +216,3 @@ def get_ecmwf_points(
         results[app_key] = sampled
 
     return results
-
-
-if __name__ == "__main__":
-    bbox = BoundingBox([-2, 21, -1.2416, 21.8564])
-
-    start = datetime.strptime("2019-01-01", "%Y-%m-%d")
-    end = datetime.strptime("2019-12-31", "%Y-%m-%d")
-
-    var = "soil_temperature_level_3"
-    xy = bbox.sampling_grid(5000)
-    x = xy[:, 0]
-    y = xy[:, 1]
-
-    r = get_ecmwf_points(
-        bbox, x, y, [var], {"ecmwf_api_key": "f12aaef4-9be5-4fe2-a9a9-c8d99646ea6d"}, (start, end)
-    )
-
-    print(r)

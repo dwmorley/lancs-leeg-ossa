@@ -11,8 +11,8 @@ from typing import Callable, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import urllib3
+from ecmwf.datastores import Client
 from pystac_client.exceptions import APIError
-from shiny import ui
 
 from src.constants import COVARIATE_OPTIONS, RESPONSE_OPTIONS
 from src.covariates.get_dem import get_dem_points
@@ -167,7 +167,7 @@ def run_extraction(
     progress=None,
     max_workers: int = None,
     use_threading: bool = True,
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, List[dict]]:
     """Extract selected covariates at grid points - PARALLELIZED point-based extraction.
 
     Parameters
@@ -191,9 +191,37 @@ def run_extraction(
 
     Returns
     -------
-    pandas.DataFrame
-        Sampled covariate values at the requested grid points.
+    tuple[pandas.DataFrame, list[dict]]
+        Sampled covariate values at the requested grid points, and a list of
+        notification dicts with keys "message", "type", "duration" to be shown
+        in the Shiny session after the executor returns.
     """
+    regular_vars = [v for v in variables if not v.startswith("ecmwf_")]
+    ecmwf_vars = [v for v in variables if v.startswith("ecmwf_")]
+    total_vars = len(regular_vars) + (1 if ecmwf_vars else 0)
+
+    client = None
+
+    notifications: List[dict] = []
+
+    if ecmwf_vars:
+        ecmwf_key = api_keys.get("ecmwf_api_key", "") or ""
+        if not ecmwf_key.strip():
+            notifications.append(
+                {
+                    "message": "No ECMWF API key provided. Skipping ECMWF variables.",
+                    "type": "error",
+                    "duration": None,
+                }
+            )
+        else:
+            client = Client(
+                key=ecmwf_key,
+                url="https://cds.climate.copernicus.eu/api",
+                progress=False,
+                sleep_max=1,
+            )
+
     if use_threading:
         from concurrent.futures import ThreadPoolExecutor
 
@@ -216,11 +244,6 @@ def run_extraction(
         return d.replace(tzinfo=tz) if d.tzinfo is None else d
 
     date_range = (_to_utc(date_range[0]), _to_utc(date_range[1]))
-
-    # Separate ECMWF variables (batch processing) from others
-    regular_vars = [v for v in variables if not v.startswith("ecmwf_")]
-    ecmwf_vars = [v for v in variables if v.startswith("ecmwf_")]
-    total_vars = len(regular_vars) + (1 if ecmwf_vars else 0)
 
     # The points to sample
     grid = bbox.sampling_grid(sample_size)
@@ -255,10 +278,12 @@ def run_extraction(
                     var_name, result, error = future.result()
 
                     if error:
-                        ui.notification_show(
-                            f"Skipping {variable_lut.get(var_name, var_name)} — {error}",
-                            type="warning",
-                            duration=5,
+                        notifications.append(
+                            {
+                                "message": f"Skipping {variable_lut.get(var_name, var_name)} — {error}",
+                                "type": "warning",
+                                "duration": 5,
+                            }
                         )
                     elif result is not None:
                         if isinstance(result, dict):
@@ -272,10 +297,12 @@ def run_extraction(
                     error_str = str(e)
                     if len(error_str) > 150:
                         error_str = error_str[:147] + "..."
-                    ui.notification_show(
-                        f"Failed to process {var}: {error_str}",
-                        type="error",
-                        duration=None,
+                    notifications.append(
+                        {
+                            "message": f"Failed to process {var}: {error_str}",
+                            "type": "error",
+                            "duration": None,
+                        }
                     )
 
                 completed += 1
@@ -286,7 +313,8 @@ def run_extraction(
                 )
 
     # Process ECMWF variables in batch
-    if ecmwf_vars:
+    if ecmwf_vars and client is not None:
+
         progress.set(
             value=int((len(regular_vars) / max(total_vars, 1)) * 90),
             message=f"Processing {len(ecmwf_vars)} ERA5 variable(s)...",
@@ -298,26 +326,49 @@ def run_extraction(
                 xs=xs,
                 ys=ys,
                 variables=ecmwf_vars,
-                api_keys=api_keys,
+                client=client,
                 date_range=date_range,
             )
             if results is None:
-                ui.notification_show(
-                    "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
-                    type="warning",
+                notifications.append(
+                    {
+                        "message": "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
+                        "type": "warning",
+                        "duration": 5,
+                    }
                 )
             else:
                 for var, values in results.items():
                     df[var] = np.asarray(values, dtype=float)
         except Exception as e:
-            ui.notification_show(
-                f"Error processing ECMWF data: {str(e)}",
-                type="error",
-                duration=None,
+            error_str = str(e)
+            auth_hints = (
+                "401",
+                "403",
+                "unauthorized",
+                "authentication",
+                "invalid key",
+                "forbidden",
             )
+            if any(h in error_str.lower() for h in auth_hints):
+                notifications.append(
+                    {
+                        "message": "ECMWF authentication failed. Please check your API key and try again.",
+                        "type": "error",
+                        "duration": None,
+                    }
+                )
+            else:
+                notifications.append(
+                    {
+                        "message": f"Error processing ECMWF data: {error_str}",
+                        "type": "error",
+                        "duration": None,
+                    }
+                )
 
     progress.set(value=95, message="Finalising...")
     df = df.dropna()
     progress.set(value=100, message="Complete!")
 
-    return df
+    return df, notifications
