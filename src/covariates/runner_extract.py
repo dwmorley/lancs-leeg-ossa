@@ -4,7 +4,7 @@ import contextlib
 import os
 import time
 import warnings
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Callable, List, Optional, Tuple
 
@@ -13,6 +13,7 @@ import pandas as pd
 import urllib3
 from ecmwf.datastores import Client
 from pystac_client.exceptions import APIError
+from shiny import ui
 
 from src.constants import COVARIATE_OPTIONS, RESPONSE_OPTIONS
 from src.covariates.get_dem import get_dem_points
@@ -147,6 +148,7 @@ def _call_with_retries(fn: Callable, var_name: str, retries: int = 3, base_delay
             return fn()
         except APIError:
             if attempt < retries - 1:
+                print(f"Retrying {var_name} after API error (attempt {attempt + 1}/{retries})...")
                 time.sleep(base_delay * (2**attempt))
                 continue
             return None
@@ -164,11 +166,8 @@ def run_extraction(
     date_range: tuple[datetime, datetime],
     sample_size: int,
     api_keys: dict[str, str],
-    progress=None,
-    max_workers: int = None,
-    use_threading: bool = True,
-) -> Tuple[pd.DataFrame, List[dict]]:
-    """Extract selected covariates at grid points - PARALLELIZED point-based extraction.
+) -> pd.DataFrame:
+    """Extract selected covariates at grid points - SEQUENTIAL point-based extraction.
 
     Parameters
     ----------
@@ -182,32 +181,20 @@ def run_extraction(
         Target number of sample points.
     api_keys : dict[str, str]
         API keys for data sources, e.g. {"ecmwf": "my_key"}.
-    progress : optional
-        Progress UI object supporting set(value=int, message=str).
-    max_workers : int, optional
-        Maximum number of parallel workers.
-    use_threading : bool, optional
-        If True (default), use ThreadPoolExecutor.
 
     Returns
     -------
-    tuple[pandas.DataFrame, list[dict]]
-        Sampled covariate values at the requested grid points, and a list of
-        notification dicts with keys "message", "type", "duration" to be shown
-        in the Shiny session after the executor returns.
+        Sampled covariate values at the requested grid points
     """
     regular_vars = [v for v in variables if not v.startswith("ecmwf_")]
     ecmwf_vars = [v for v in variables if v.startswith("ecmwf_")]
-    total_vars = len(regular_vars) + (1 if ecmwf_vars else 0)
 
     client = None
-
-    notifications: List[dict] = []
 
     if ecmwf_vars:
         ecmwf_key = api_keys.get("ecmwf_api_key", "") or ""
         if not ecmwf_key.strip():
-            notifications.append(
+            ui.notification_show(
                 {
                     "message": "No ECMWF API key provided. Skipping ECMWF variables.",
                     "type": "error",
@@ -221,17 +208,6 @@ def run_extraction(
                 progress=False,
                 sleep_max=1,
             )
-
-    if use_threading:
-        from concurrent.futures import ThreadPoolExecutor
-
-        ExecutorClass = ThreadPoolExecutor
-    else:
-        ExecutorClass = ProcessPoolExecutor
-
-    if max_workers is None:
-        cpu_count = os.cpu_count() or 2
-        max_workers = max(1, cpu_count - 2)
 
     variable_lut = {**COVARIATE_OPTIONS, **RESPONSE_OPTIONS}
     year = max(date_range[0].year, date_range[1].year)
@@ -251,11 +227,18 @@ def run_extraction(
     ys = grid[:, 1]
     df = pd.DataFrame({"longitude": xs, "latitude": ys})
 
-    # Process regular variables in parallel
+    # Process regular variables in parallel using threading
     if regular_vars:
-        progress.set(value=0, message="Starting extraction...")
+        print("Starting extraction...")
+        ui.notification_show(
+            "Starting extraction...",
+            type="message",
+            duration=15,
+        )
 
-        with ExecutorClass(max_workers=max_workers) as executor:
+        max_workers = min(len(regular_vars), os.cpu_count() - 2)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+
             future_to_var = {
                 executor.submit(
                     _fetch_single_variable_points,
@@ -270,24 +253,26 @@ def run_extraction(
                 for var in regular_vars
             }
 
+            # Process results as they complete
             completed = 0
             for future in as_completed(future_to_var):
                 var = future_to_var[future]
-
                 try:
                     var_name, result, error = future.result()
 
                     if error:
-                        notifications.append(
+                        error_msg = f"Skipping {variable_lut.get(var_name, var_name)} — {error}"
+                        print(f"  ERROR: {error_msg}")
+                        ui.notification_show(
                             {
-                                "message": f"Skipping {variable_lut.get(var_name, var_name)} — {error}",
+                                "message": error_msg,
                                 "type": "warning",
-                                "duration": 5,
+                                "duration": None,
                             }
                         )
                     elif result is not None:
+                        print(f"  SUCCESS: Added column {var_name}")
                         if isinstance(result, dict):
-                            # Multi-output variables (e.g. MODIS with multiple aggregations)
                             for k, v in result.items():
                                 df[k] = np.asarray(v, dtype=float)
                         else:
@@ -297,28 +282,27 @@ def run_extraction(
                     error_str = str(e)
                     if len(error_str) > 150:
                         error_str = error_str[:147] + "..."
-                    notifications.append(
+                    print(f"  EXCEPTION: Failed to process {var}: {error_str}")
+                    ui.notification_show(
                         {
                             "message": f"Failed to process {var}: {error_str}",
-                            "type": "error",
+                            "type": "warning",
                             "duration": None,
                         }
                     )
 
                 completed += 1
-                progress_pct = int((completed / max(total_vars, 1)) * 90)
-                progress.set(
-                    value=progress_pct,
-                    message=f"Extracted {completed}/{len(regular_vars)} variables...",
+                ui.notification_show(
+                    f"Extracted {f"{variable_lut.get(var_name, var_name)}"}, {completed}/{len(regular_vars)} variables...",
+                    type="message",
+                    duration=30,
                 )
+                print(f"Extracted {completed}/{len(regular_vars)} variables...")
 
     # Process ECMWF variables in batch
     if ecmwf_vars and client is not None:
 
-        progress.set(
-            value=int((len(regular_vars) / max(total_vars, 1)) * 90),
-            message=f"Processing {len(ecmwf_vars)} ERA5 variable(s)...",
-        )
+        print(f"Processing {len(ecmwf_vars)} ERA5 variable(s)...")
 
         try:
             results = get_ecmwf_points(
@@ -330,7 +314,7 @@ def run_extraction(
                 date_range=date_range,
             )
             if results is None:
-                notifications.append(
+                ui.notification_show(
                     {
                         "message": "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
                         "type": "warning",
@@ -340,6 +324,7 @@ def run_extraction(
             else:
                 for var, values in results.items():
                     df[var] = np.asarray(values, dtype=float)
+                print(f"Successfully added {len(results)} ECMWF variables")
         except Exception as e:
             error_str = str(e)
             auth_hints = (
@@ -351,24 +336,22 @@ def run_extraction(
                 "forbidden",
             )
             if any(h in error_str.lower() for h in auth_hints):
-                notifications.append(
+                ui.notification_show(
                     {
                         "message": "ECMWF authentication failed. Please check your API key and try again.",
-                        "type": "error",
+                        "type": "warning",
                         "duration": None,
                     }
                 )
             else:
-                notifications.append(
+                ui.notification_show(
                     {
                         "message": f"Error processing ECMWF data: {error_str}",
-                        "type": "error",
+                        "type": "warning",
                         "duration": None,
                     }
                 )
 
-    progress.set(value=95, message="Finalising...")
-    df = df.dropna()
-    progress.set(value=100, message="Complete!")
+    print("Complete!")
 
-    return df, notifications
+    return df

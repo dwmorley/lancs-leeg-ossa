@@ -47,6 +47,14 @@ def qda_ui():
                             value=QDA_OPTIONS["nn"],
                             step=0.1,
                         ),
+                        ui.input_numeric(
+                            "qda_test_pc",
+                            "Percentage of data to withhold for validation",
+                            value=QDA_OPTIONS["test_pc"],
+                            min=0,
+                            max=100,
+                            step=5,
+                        ),
                         ui.tags.div(
                             ui.tooltip(
                                 ui.input_action_button(
@@ -252,6 +260,8 @@ def qda_server(input, output, session, reactive_values):
             )
             extracted_df = extracted_df.drop(columns=constant_cols)
 
+        extracted_df = extracted_df.dropna()
+
         if not validate_extracted_df(extracted_df, response):
             return
 
@@ -260,10 +270,22 @@ def qda_server(input, output, session, reactive_values):
         spatial_grid = extracted_df[["longitude", "latitude"]].values
         nn = input.qda_nn()
         nx = input.qda_nx()
+        test = input.qda_test_pc()
+
+        if test == 0:
+            test = None  # Not doing cross-validation
+        elif test >= 100 or test < 1:
+            ui.notification_show(
+                "Test percentage must be between 0 and 100.",
+                type="error",
+            )
+            return
 
         # ~20 matrix chunks + ng prior steps + 1 initial LDA + up to (nx*2) split/merge iterations
         with ui.Progress(min=0, max=20 + len(np.unique(y)) + 1 + (nx * 2)) as p:
-            class_analysis = luqdaloop(X=X, y=y, grid=spatial_grid, nn=nn, nx=nx, progress=p)
+            class_analysis = luqdaloop(
+                X=X, y=y, grid=spatial_grid, nn=nn, nx=nx, test=test, progress=p
+            )
 
         # Check if class_analysis is a string (error message)
         if isinstance(class_analysis, str):
@@ -484,6 +506,13 @@ def qda_server(input, output, session, reactive_values):
 
     def validate_extracted_df(extracted_df: pd.DataFrame | None, response: str) -> bool:
         """Validate extracted DataFrame before running analysis."""
+        if len(extracted_df) == 0:
+            ui.notification_show(
+                "Extracted data table is empty after NaN removal.",
+                type="error",
+            )
+            return False
+
         if extracted_df is None:
             ui.notification_show(
                 "Please run the data extraction first, or upload a csv", type="error"

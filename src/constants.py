@@ -162,6 +162,7 @@ COVARIATE_OPTIONS = {
 QDA_OPTIONS = {
     "nx": 8,
     "nn": 0.001,
+    "test_pc": 10,
 }
 
 LCP_OPTIONS = {

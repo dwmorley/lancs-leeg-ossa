@@ -74,8 +74,21 @@ def luqdaloop(
         or if other invalid inputs are provided.
     """
     y = y.astype(int)
-    n = X.shape[0]
+    g = np.sort(np.unique(y))
     p = X.shape[1]
+
+    # Exclude small groups that are not 10 times larger than the number of features (p)
+    group_sizes = np.array([np.sum(y == group) for group in g])
+    if np.any(group_sizes < 10 * p):
+        small_groups = g[group_sizes < 10 * p]
+        mask = ~np.isin(y, small_groups)
+        y = y[mask]
+        grid = grid[mask]
+        X = X[mask]
+        if prior is not None:
+            prior = prior[mask, :]
+
+    n = X.shape[0]
     g = np.sort(np.unique(y))
     ng = len(g)
 
@@ -93,7 +106,7 @@ def luqdaloop(
     # Track groups
     N2 = np.zeros(n)
     G2 = np.zeros(ng)
-    L2 = []
+    test_indices = []  # L2
 
     # Compute local priors based on neighbours if not provided
     if prior is None:
@@ -137,8 +150,7 @@ def luqdaloop(
             G2[k] = 1
 
         if test is not None:
-            xx = list(np.random.choice(nkk, size=test, replace=False))
-            L2.append(xx)
+            test_indices.extend(list(np.random.choice(nkk, size=test, replace=False)))
 
     # Exclude rank-deficient groups
     if np.sum(N2) > 0:
@@ -168,7 +180,7 @@ def luqdaloop(
 
     # ===== INITIAL LDA =====
     _progress("Running initial LDA...")
-    lda = ls_da(X=XX, y=yy, prior=prior_cleaned, test=test)
+    lda = ls_da(X=XX, y=yy, prior=prior_cleaned, test_indices=test_indices)
     if isinstance(lda, str):
         return lda
     all[f"{ng}cluster"] = lda
@@ -205,11 +217,11 @@ def luqdaloop(
                 prior2.iloc[:, a[i]] = prior2.iloc[:, a[i]] / 2
                 ng2 = ng2 + 1
 
-                counts_pd = pd.Series(y2).value_counts()
-                print(counts_pd)
+                # counts_pd = pd.Series(y2).value_counts()
+                # print(counts_pd)
 
                 _progress(f"Splitting classes ({ng2}/{nx})...")
-                lda = ls_da(X=XX, y=y2, prior=prior2.values, test=test)
+                lda = ls_da(X=XX, y=y2, prior=prior2.values, test_indices=test_indices)
                 if isinstance(lda, str):
                     return lda
                 all[f"{ng2}cluster"] = lda
@@ -239,28 +251,31 @@ def luqdaloop(
         except ValueError:
             return "Cannot perform LDA - possibly you have requested too many clusters (nx) for the number of observations in your data"
 
-        # Merge the two classes with the highest error rates
-        y2[np.isin(y2, [g2[a[0]], g2[a[1]]])] = f"{u}{g2[a[0]]}.{g2[a[1]]}"
-        prior2[:, a[0]] = prior2[:, a[0]] + prior2[:, a[1]]
-        prior2 = np.delete(prior2, a[1], axis=1)
-        ng2 -= 1
+        if ng2 > 1:
+            # Merge the two classes with the highest error rates
+            y2[np.isin(y2, [g2[a[0]], g2[a[1]]])] = f"{u}{g2[a[0]]}.{g2[a[1]]}"
+            prior2[:, a[0]] = prior2[:, a[0]] + prior2[:, a[1]]
+            prior2 = np.delete(prior2, a[1], axis=1)
+            ng2 -= 1
 
-        counts_pd = pd.Series(y2).value_counts()
-        print(counts_pd)
+            # counts_pd = pd.Series(y2).value_counts()
+            # print(counts_pd)
 
-        _progress(f"Merging classes ({ng2})...")
-        lda = ls_da(X=XX, y=y2, prior=prior2, test=test)
-        if isinstance(lda, str):
-            return lda
-        all[f"{ng2}cluster"] = lda
+            _progress(f"Merging classes ({ng2})...")
+            lda = ls_da(X=XX, y=y2, prior=prior2, test_indices=test_indices)
+            if isinstance(lda, str):
+                return lda
+            all[f"{ng2}cluster"] = lda
 
-        # Update tracking variables
-        tb2[a[0]] = tb2[a[0]] + tb2[a[1]]
-        tb2 = np.delete(tb2, a[1])
-        g2[a[0]] = f"{u}{g2[a[0]]}.{g2[a[1]]}"
-        g2 = np.delete(g2, a[1])
+            # Update tracking variables
+            tb2[a[0]] = tb2[a[0]] + tb2[a[1]]
+            tb2 = np.delete(tb2, a[1])
+            g2[a[0]] = f"{u}{g2[a[0]]}.{g2[a[1]]}"
+            g2 = np.delete(g2, a[1])
 
-        if ng2 == 2:
+            if ng2 == 2:
+                merge = True
+        else:
             merge = True
 
     # ===== PERFORMANCE SUMMARY =====
@@ -272,9 +287,9 @@ def luqdaloop(
             inx[0, i - 1] = all[key]["Wlambda"]
             inx[1, i - 1] = all[key]["error_rate"]
 
-            # if test is not None:
-            #     inx[2, i - 1] = all[key].get("xWlambda", np.nan)
-            #     inx[3, i - 1] = all[key].get("xerror_rate", np.nan)
+            if test is not None:
+                inx[2, i - 1] = all[key].get("xWlambda", np.nan)
+                inx[3, i - 1] = all[key].get("xerror_rate", np.nan)
 
     inx_df = pd.DataFrame(
         inx,
@@ -286,8 +301,6 @@ def luqdaloop(
     # ===== CREATE FINAL OUTPUT =====
     # Combine all data with final classifications
 
-    # TODO: Add the test_indices as in the R code.
-
     bestdata = np.column_stack([grid, X, y, prior])
     all["NewData"] = pd.DataFrame(bestdata)
     all["NewData"].columns = (
@@ -296,21 +309,38 @@ def luqdaloop(
         + ["OriginalClass"]
         + [f"Prior{i}" for i in range(prior.shape[1])]
     )
+
+    # Add testID column: 1 if in test set, 0 otherwise
+    testID = np.zeros(len(y), dtype=int)
+    if test_indices:
+        testID[test_indices] = 1
+    all["NewData"]["testID"] = testID
+
     for key in [k for k in all if k.endswith("cluster") and k[:-7].isdigit()]:
         if all[key] is not None:
+
             if np.sum(N2) == 0:
                 cls = all[key]["classification"]
             else:
                 cls = np.zeros(len(N2)).astype(str)
                 cls[N2 == 0] = all[key]["classification"]
                 cls[N2 == 1] = y[N2 == 1]
+
+            # Pad with test set classifications if test indices were used
+            if test_indices and "xclassification" in all[key]:
+                full_cls = np.empty(len(y), dtype=object)
+                train_indices = np.setdiff1d(np.arange(len(y)), test_indices)
+                full_cls[train_indices] = cls
+                full_cls[test_indices] = all[key]["xclassification"]
+                cls = full_cls
+
             all["NewData"][key] = cls
 
     return all
 
 
 def ls_da(
-    X: np.ndarray, y: List[str], prior: np.ndarray, test: Union[int, None] = None
+    X: np.ndarray, y: List[str], prior: np.ndarray, test_indices: Union[List[int], None] = None
 ) -> dict | str:
     """Run linear discriminant analysis with localized priors and return results.
 
@@ -328,8 +358,8 @@ def ls_da(
         Prior probability matrix with shape (n_samples, n_classes). Each
         row corresponds to sample-specific prior probabilities for each
         class.
-    test : int or None, optional
-        Cross Validation
+    test_indicies : List[int] or None, optional
+        Cross Validation split
 
     Returns
     -------
@@ -349,9 +379,8 @@ def ls_da(
     str
         Error message if LDA cannot be performed
     """
-    if test is not None:
-        rng = np.random.default_rng()
-        test_indices = rng.choice(len(y), size=test, replace=False)
+    if test_indices is not None:
+
         train_indices = np.setdiff1d(np.arange(len(y)), test_indices)
 
         XV, yV = X[test_indices], y[test_indices]
@@ -359,9 +388,9 @@ def ls_da(
         priorV = prior[test_indices] if prior is not None else None
         prior = prior[train_indices] if prior is not None else None
 
-        # Compute group means for validation set
-        # unique_yV = np.sort(np.unique(y))
-        # gmv = [X[y == group].mean(axis=0) for group in unique_yV]
+        # Compute group means for validation set (NOT USED?)
+        # unique_yV = np.sort(np.unique(yV))
+        # gmv = [XV[yV == group].mean(axis=0) for group in unique_yV]
     else:
         XV, yV, priorV = None, None, None
         # gmv = None
@@ -411,13 +440,13 @@ def ls_da(
     pred_cat = pd.Categorical(pred_class, categories=classes)
 
     conf = pd.crosstab(y_cat, pred_cat, rownames=["original"], colnames=["predicted"], dropna=False)
-    err = 1 - np.trace(conf.values)
+    err = 1 - np.trace(conf.values) / np.sum(conf.values)
 
-    if test is not None:
+    if test_indices is not None:
         ng = len(g)
-        Disc2 = np.zeros((test, ng))
+        Disc2 = np.zeros((len(test_indices), ng))
         for k in range(ng):
-            Xk = np.tile(gm[k], (test, 1))
+            Xk = np.tile(gm[k], (len(test_indices), 1))
             dev = (XV - Xk) @ WMqr[k]
             Disc2[:, k] = 0.5 * np.sum(dev**2, axis=1) + 0.5 * ldet[k] - np.log(priorV[:, k])
         Disc2 = np.exp(-(Disc2 - np.min(Disc2, axis=1, keepdims=True)))
@@ -447,7 +476,7 @@ def ls_da(
         "Classes": y.copy(),
     }
 
-    if test is not None:
+    if test_indices is not None:
         res.update(
             {
                 "xscores": Disc2.copy(),
@@ -652,6 +681,6 @@ if __name__ == "__main__":
     y = df["io_landcoverio"].values.astype(int)
     grid = df[["longitude", "latitude"]].values
 
-    results = luqdaloop(X, y, grid, nx=8, test=None)
+    results = luqdaloop(X, y, grid, nx=8, test=20)
 
     b = 0

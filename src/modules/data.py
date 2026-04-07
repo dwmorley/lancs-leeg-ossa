@@ -1,6 +1,5 @@
 """Data UI/server module for extracting and previewing covariates."""
 
-import asyncio
 from datetime import date, datetime
 from typing import Any, Dict, List, Tuple
 
@@ -172,7 +171,7 @@ def data_server(input, output, session, reactive_values):
 
     @reactive.effect
     @reactive.event(input.run_extraction)
-    async def _handle_run_extraction() -> None:
+    def _handle_run_extraction() -> None:
 
         api_keys = {}
         drawn_shapes = reactive_values["drawn_shapes"]
@@ -225,46 +224,18 @@ def data_server(input, output, session, reactive_values):
 
         bbox = BoundingBox([min(west, east), min(south, north), max(west, east), max(south, north)])
 
-        with ui.Progress(min=0, max=100) as p:
-            p.set(message="Starting extraction...", value=0)
+        _date_range = input.covariate_dates()
+        _sample_size = input.sample_size()
 
-            loop = asyncio.get_event_loop()
-
-            # Read all reactive inputs NOW, in the reactive context, before
-            # handing off to the executor thread (which has no reactive context).
-            _date_range = input.covariate_dates()
-            _sample_size = input.sample_size()
-
-            # run_extraction (and its internal thread pool) is entirely blocking.
-            # run_in_executor keeps the Shiny event loop free during the wait.
-            # ui.Progress.set() must be called from the event loop thread, so we
-            # wrap it in a thread-safe shim that posts updates back via the loop.
-            class _SafeProgress:
-                def set(self, value=None, message=None):
-                    loop.call_soon_threadsafe(lambda v=value, m=message: p.set(value=v, message=m))
-
-            extracted_df, notifications = await loop.run_in_executor(
-                None,
-                lambda: run_extraction(
-                    bbox=bbox,
-                    variables=selected_vars,
-                    date_range=_date_range,
-                    sample_size=_sample_size,
-                    api_keys=api_keys,
-                    progress=_SafeProgress(),
-                ),
-            )
+        extracted_df = run_extraction(
+            bbox=bbox,
+            variables=selected_vars,
+            date_range=_date_range,
+            sample_size=_sample_size,
+            api_keys=api_keys,
+        )
 
         reactive_values["extracted_df"].set(extracted_df)
-
-        # Show any notifications collected during extraction (must be done in
-        # the session context, not from within the executor thread).
-        for n in notifications:
-            ui.notification_show(
-                n["message"],
-                type=n.get("type", "default"),
-                duration=n.get("duration", 5),
-            )
 
         try:
             map_ref = reactive_values.get("map_ref")
@@ -274,12 +245,6 @@ def data_server(input, output, session, reactive_values):
                     m.fit_bounds([[south, west], [north, east]])
         except Exception:
             pass
-
-        ui.notification_show(
-            "Data extraction complete!",
-            type="message",
-            duration=None,
-        )
 
     @reactive.effect
     @reactive.event(input.export_csv)

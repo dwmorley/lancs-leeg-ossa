@@ -207,7 +207,7 @@ def _asd_via_rpy2_inner(
                             ycoord= y,
                             family = poisson,
                             data = data,
-                            spcov_type = "exponential",
+                            spcov_type = "matern",
                             estmethod="ml",
                             verbose = TRUE
                         )
