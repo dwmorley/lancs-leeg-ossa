@@ -227,130 +227,135 @@ def run_extraction(
     ys = grid[:, 1]
     df = pd.DataFrame({"longitude": xs, "latitude": ys})
 
-    # Process regular variables in parallel using threading
-    if regular_vars:
+    # Calculate total variables for unified progress bar
+    total_vars = len(regular_vars) + len(ecmwf_vars)
+    completed = 0
+
+    # Create unified progress bar for all variables
+    with ui.Progress(min=0, max=total_vars) as progress:
+        progress.set(message="Extracting variables...")
         print("Starting extraction...")
-        ui.notification_show(
-            "Starting extraction...",
-            type="message",
-            duration=15,
-        )
 
-        max_workers = min(len(regular_vars), os.cpu_count() - 2)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Process regular variables in parallel using threading
+        if regular_vars:
+            max_workers = min(len(regular_vars), os.cpu_count() - 2)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
 
-            future_to_var = {
-                executor.submit(
-                    _fetch_single_variable_points,
-                    var,
-                    bbox,
-                    xs,
-                    ys,
-                    year,
-                    date_range,
-                    variable_lut,
-                ): var
-                for var in regular_vars
-            }
+                future_to_var = {
+                    executor.submit(
+                        _fetch_single_variable_points,
+                        var,
+                        bbox,
+                        xs,
+                        ys,
+                        year,
+                        date_range,
+                        variable_lut,
+                    ): var
+                    for var in regular_vars
+                }
 
-            # Process results as they complete
-            completed = 0
-            for future in as_completed(future_to_var):
-                var = future_to_var[future]
-                try:
-                    var_name, result, error = future.result()
+                # Process results as they complete
+                for future in as_completed(future_to_var):
+                    var = future_to_var[future]
+                    try:
+                        var_name, result, error = future.result()
 
-                    if error:
-                        error_msg = f"Skipping {variable_lut.get(var_name, var_name)} — {error}"
-                        print(f"  ERROR: {error_msg}")
+                        if error:
+                            error_msg = f"Skipping {variable_lut.get(var_name, var_name)} — {error}"
+                            print(f"  ERROR: {error_msg}")
+                            ui.notification_show(
+                                {
+                                    "message": error_msg,
+                                    "type": "warning",
+                                    "duration": None,
+                                }
+                            )
+                        elif result is not None:
+                            print(f"  SUCCESS: Added column {var_name}")
+                            if isinstance(result, dict):
+                                for k, v in result.items():
+                                    df[k] = np.asarray(v, dtype=float)
+                            else:
+                                df[var_name] = np.asarray(result, dtype=float)
+
+                    except Exception as e:
+                        error_str = str(e)
+                        if len(error_str) > 150:
+                            error_str = error_str[:147] + "..."
+                        print(f"  EXCEPTION: Failed to process {var}: {error_str}")
                         ui.notification_show(
                             {
-                                "message": error_msg,
+                                "message": f"Failed to process {var}: {error_str}",
                                 "type": "warning",
                                 "duration": None,
                             }
                         )
-                    elif result is not None:
-                        print(f"  SUCCESS: Added column {var_name}")
-                        if isinstance(result, dict):
-                            for k, v in result.items():
-                                df[k] = np.asarray(v, dtype=float)
-                        else:
-                            df[var_name] = np.asarray(result, dtype=float)
 
-                except Exception as e:
-                    error_str = str(e)
-                    if len(error_str) > 150:
-                        error_str = error_str[:147] + "..."
-                    print(f"  EXCEPTION: Failed to process {var}: {error_str}")
+                    completed += 1
+                    progress.set(
+                        completed,
+                        detail=f"{completed}/{total_vars} variables, {variable_lut.get(var_name, var_name)}",
+                    )
+                    print(f"Extracted {completed}/{total_vars} variables...")
+
+        # Process ECMWF variables in batch
+        if ecmwf_vars and client is not None:
+
+            print(f"Processing {len(ecmwf_vars)} ERA5 variable(s)...")
+
+            try:
+                results = get_ecmwf_points(
+                    bbox=bbox,
+                    xs=xs,
+                    ys=ys,
+                    variables=ecmwf_vars,
+                    client=client,
+                    date_range=date_range,
+                )
+                if results is None:
                     ui.notification_show(
                         {
-                            "message": f"Failed to process {var}: {error_str}",
+                            "message": "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
+                            "type": "warning",
+                            "duration": 5,
+                        }
+                    )
+                else:
+                    for var, values in results.items():
+                        df[var] = np.asarray(values, dtype=float)
+                        completed += 1
+                        progress.set(
+                            completed,
+                            detail=f"{completed}/{total_vars} variables, {variable_lut.get(var_name, var_name)}",
+                        )
+                    print(f"Successfully added {len(results)} ECMWF variables")
+            except Exception as e:
+                error_str = str(e)
+                auth_hints = (
+                    "401",
+                    "403",
+                    "unauthorized",
+                    "authentication",
+                    "invalid key",
+                    "forbidden",
+                )
+                if any(h in error_str.lower() for h in auth_hints):
+                    ui.notification_show(
+                        {
+                            "message": "ECMWF authentication failed. Please check your API key and try again.",
                             "type": "warning",
                             "duration": None,
                         }
                     )
-
-                completed += 1
-                ui.notification_show(
-                    f"Extracted {f"{variable_lut.get(var_name, var_name)}"}, {completed}/{len(regular_vars)} variables...",
-                    type="message",
-                    duration=30,
-                )
-                print(f"Extracted {completed}/{len(regular_vars)} variables...")
-
-    # Process ECMWF variables in batch
-    if ecmwf_vars and client is not None:
-
-        print(f"Processing {len(ecmwf_vars)} ERA5 variable(s)...")
-
-        try:
-            results = get_ecmwf_points(
-                bbox=bbox,
-                xs=xs,
-                ys=ys,
-                variables=ecmwf_vars,
-                client=client,
-                date_range=date_range,
-            )
-            if results is None:
-                ui.notification_show(
-                    {
-                        "message": "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
-                        "type": "warning",
-                        "duration": 5,
-                    }
-                )
-            else:
-                for var, values in results.items():
-                    df[var] = np.asarray(values, dtype=float)
-                print(f"Successfully added {len(results)} ECMWF variables")
-        except Exception as e:
-            error_str = str(e)
-            auth_hints = (
-                "401",
-                "403",
-                "unauthorized",
-                "authentication",
-                "invalid key",
-                "forbidden",
-            )
-            if any(h in error_str.lower() for h in auth_hints):
-                ui.notification_show(
-                    {
-                        "message": "ECMWF authentication failed. Please check your API key and try again.",
-                        "type": "warning",
-                        "duration": None,
-                    }
-                )
-            else:
-                ui.notification_show(
-                    {
-                        "message": f"Error processing ECMWF data: {error_str}",
-                        "type": "warning",
-                        "duration": None,
-                    }
-                )
+                else:
+                    ui.notification_show(
+                        {
+                            "message": f"Error processing ECMWF data: {error_str}",
+                            "type": "warning",
+                            "duration": None,
+                        }
+                    )
 
     print("Complete!")
 

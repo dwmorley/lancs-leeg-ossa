@@ -296,6 +296,9 @@ def luqdaloop(
         index=["Wilks", "Error", "xWilks", "xError"],
         columns=[str(i) for i in range(1, nx + 1)],
     )
+    inx_df.rename(
+        {"xWilks": "Cross-Validated Wilks", "xError": "Cross-Validated Error"}, inplace=True
+    )
     all["WilksSummary"] = inx_df
 
     # ===== CREATE FINAL OUTPUT =====
