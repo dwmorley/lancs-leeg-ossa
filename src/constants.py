@@ -162,7 +162,7 @@ COVARIATE_OPTIONS = {
 QDA_OPTIONS = {
     "nx": 8,
     "nn": 0.001,
-    "test_pc": 10,
+    "test": 20,
 }
 
 LCP_OPTIONS = {
@@ -186,4 +186,9 @@ ZSSA_OPTIONS = {
     "init": 20,
     "add": [10, 20, 30, 50],
     "from_glm": False,
+}
+
+SDMTMB_OPTIONS = {
+    "family": ["Gaussian", "Binomial", "Poisson"],
+    "formula": "OlivoP ~  soilhum + tmax + tmin + windspeed + NDVI + MIR + NIR + Red + Blu",
 }

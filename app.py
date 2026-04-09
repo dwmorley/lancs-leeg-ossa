@@ -5,7 +5,7 @@ from pathlib import Path
 
 from shiny import App, reactive, run_app, ui
 
-from src.modules import aoi, asd, data, footer, header, load, map, qda, zssa
+from src.modules import aoi, asd, data, footer, header, load, map, qda, sdmtmb, zssa
 
 page_dependencies = ui.tags.head(
     ui.tags.link(rel="stylesheet", type="text/css", href="styles.css"),
@@ -18,6 +18,7 @@ extent_boxes = aoi.aoi_ui("my_aoi")
 qda_ui = qda.qda_ui("my_qda")
 asd_ui = asd.asd_ui("my_asd")
 zssa_ui = zssa.zssa_ui("my_zssa")
+sdmtmb_ui = sdmtmb.sdmtmb_ui("my_sdmtmb")
 page_footer = footer.footer_ui("my_footer")
 load_csv = load.load_ui("my_load")
 
@@ -44,6 +45,10 @@ app_ui = ui.page_fluid(
                         ui.nav_panel(
                             "QDA & LCP",
                             qda_ui,
+                        ),
+                        ui.nav_panel(
+                            "ST Model",
+                            sdmtmb_ui,
                         ),
                         ui.nav_panel(
                             "ZSSA",
@@ -85,6 +90,7 @@ def server(input, output, session):
         "lcp_results": reactive.Value([]),
         "asd_results": reactive.Value([]),
         "zssa_results": reactive.Value([]),
+        "sdmtmb_results": reactive.Value([]),
         "ecmwf_api_key": reactive.Value(""),
     }
 
@@ -95,6 +101,7 @@ def server(input, output, session):
     qda.qda_server("my_qda", reactive_values)
     asd.asd_server("my_asd", reactive_values)
     zssa.zssa_server("my_zssa", reactive_values)
+    sdmtmb.sdmtmb_server("my_sdmtmb", reactive_values)
     footer.footer_server("my_footer", reactive_values)
 
 

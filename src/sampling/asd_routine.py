@@ -153,9 +153,9 @@ def _asd_via_rpy2_inner(
             def _rename_lonlat_to_xy(df):
                 col_map = {}
                 for col in df.columns:
-                    if col.lower() == "longitude":
+                    if col.lower() in ["longitude", "lng", "long"]:
                         col_map[col] = "x"
-                    elif col.lower() == "latitude":
+                    elif col.lower() in ["latitude", "lat"]:
                         col_map[col] = "y"
                 return df.rename(columns=col_map)
 

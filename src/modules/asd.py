@@ -132,7 +132,7 @@ def asd_ui():
 
 @module.server
 def asd_server(input, output, session, reactive_values):
-    """Server logic for ASD controls (currently a placeholder)."""
+    """Server logic for ASD controls."""
 
     @reactive.effect
     @reactive.event(input.save_asd)

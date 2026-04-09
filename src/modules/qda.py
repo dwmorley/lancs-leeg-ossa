@@ -48,9 +48,9 @@ def qda_ui():
                             step=0.1,
                         ),
                         ui.input_numeric(
-                            "qda_test_pc",
-                            "Percentage of data to withhold for validation",
-                            value=QDA_OPTIONS["test_pc"],
+                            "qda_test",
+                            "Number of points to withhold per group for validation",
+                            value=QDA_OPTIONS["test"],
                             min=0,
                             max=100,
                             step=5,
@@ -270,7 +270,7 @@ def qda_server(input, output, session, reactive_values):
         spatial_grid = extracted_df[["longitude", "latitude"]].values
         nn = input.qda_nn()
         nx = input.qda_nx()
-        test = input.qda_test_pc()
+        test = input.qda_test()
 
         if test == 0:
             test = None  # Not doing cross-validation

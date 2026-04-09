@@ -50,7 +50,7 @@ def luqdaloop(
         Maximum number of classes to explore when splitting. Must be larger
         than the number of unique classes in `y`.
     test : int or None, Optional
-        Optional indices reserved for testing/validation
+        Optional number from each group to take as validation set
 
     Returns
     -------

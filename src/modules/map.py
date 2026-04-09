@@ -7,7 +7,7 @@ from ipywidgets import Button
 from shiny import module, reactive
 from shinywidgets import output_widget, render_widget
 
-from src.plotting.maps import point_layer_legend
+from src.plotting.maps import point_layer_legend, raster_layer_legend
 
 
 @module.ui
@@ -124,11 +124,15 @@ def map_server(input, output, session, reactive_values):
         ]
 
         to_render = []
-        legend_needed = ""
+        raster_layers = []
+        point_layers = []
+
         for layer in my_ossa_layers.get():
             to_render.append(layer)
             if isinstance(layer, L.LayerGroup):
-                legend_needed = layer.name
+                point_layers.append(layer)
+            elif isinstance(layer, L.ImageOverlay):
+                raster_layers.append(layer)
 
         m.layers = tuple(base_layers + to_render)
 
@@ -140,16 +144,44 @@ def map_server(input, output, session, reactive_values):
                 isinstance(c, WidgetControl)
                 and any(
                     site in getattr(c.widget, "value", "")
-                    for site in ["LCP Sites", "ZSSA Sites", "ASD Sites"]
+                    for site in [
+                        "LCP Sites",
+                        "ZSSA Sites",
+                        "ASD Sites",
+                        "ASD Hotspot",
+                        "ASD Uncertainty",
+                    ]
                 )
             )
         )
-        # Add legend control if needed
-        if legend_needed != "":
-            legend_control = WidgetControl(
-                widget=point_layer_legend(legend_needed), position="bottomright"
-            )
-            m.add(legend_control)
+
+        if raster_layers:
+            raster_layer = raster_layers[0]  # Use the first raster layer
+            if raster_layer.name != "LUQDA Classes":
+                legend_info = getattr(raster_layer, "_legend_info", None)
+                if legend_info:
+                    try:
+                        legend_control = WidgetControl(
+                            widget=raster_layer_legend(raster_layer.name, legend_info),
+                            position="bottomright",
+                            transparent_bg=False,
+                        )
+                        m.add(legend_control)
+                    except Exception:
+                        pass
+
+        # Add point legend if available (point layers take precedence)
+        if point_layers:
+            point_layer = point_layers[0]  # Use the first point layer
+            try:
+                legend_control = WidgetControl(
+                    widget=point_layer_legend(point_layer.name),
+                    position="bottomright",
+                    transparent_bg=False,
+                )
+                m.add(legend_control)
+            except Exception:
+                pass
 
     def _zoom_to_layers(_btn=None):
         m = m_ref.get("m")

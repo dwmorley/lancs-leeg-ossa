@@ -3,6 +3,7 @@
 from datetime import datetime
 
 import geopandas as gpd
+import pandas as pd
 from faicons import icon_svg
 from shiny import module, reactive, render, ui
 
@@ -194,28 +195,20 @@ def zssa_server(input, output, session, reactive_values):
 
         extracted_df = reactive_values["extracted_df"]()
 
-        cols = extracted_df.columns
-        if "longitude" not in cols or "latitude" not in cols:
-            ui.notification_show(
-                "Data must contain 'longitude' and 'latitude' columns for ZSSA analysis.",
-                type="error",
-            )
+        if not validate_extracted_df(extracted_df):
             return
-
-        # TODO: Time (cols == 5) is not yet supported
-        if "SD" not in cols or "Mean" not in cols:
-            ui.notification_show(
-                "Data must contain just covariate columns for ZSSA analysis: Mean & SD",
-                type="error",
-            )
-            return
-        else:
-            extracted_df = extracted_df[["longitude", "latitude", "SD", "Mean"]]
 
         ni = input.zssa_iter()
         add = number_list()
         from_glm = input.kriging_checkbox()
         init = input.zssa_init()
+
+        if max(add) >= len(extracted_df):
+            ui.notification_show(
+                "Cannot add more points than available in the dataset. Please adjust the number of points to add or reduce the dataset size.",
+                type="error",
+            )
+            return
 
         with ui.Progress(min=0, max=len(add * ni)) as p:
             p.set(message="Starting zssa...", value=0)
@@ -353,3 +346,34 @@ def zssa_server(input, output, session, reactive_values):
             f"Results saved to {zip_path}",
             type="message",
         )
+
+    def validate_extracted_df(extracted_df: pd.DataFrame | None) -> bool:
+        cols = [col.lower() for col in extracted_df.columns]
+        if "longitude" not in cols or "latitude" not in cols:
+            ui.notification_show(
+                "Data must contain 'longitude' and 'latitude' columns for ZSSA analysis.",
+                type="error",
+            )
+            return False
+
+        if len(cols) > 5:
+            ui.notification_show(
+                "Data contains more columns than expected. We need just longitude, latitude, mean, sd and optionally time.",
+                type="error",
+            )
+            return False
+
+        if "sd" not in cols or "mean" not in cols:
+            ui.notification_show(
+                "Data must contain columns for ZSSA analysis: Mean & SD",
+                type="error",
+            )
+            return False
+
+        if len(cols) == 5:
+            ui.notification_show(
+                "TIME",
+            )
+            return True
+
+        return True

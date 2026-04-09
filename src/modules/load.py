@@ -40,7 +40,7 @@ def load_server(input, output, session, reactive_values):
 
     def normalize_lat_lon_columns(df):
         # Candidates for latitude and longitude (case-insensitive)
-        lat_candidates = {"y", "lat", "latitude"}
+        lat_candidates = {"y", "lat", "ltd", "latitude"}
         lon_candidates = {"x", "long", "lng", "longitude"}
         col_map = {}
         for col in df.columns:

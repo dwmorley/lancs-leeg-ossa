@@ -38,7 +38,9 @@ def dataarray_to_image_overlay(
     Returns
     -------
     ipyleaflet.ImageOverlay
-        An overlay ready to be added to an ipyleaflet map.
+        An overlay ready to be added to an ipyleaflet map. The overlay
+        includes metadata for legend generation in its `_legend_info`
+        attribute.
     """
     data = da.values.astype(float)
     lats = np.array(da.coords.get("y", da.coords.get("lat", da.coords.get("latitude"))))
@@ -70,8 +72,18 @@ def dataarray_to_image_overlay(
     fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
     ax.axis("off")
 
+    # Store legend metadata
+    legend_info = {
+        "categorical": categorical,
+        "cmap_name": None,
+        "vmin": None,
+        "vmax": None,
+        "cuts": None,
+    }
+
     if categorical:
         cmap = plt.get_cmap("tab20") if np.unique(data).size <= 20 else plt.get_cmap("viridis")
+        legend_info["cmap_name"] = "tab20" if np.unique(data).size <= 20 else "viridis"  # type: ignore
 
         ax.imshow(data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest")
     else:
@@ -79,6 +91,11 @@ def dataarray_to_image_overlay(
         cuts = np.linspace(vmin, vmax, 12)
         cmap = plt.get_cmap("hot")
         norm = BoundaryNorm(cuts, cmap.N)
+
+        legend_info["cmap_name"] = "hot"  # type: ignore
+        legend_info["vmin"] = float(vmin)  # type: ignore
+        legend_info["vmax"] = float(vmax)  # type: ignore
+        legend_info["cuts"] = [float(c) for c in cuts]  # type: ignore
 
         ax.imshow(
             data,
@@ -92,7 +109,10 @@ def dataarray_to_image_overlay(
     plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0, transparent=True)
     plt.close(fig)
     url = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
-    return L.ImageOverlay(url=url, bounds=bounds, opacity=0.7, name=name)
+    overlay = L.ImageOverlay(url=url, bounds=bounds, opacity=0.7, name=name)
+    # Attach legend metadata to the overlay for later use
+    overlay._legend_info = legend_info
+    return overlay
 
 
 def make_point_layer(
@@ -152,6 +172,102 @@ def make_point_layer(
     style_fn = marker_config[layer_name]
     markers = [L.CircleMarker(**style_fn(row)) for row in df.itertuples()]
     return L.LayerGroup(layers=markers, name=layer_name)
+
+
+def raster_layer_legend(name: str, legend_info: dict) -> HTML:
+    """Return an HTML widget to use as a legend for a raster layer.
+
+    Parameters
+    ----------
+    name : str
+        The name of the raster layer (e.g., 'ASD Hotspot', 'ASD Uncertainty').
+    legend_info : dict
+        Dictionary containing legend metadata with keys:
+        - categorical: bool indicating categorical vs continuous data
+        - cmap_name: name of the colormap used
+        - vmin: minimum value (for continuous)
+        - vmax: maximum value (for continuous)
+        - cuts: list of value boundaries (for continuous)
+
+    Returns
+    -------
+    ipywidgets.HTML
+        A small HTML widget showing the color ramp and value scale.
+    """
+    import matplotlib.pyplot as plt
+
+    categorical = legend_info.get("categorical", False)
+    cmap_name = legend_info.get("cmap_name", "viridis")
+
+    try:
+        if categorical:
+            # For categorical data, show a simple colorbar with the colormap
+            cmap = plt.get_cmap(cmap_name)
+            html = f"""<div style="background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 12px; width: 150px; box-sizing: border-box;">
+    <b>{name}</b><br>
+    <span style="font-size: 11px; color: #666;">Categorical Classes</span><br>
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; margin-top: 4px;">"""
+
+            for i in range(20):
+                c = cmap(i / 19)
+                hex_color = "#{:02x}{:02x}{:02x}".format(
+                    int(c[0] * 255), int(c[1] * 255), int(c[2] * 255)
+                )
+                html += (
+                    f"<div style='width: 20px; height: 20px; background-color: {hex_color};'></div>"
+                )
+
+            html += """</div>
+</div>"""
+        else:
+            # For continuous data, show a gradient ramp with value labels
+            vmin = legend_info.get("vmin", 0)
+            vmax = legend_info.get("vmax", 1)
+            cuts = legend_info.get("cuts", [vmin, vmax])
+
+            cmap = plt.get_cmap(cmap_name)
+
+            # Create color ramp HTML with individual color blocks
+            num_steps = 50
+            gradient_html = ""
+            for i in range(num_steps):
+                norm_val = i / (num_steps - 1) if num_steps > 1 else 0
+                c = cmap(norm_val)
+                hex_color = "#{:02x}{:02x}{:02x}".format(
+                    int(c[0] * 255), int(c[1] * 255), int(c[2] * 255)
+                )
+                gradient_html += (
+                    f"<div style='flex: 1; height: 20px; background-color: {hex_color};'></div>"
+                )
+
+            # Format tick labels
+            tick_labels = []
+            for cut in cuts:
+                if cut == int(cut):
+                    tick_labels.append(str(int(cut)))
+                else:
+                    tick_labels.append(f"{cut:.2f}")
+
+            html = f"""<div style="background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 12px; width: 160px; box-sizing: border-box;">
+    <b>{name}</b><br>
+    <div style="display: flex; margin-top: 4px; margin-bottom: 2px; height: 20px;">
+        {gradient_html}
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 10px; color: #666;">
+        <span>{tick_labels[0]}</span>
+        <span>{tick_labels[-1]}</span>
+    </div>
+</div>"""
+
+        return HTML(value=html)
+
+    except Exception:
+        # Return a fallback legend if something goes wrong
+        fallback_html = f"""<div style="background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 12px;">
+    <b>{name}</b><br>
+    <span style="font-size: 11px; color: #999;">(Legend unavailable)</span>
+</div>"""
+        return HTML(value=fallback_html)
 
 
 def point_layer_legend(name: str) -> HTML:
