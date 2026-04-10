@@ -189,6 +189,6 @@ ZSSA_OPTIONS = {
 }
 
 SDMTMB_OPTIONS = {
-    "family": ["Gaussian", "Binomial", "Poisson"],
+    "family": ["Gaussian", "Binomial", "Poisson", "Gamma"],
     "formula": "OlivoP ~  soilhum + tmax + tmin + windspeed + NDVI + MIR + NIR + Red + Blu",
 }

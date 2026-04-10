@@ -130,7 +130,7 @@ def sdmtmb_server(input, output, session, reactive_values):
         extracted_df = reactive_values["extracted_df"]()
         prediction_df = reactive_values["prediction_df"]()
 
-        if not validate_extracted_df(extracted_df):
+        if not validate_df(extracted_df, prediction_df):
             return
 
         # Capture the R callbacks
@@ -274,10 +274,16 @@ def sdmtmb_server(input, output, session, reactive_values):
                 return ["None"] + [c for c in common_cols]
         return ["None"]
 
-    def validate_extracted_df(extracted_df: pd.DataFrame | None) -> bool:
-        """Validate extracted DataFrame before running analysis."""
+    def validate_df(extracted_df: pd.DataFrame, prediction_df: pd.DataFrame) -> bool:
+        """Validate DataFrames before running analysis."""
         if extracted_df is None:
-            ui.notification_show("Please upload a csv containing your data", type="error")
+            ui.notification_show("Please upload a csv containing your training data", type="error")
+            return False
+
+        if prediction_df is None:
+            ui.notification_show(
+                "Please upload a csv containing your prediction data", type="error"
+            )
             return False
 
         return True

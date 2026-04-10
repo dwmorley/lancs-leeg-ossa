@@ -213,14 +213,20 @@ def zssa_server(input, output, session, reactive_values):
         with ui.Progress(min=0, max=len(add * ni)) as p:
             p.set(message="Starting zssa...", value=0)
 
-            summary, proposed = zssa_via_rpy2(
+            result = zssa_via_rpy2(
                 data=extracted_df,
                 nr_iterations=ni,
                 init=init,
                 add=add,
                 from_glm=from_glm,
                 progress=p,
+                notify_fn=ui.notification_show,
             )
+
+            if result is None:
+                return
+
+            summary, proposed = result
 
             reactive_values["zssa_results"].set(
                 {
@@ -299,10 +305,10 @@ def zssa_server(input, output, session, reactive_values):
         points = make_point_layer(proposed, "ZSSA Sites")
         my_ossa_layers.set([points])
 
-        lat_min = float(proposed.latitude.min())
-        lat_max = float(proposed.latitude.max())
-        lon_min = float(proposed.longitude.min())
-        lon_max = float(proposed.longitude.max())
+        lat_min = float(proposed.y.min())
+        lat_max = float(proposed.y.max())
+        lon_min = float(proposed.x.min())
+        lon_max = float(proposed.x.max())
 
         map_ref = reactive_values.get("map_ref")
         if map_ref is not None:
@@ -325,14 +331,14 @@ def zssa_server(input, output, session, reactive_values):
 
         zssa_proposed = reactive_values["zssa_results"]()["proposed"]
         zssa_summary = reactive_values["zssa_results"]()["summary"]
-        combined_df = zssa_proposed[next(iter(zssa_proposed))][["latitude", "longitude"]].copy()
+        combined_df = zssa_proposed[next(iter(zssa_proposed))][["y", "x"]].copy()
         for k, v in zssa_proposed.items():
             combined_df[f"proposed_{k}"] = v["proposed"]
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         zssa_sites_gpkg = gpd.GeoDataFrame(
             combined_df,
-            geometry=gpd.points_from_xy(combined_df.longitude, combined_df.latitude),
+            geometry=gpd.points_from_xy(combined_df.x, combined_df.y),
             crs="EPSG:4326",
         )
 
@@ -371,9 +377,11 @@ def zssa_server(input, output, session, reactive_values):
             return False
 
         if len(cols) == 5:
-            ui.notification_show(
-                "TIME",
-            )
-            return True
+            if "time" not in cols:
+                ui.notification_show(
+                    "Data contains 5 columns but is missing a 'time' column.",
+                    type="error",
+                )
+                return False
 
         return True

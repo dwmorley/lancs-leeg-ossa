@@ -109,6 +109,8 @@ class ASDComputation(RComputationBase):
                 ro.globalenv["area"] = area
 
                 if self.formulaf != "":
+                    # Validate formula variables are in data
+                    self.validate_formula_variables(self.formulaf, data, "formulaf")
                     cols = data.columns.tolist()
                     formula_columns = [col for col in cols if col in self.formular]
                     for col in formula_columns:

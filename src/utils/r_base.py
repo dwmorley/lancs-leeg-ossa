@@ -1,5 +1,6 @@
 """Base class for shared R computation logic across sampling routines."""
 
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
@@ -97,6 +98,64 @@ class RComputationBase(ABC):
             elif col.lower() in ["latitude", "lat", "ltd"]:
                 col_map[col] = "y"
         return df.rename(columns=col_map)
+
+    @staticmethod
+    def extract_formula_variables(formula: str) -> list[str]:
+        """Extract variable names from an R formula string.
+
+        Parameters
+        ----------
+        formula : str
+            R formula string (e.g., "y ~ x1 + x2 + x3")
+
+        Returns
+        -------
+        list[str]
+            List of variable names found in the formula
+        """
+        # Remove whitespace and operators
+        # Match valid R variable names: alphanumeric, dots, underscores (not starting with digit)
+        pattern = r"[a-zA-Z_.][a-zA-Z0-9_]*"
+        matches = re.findall(pattern, formula)
+        return matches
+
+    @staticmethod
+    def validate_formula_variables(
+        formula: str, data: pd.DataFrame, formula_name: str = "formula"
+    ) -> None:
+        """Validate that all variables in a formula string are present in data.
+
+        Parameters
+        ----------
+        formula : str
+            R formula string (e.g., "y ~ x1 + x2 + x3")
+        data : pd.DataFrame
+            DataFrame with available columns
+        formula_name : str, optional
+            Name of the formula parameter for error messages
+
+        Raises
+        ------
+        ValueError
+            If any variables in the formula are not found in the data
+        """
+        # Extract variables from formula
+        formula_vars = RComputationBase.extract_formula_variables(formula)
+
+        # Get available columns (excluding x/y which are renamed from lng/lat)
+        available_cols = set(data.columns)
+
+        # Find missing variables
+        missing_vars = set(formula_vars) - available_cols
+
+        if missing_vars:
+            available_list = ", ".join(sorted(available_cols))
+            missing_list = ", ".join(sorted(missing_vars))
+            raise ValueError(
+                f"The following variables in {formula_name} are not found in data:\n"
+                f"  Missing: {missing_list}\n"
+                f"  Available columns: {available_list}"
+            )
 
     @abstractmethod
     def _compute(self) -> Any:

@@ -84,6 +84,13 @@ docker compose build --no-cache
 docker compose up
 ```
 
+### To run locally without Docker
+- Clone this repository
+- In a terminal/command window, navigate to the project directory (where app.py lives).
+- Ensure Poetry is installed and run `poetry install` to install dependencies.
+- Run `poetry run shiny run app.py` to start the app.
+- Open your web browser and navigate to http://127.0.0.1:8000/
+
 ## Deployment
 
 To create a new docker image on GitHub:

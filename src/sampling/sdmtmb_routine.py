@@ -69,6 +69,14 @@ class SDMTMBComputation(RComputationBase):
                 data = self.rename_lonlat_to_xy(self.data)
                 area = self.rename_lonlat_to_xy(self.area)
 
+                # Validate formula variables are in data
+                self.validate_formula_variables(self.formula, data, "formula")
+                if self.time != "None" and self.time not in data.columns:
+                    raise ValueError(
+                        f"Time column '{self.time}' not found in data. "
+                        f"Available columns: {', '.join(sorted(data.columns))}"
+                    )
+
                 ro.globalenv["data"] = data
                 ro.globalenv["area"] = area
 

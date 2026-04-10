@@ -158,7 +158,7 @@ def make_point_layer(
             fill_opacity=0.7,
         ),
         "ZSSA Sites": lambda row: dict(
-            location=(row.latitude, row.longitude),
+            location=(row.y, row.x),
             radius=8,
             color="blue",
             fill=False,
