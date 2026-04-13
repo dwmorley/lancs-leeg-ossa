@@ -195,11 +195,9 @@ def run_extraction(
         ecmwf_key = api_keys.get("ecmwf_api_key", "") or ""
         if not ecmwf_key.strip():
             ui.notification_show(
-                {
-                    "message": "No ECMWF API key provided. Skipping ECMWF variables.",
-                    "type": "error",
-                    "duration": None,
-                }
+                "No ECMWF API key provided. Skipping ECMWF variables.",
+                type="error",
+                duration=None,
             )
         else:
             client = Client(
@@ -238,7 +236,7 @@ def run_extraction(
 
         # Process regular variables in parallel using threading
         if regular_vars:
-            max_workers = min(len(regular_vars), os.cpu_count() - 2)
+            max_workers = os.cpu_count() - 2
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
 
                 future_to_var = {
@@ -265,11 +263,9 @@ def run_extraction(
                             error_msg = f"Skipping {variable_lut.get(var_name, var_name)} — {error}"
                             print(f"  ERROR: {error_msg}")
                             ui.notification_show(
-                                {
-                                    "message": error_msg,
-                                    "type": "warning",
-                                    "duration": None,
-                                }
+                                error_msg,
+                                type="warning",
+                                duration=None,
                             )
                         elif result is not None:
                             print(f"  SUCCESS: Added column {var_name}")
@@ -285,11 +281,9 @@ def run_extraction(
                             error_str = error_str[:147] + "..."
                         print(f"  EXCEPTION: Failed to process {var}: {error_str}")
                         ui.notification_show(
-                            {
-                                "message": f"Failed to process {var}: {error_str}",
-                                "type": "warning",
-                                "duration": None,
-                            }
+                            f"Failed to process {var}: {error_str}",
+                            type="warning",
+                            duration=None,
                         )
 
                     completed += 1
@@ -315,11 +309,9 @@ def run_extraction(
                 )
                 if results is None:
                     ui.notification_show(
-                        {
-                            "message": "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
-                            "type": "warning",
-                            "duration": 5,
-                        }
+                        "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
+                        type="warning",
+                        duration=5,
                     )
                 else:
                     for var, values in results.items():
@@ -342,19 +334,15 @@ def run_extraction(
                 )
                 if any(h in error_str.lower() for h in auth_hints):
                     ui.notification_show(
-                        {
-                            "message": "ECMWF authentication failed. Please check your API key and try again.",
-                            "type": "warning",
-                            "duration": None,
-                        }
+                        "ECMWF authentication failed. Please check your API key and try again.",
+                        type="warning",
+                        duration=None,
                     )
                 else:
                     ui.notification_show(
-                        {
-                            "message": f"Error processing ECMWF data: {error_str}",
-                            "type": "warning",
-                            "duration": None,
-                        }
+                        f"Error processing ECMWF data: {error_str}",
+                        type="warning",
+                        duration=None,
                     )
 
     print("Complete!")

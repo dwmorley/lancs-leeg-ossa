@@ -44,7 +44,17 @@ def _download_to_tempfile(client: Client, request: dict) -> str:
 
 def _read_netcdf_file(tmp_path: str, cds_var_names: list[str]) -> dict[str, xr.DataArray]:
     """Open a NetCDF4 file and return one time-averaged DataArray per variable."""
-    ds = xr.open_dataset(tmp_path, engine="netcdf4")
+    try:
+        ds = xr.open_dataset(tmp_path, engine="netcdf4")
+    except (OSError, Exception) as e:
+        # If netcdf4 fails, try cfgrib (for GRIB files)
+        if "Unknown file format" in str(e) or "NetCDF" in str(e):
+            try:
+                ds = xr.open_dataset(tmp_path, engine="cfgrib")
+            except Exception:
+                raise e  # Re-raise original error if cfgrib also fails
+        else:
+            raise
 
     rename_map = {}
     if "latitude" in ds.dims:

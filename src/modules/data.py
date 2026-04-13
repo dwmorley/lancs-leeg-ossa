@@ -222,6 +222,17 @@ def data_server(input, output, session, reactive_values):
         east = extents["east"]
         west = extents["west"]
 
+        width_deg = abs(east - west)
+        height_deg = abs(north - south)
+        if width_deg * height_deg > 700:
+            ui.notification_show(
+                ui.HTML(
+                    "The selected area is quite large. Extraction may take a long time or fail due to memory limits.<br><br>It might work but take ages - However, consider reducing the area"
+                ),
+                type="warning",
+                duration=None,
+            )
+
         bbox = BoundingBox([min(west, east), min(south, north), max(west, east), max(south, north)])
 
         _date_range = input.covariate_dates()

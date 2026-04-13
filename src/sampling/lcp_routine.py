@@ -39,7 +39,6 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
         if progress is not None:
             progress.set(value=value, message=message)
 
-    np.random.seed(1234)
     grid2 = grid
     grid = round(total * grid)
 
@@ -60,8 +59,21 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
         v[yy] = 1
 
     # Sampling from each strata
-    if np.sum(v) > total:
-        v[np.argmax(v)] = np.max(v) - 1
+    # Correct for rounding errors across strata to ensure exact total
+    current_total = np.sum(v)
+    if current_total != total:
+        diff = total - current_total
+        v[np.argmax(v)] += diff
+
+    # Recalculate g proportionally to match corrected v
+    current_grid = int(np.sum(g))
+    if current_grid > np.sum(v):
+        # Adjust g to match the corrected v
+        for i in range(len(g)):
+            g[i] = min(g[i], v[i] - 1) if v[i] > 0 else 0
+    current_grid = int(np.sum(g))
+    if current_grid > np.sum(v):
+        g[np.argmax(g)] -= current_grid - np.sum(v)
 
     y_coords, x_coords = map.coords[map.dims[0]], map.coords[map.dims[1]]
     x_min, x_max = float(x_coords.min()), float(x_coords.max())
@@ -151,6 +163,76 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
     final = pd.concat([dataframe, bb], ignore_index=True)
     final["type"] = ["G"] * len(dataframe) + ["I"] * len(bb)
 
+    # Ensure final dataframe has exactly 'total' rows
+    current_total = len(final)
+    if current_total != total:
+        if current_total > total:
+            # Remove excess points from inhibitory (I) type, then grid (G) if needed
+            excess = current_total - total
+            i_indices = final[final["type"] == "I"].index.tolist()
+            if len(i_indices) >= excess:
+                remove_idx = np.random.choice(i_indices, excess, replace=False)
+            else:
+                remove_idx = i_indices
+                remaining = excess - len(i_indices)
+                g_indices = final[final["type"] == "G"].index.tolist()
+                remove_idx = list(remove_idx) + list(
+                    np.random.choice(g_indices, remaining, replace=False)
+                )
+            final = final.drop(remove_idx)
+        else:
+            # Undershoot: need to add more points
+            deficit = total - current_total
+            # Try to add more inhibitory points from dataframe2
+            if len(dataframe2) > 0:
+                available_idx = dataframe2.index.tolist()
+                # Get indices of points not already in final
+                taken_idx = []
+                for idx in final[final["type"] == "I"].index:
+                    for j, row in dataframe2.iterrows():
+                        if final.loc[idx, "x"] == row["x"] and final.loc[idx, "y"] == row["y"]:
+                            taken_idx.append(j)
+                            break
+                available_idx = [i for i in available_idx if i not in taken_idx]
+
+                if len(available_idx) >= deficit:
+                    sample_idx = np.random.choice(available_idx, deficit, replace=False)
+                    extra_pts = dataframe2.loc[sample_idx, ["x", "y", "v"]].copy()
+                    extra_pts.columns = ["x", "y", "class"]
+                    extra_pts["type"] = "I"
+                    final = pd.concat([final, extra_pts], ignore_index=True)
+                else:
+                    # Not enough in dataframe2, add remaining from random map locations
+                    remaining = deficit - len(available_idx)
+                    if len(available_idx) > 0:
+                        sample_idx = np.random.choice(
+                            available_idx, len(available_idx), replace=False
+                        )
+                        extra_pts = dataframe2.loc[sample_idx, ["x", "y", "v"]].copy()
+                        extra_pts.columns = ["x", "y", "class"]
+                        extra_pts["type"] = "I"
+                        final = pd.concat([final, extra_pts], ignore_index=True)
+
+                    # Add remaining from map
+                    if remaining > 0:
+                        y_idx, x_idx_arr = np.where(~np.isnan(map.values))
+                        sample_idx = np.random.choice(len(y_idx), remaining, replace=False)
+                        extra_rows = []
+                        for idx in sample_idx:
+                            extra_rows.append(
+                                {
+                                    "x": x_coords.values[x_idx_arr[idx]],
+                                    "y": y_coords.values[y_idx[idx]],
+                                    "class": map.values[y_idx[idx], x_idx_arr[idx]],
+                                    "type": "I",
+                                }
+                            )
+                        extra_pts = pd.DataFrame(extra_rows)
+                        final = pd.concat([final, extra_pts], ignore_index=True)
+
+    counts = final["type"].value_counts().sort_index()
+    print(counts)
+
     return final
 
 
@@ -203,3 +285,17 @@ def plot_lcp(map_raster: xr.DataArray, sites: pd.DataFrame, n_classes: int) -> N
     ax.legend(loc="upper right", fontsize=11)
     plt.tight_layout()
     plt.show()
+
+
+if __name__ == "__main__":
+
+    x = np.linspace(0, 100, 100)
+    y = np.linspace(0, 100, 100)
+    xx, yy = np.meshgrid(x, y)
+    synthetic_map = xr.DataArray(
+        (xx // 20 + yy // 20) % 5, coords={"y": y, "x": x}, dims=["y", "x"]
+    )
+    sampling_sites = lcp(synthetic_map, delta=5, zeta=15, total=50, grid=0.6)
+    counts = sampling_sites["type"].value_counts().sort_index()
+    print(counts)
+    plot_lcp(synthetic_map, sampling_sites, n_classes=5)
