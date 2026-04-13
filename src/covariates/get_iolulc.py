@@ -1,5 +1,8 @@
 """Fetch and prepare land use / land cover (LULC) covariates for an AOI."""
 
+import gc
+import threading
+
 import numpy as np
 import planetary_computer
 import pystac_client
@@ -9,6 +12,9 @@ import xarray as xr
 from pyproj import Transformer
 
 from src.utils.bounding_box import BoundingBox
+
+# Semaphore to limit concurrent remote file operations (prevent file descriptor exhaustion)
+_remote_file_semaphore = threading.Semaphore(3)
 
 
 def get_iolulc(
@@ -121,35 +127,44 @@ def get_iolulc_points(
 
     values = np.full(len(xs), np.nan)
 
-    for item in items:
-        href = item.assets["data"].href
+    try:
+        for item in items:
+            href = item.assets["data"].href
 
-        with rasterio.open(href) as src:
-            tile_crs = src.crs
+            # Use semaphore to limit concurrent remote file operations
+            with _remote_file_semaphore:
+                with rasterio.open(href) as src:
+                    tile_crs = src.crs
 
-            transformer = Transformer.from_crs("EPSG:4326", tile_crs, always_xy=True)
-            tile_xs, tile_ys = transformer.transform(xs, ys)
+                    transformer = Transformer.from_crs("EPSG:4326", tile_crs, always_xy=True)
+                    tile_xs, tile_ys = transformer.transform(xs, ys)
 
-            # Mask to points within tile bounds
-            left, bottom, right, top = src.bounds
-            in_tile = (
-                (tile_xs >= left) & (tile_xs <= right) & (tile_ys >= bottom) & (tile_ys <= top)
-            )
+                    # Mask to points within tile bounds
+                    left, bottom, right, top = src.bounds
+                    in_tile = (
+                        (tile_xs >= left)
+                        & (tile_xs <= right)
+                        & (tile_ys >= bottom)
+                        & (tile_ys <= top)
+                    )
 
-            if not in_tile.any():
-                continue
+                    if not in_tile.any():
+                        continue
 
-            coords = list(zip(tile_xs[in_tile], tile_ys[in_tile]))
-            # sample() does a single batched COG read — only touches
-            # the blocks your points fall in
-            sampled = np.array([v[0] for v in src.sample(coords)])
+                    coords = list(zip(tile_xs[in_tile], tile_ys[in_tile]))
+                    # sample() does a single batched COG read — only touches
+                    # the blocks your points fall in
+                    sampled = np.array([v[0] for v in src.sample(coords)])
 
-            raw = sampled.astype(float)
-            raw[np.isin(raw, [0, 1])] = np.nan
+                    raw = sampled.astype(float)
+                    raw[np.isin(raw, [0, 1])] = np.nan
 
-            mask = in_tile.nonzero()[0]
-            overwrite = np.isnan(values[mask])
-            values[mask] = np.where(overwrite, raw, values[mask])
+                    mask = in_tile.nonzero()[0]
+                    overwrite = np.isnan(values[mask])
+                    values[mask] = np.where(overwrite, raw, values[mask])
+    finally:
+        # Explicitly trigger garbage collection to free file descriptors
+        gc.collect()
 
     return values
 
@@ -171,5 +186,3 @@ if __name__ == "__main__":
     y = xy[:, 1]
 
     res = get_iolulc_points(bbox, x, y)
-
-    b = 0

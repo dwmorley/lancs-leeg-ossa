@@ -1,5 +1,8 @@
 """Helpers to fetch and process digital elevation model (DEM) rasters for AOIs."""
 
+import gc
+import threading
+
 import numpy as np
 import planetary_computer
 import pystac_client
@@ -7,6 +10,9 @@ import rasterio
 from pyproj import Transformer
 
 from src.utils.bounding_box import BoundingBox
+
+# Semaphore to limit concurrent remote file operations (prevent file descriptor exhaustion)
+_remote_file_semaphore = threading.Semaphore(3)
 
 
 def get_dem_points(
@@ -46,27 +52,36 @@ def get_dem_points(
 
     values = np.full(len(xs), np.nan)
 
-    for item in items:
-        href = item.assets["data"].href
-        with rasterio.open(href) as src:
-            tile_crs = src.crs
-            transformer = Transformer.from_crs("EPSG:4326", tile_crs, always_xy=True)
-            tile_xs, tile_ys = transformer.transform(xs, ys)
+    try:
+        for item in items:
+            href = item.assets["data"].href
+            # Use semaphore to limit concurrent remote file operations
+            with _remote_file_semaphore:
+                with rasterio.open(href) as src:
+                    tile_crs = src.crs
+                    transformer = Transformer.from_crs("EPSG:4326", tile_crs, always_xy=True)
+                    tile_xs, tile_ys = transformer.transform(xs, ys)
 
-            left, bottom, right, top = src.bounds
-            in_tile = (
-                (tile_xs >= left) & (tile_xs <= right) & (tile_ys >= bottom) & (tile_ys <= top)
-            )
-            if not in_tile.any():
-                continue
+                    left, bottom, right, top = src.bounds
+                    in_tile = (
+                        (tile_xs >= left)
+                        & (tile_xs <= right)
+                        & (tile_ys >= bottom)
+                        & (tile_ys <= top)
+                    )
+                    if not in_tile.any():
+                        continue
 
-            coords = list(zip(tile_xs[in_tile], tile_ys[in_tile]))
-            sampled = np.array([v[0] for v in src.sample(coords)], dtype=float)
-            # nodata is typically -32767 or large negative
-            sampled[sampled <= -9999] = np.nan
+                    coords = list(zip(tile_xs[in_tile], tile_ys[in_tile]))
+                    sampled = np.array([v[0] for v in src.sample(coords)], dtype=float)
+                    # nodata is typically -32767 or large negative
+                    sampled[sampled <= -9999] = np.nan
 
-            mask = in_tile.nonzero()[0]
-            overwrite = np.isnan(values[mask])
-            values[mask] = np.where(overwrite, sampled, values[mask])
+                    mask = in_tile.nonzero()[0]
+                    overwrite = np.isnan(values[mask])
+                    values[mask] = np.where(overwrite, sampled, values[mask])
+    finally:
+        # Explicitly trigger garbage collection to free file descriptors
+        gc.collect()
 
     return values

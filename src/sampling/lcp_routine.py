@@ -113,10 +113,17 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
     dataframe2_list = []
     _p(2, "Generating close pairs...")
     for _, row in dataframe.iterrows():
+        # Generate candidate points, clipping to raster bounds
         x_range = np.arange(row["x"] + delta, row["x"] + zeta - delta + delta, delta)
         y_range = np.arange(row["y"] + delta, row["y"] + zeta - delta + delta, delta)
-        xg, yg = np.meshgrid(x_range, y_range)
-        dataframe2_list.append(np.column_stack([xg.ravel(), yg.ravel()]))
+
+        # Clip ranges to raster bounds
+        x_range = x_range[(x_range >= x_min) & (x_range <= x_max)]
+        y_range = y_range[(y_range >= y_min) & (y_range <= y_max)]
+
+        if len(x_range) > 0 and len(y_range) > 0:
+            xg, yg = np.meshgrid(x_range, y_range)
+            dataframe2_list.append(np.column_stack([xg.ravel(), yg.ravel()]))
 
     dataframe2 = np.vstack(dataframe2_list) if dataframe2_list else np.empty((0, 2))
 
@@ -127,12 +134,18 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
         dataframe2 = np.delete(dataframe2, remove_idx, axis=0)
 
     if len(dataframe2) > 0:
-        classes2 = map.interp(
+        # Use sel() with method="nearest" instead of interp() to stay within bounds
+        # Also filter out any points where the nearest cell is NaN (outside valid data)
+        classes2 = map.sel(
             x=xr.DataArray(dataframe2[:, 0], dims="points"),
             y=xr.DataArray(dataframe2[:, 1], dims="points"),
             method="nearest",
         ).values
-        dataframe2 = pd.DataFrame({"x": dataframe2[:, 0], "y": dataframe2[:, 1], "v": classes2})
+        # Only keep points that have valid class values (not NaN)
+        valid_idx = ~np.isnan(classes2)
+        dataframe2 = pd.DataFrame(
+            {"x": dataframe2[valid_idx, 0], "y": dataframe2[valid_idx, 1], "v": classes2[valid_idx]}
+        )
     else:
         dataframe2 = pd.DataFrame(columns=["x", "y", "v"])
 
@@ -162,6 +175,14 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
 
     final = pd.concat([dataframe, bb], ignore_index=True)
     final["type"] = ["G"] * len(dataframe) + ["I"] * len(bb)
+
+    # Ensure all points are within raster bounds
+    final = final[
+        (final["x"] >= x_min)
+        & (final["x"] <= x_max)
+        & (final["y"] >= y_min)
+        & (final["y"] <= y_max)
+    ].reset_index(drop=True)
 
     # Ensure final dataframe has exactly 'total' rows
     current_total = len(final)
@@ -229,9 +250,6 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
                             )
                         extra_pts = pd.DataFrame(extra_rows)
                         final = pd.concat([final, extra_pts], ignore_index=True)
-
-    counts = final["type"].value_counts().sort_index()
-    print(counts)
 
     return final
 

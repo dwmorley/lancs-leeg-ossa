@@ -234,33 +234,74 @@ def run_extraction(
         progress.set(message="Extracting variables...")
         print("Starting extraction...")
 
-        # Process regular variables in parallel using threading
-        if regular_vars:
-            max_workers = os.cpu_count() - 2
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Use a single executor for both regular and ECMWF variables
+        max_workers = os.cpu_count() - 2
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
 
-                future_to_var = {
-                    executor.submit(
-                        _fetch_single_variable_points,
-                        var,
-                        bbox,
-                        xs,
-                        ys,
-                        year,
-                        date_range,
-                        variable_lut,
-                    ): var
-                    for var in regular_vars
-                }
+            # Dictionary to track all futures
+            future_to_var = {}
 
-                # Process results as they complete
-                for future in as_completed(future_to_var):
-                    var = future_to_var[future]
+            # Submit regular variables to the executor
+            for var in regular_vars:
+                future = executor.submit(
+                    _fetch_single_variable_points,
+                    var,
+                    bbox,
+                    xs,
+                    ys,
+                    year,
+                    date_range,
+                    variable_lut,
+                )
+                future_to_var[future] = ("regular", var)
+
+            # Submit ECMWF processing as a single batch task if variables exist and client is available
+            if ecmwf_vars and client is not None:
+
+                def _fetch_ecmwf_batch():
+                    try:
+                        print(f"Processing {len(ecmwf_vars)} ERA5 variable(s)...")
+                        results = get_ecmwf_points(
+                            bbox=bbox,
+                            xs=xs,
+                            ys=ys,
+                            variables=ecmwf_vars,
+                            client=client,
+                            date_range=date_range,
+                        )
+                        if results is None:
+                            return None, "Failed to retrieve ECMWF data"
+                        return results, None
+                    except Exception as e:
+                        error_str = str(e)
+                        auth_hints = (
+                            "401",
+                            "403",
+                            "unauthorized",
+                            "authentication",
+                            "invalid key",
+                            "forbidden",
+                        )
+                        if any(h in error_str.lower() for h in auth_hints):
+                            return None, "ECMWF authentication failed. Please check your API key."
+                        return None, f"Error processing ECMWF data: {error_str}"
+
+                ecmwf_future = executor.submit(_fetch_ecmwf_batch)
+                future_to_var[ecmwf_future] = ("ecmwf", "ecmwf_batch")
+
+            # Process results as they complete
+            for future in as_completed(future_to_var):
+                var_type, var_info = future_to_var[future]
+                display_name = ""
+
+                if var_type == "regular":
+                    var = var_info
                     try:
                         var_name, result, error = future.result()
+                        display_name = variable_lut.get(var_name, var_name)
 
                         if error:
-                            error_msg = f"Skipping {variable_lut.get(var_name, var_name)} — {error}"
+                            error_msg = f"Skipping {display_name} — {error}"
                             print(f"  ERROR: {error_msg}")
                             ui.notification_show(
                                 error_msg,
@@ -286,64 +327,39 @@ def run_extraction(
                             duration=None,
                         )
 
-                    completed += 1
-                    progress.set(
-                        completed,
-                        detail=f"{completed}/{total_vars} variables, {variable_lut.get(var_name, var_name)}",
-                    )
-                    print(f"Extracted {completed}/{total_vars} variables...")
+                else:  # ecmwf batch
+                    display_name = "ERA5 Variables"
+                    try:
+                        results, error = future.result()
+                        if error:
+                            print(f"  ERROR: {error}")
+                            ui.notification_show(
+                                error,
+                                type="warning",
+                                duration=None,
+                            )
+                        elif results is not None:
+                            for var, values in results.items():
+                                df[var] = np.asarray(values, dtype=float)
+                            print(f"  SUCCESS: Added {len(results)} ECMWF variable(s)")
 
-        # Process ECMWF variables in batch
-        if ecmwf_vars and client is not None:
-
-            print(f"Processing {len(ecmwf_vars)} ERA5 variable(s)...")
-
-            try:
-                results = get_ecmwf_points(
-                    bbox=bbox,
-                    xs=xs,
-                    ys=ys,
-                    variables=ecmwf_vars,
-                    client=client,
-                    date_range=date_range,
-                )
-                if results is None:
-                    ui.notification_show(
-                        "Failed to retrieve ECMWF data. Skipped. Please check your API key and try again.",
-                        type="warning",
-                        duration=5,
-                    )
-                else:
-                    for var, values in results.items():
-                        df[var] = np.asarray(values, dtype=float)
-                        completed += 1
-                        progress.set(
-                            completed,
-                            detail=f"{completed}/{total_vars} variables, {variable_lut.get(var_name, var_name)}",
+                    except Exception as e:
+                        error_str = str(e)
+                        if len(error_str) > 150:
+                            error_str = error_str[:147] + "..."
+                        print(f"  EXCEPTION: Failed to process ECMWF batch: {error_str}")
+                        ui.notification_show(
+                            f"Failed to process ECMWF batch: {error_str}",
+                            type="warning",
+                            duration=None,
                         )
-                    print(f"Successfully added {len(results)} ECMWF variables")
-            except Exception as e:
-                error_str = str(e)
-                auth_hints = (
-                    "401",
-                    "403",
-                    "unauthorized",
-                    "authentication",
-                    "invalid key",
-                    "forbidden",
+
+                completed += 1
+                progress.set(
+                    completed,
+                    detail=f"{completed}/{total_vars} variables, {display_name}",
                 )
-                if any(h in error_str.lower() for h in auth_hints):
-                    ui.notification_show(
-                        "ECMWF authentication failed. Please check your API key and try again.",
-                        type="warning",
-                        duration=None,
-                    )
-                else:
-                    ui.notification_show(
-                        f"Error processing ECMWF data: {error_str}",
-                        type="warning",
-                        duration=None,
-                    )
+                print(f"Extracted {completed}/{total_vars} variables...")
 
     print("Complete!")
 
