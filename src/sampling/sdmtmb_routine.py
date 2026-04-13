@@ -9,6 +9,7 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
 
+from src.constants import SDMTMB_OPTIONS
 from src.utils.r_base import RComputationBase
 
 
@@ -26,7 +27,7 @@ class SDMTMBComputation(RComputationBase):
         area: pd.DataFrame,
         on_progress: Callable[[float, str, str], None] | None = None,
     ):
-        """Initialize SDMTMB computation.
+        """Initialise SDMTMB computation.
 
         Parameters
         ----------
@@ -130,7 +131,9 @@ class SDMTMBComputation(RComputationBase):
 
                 self._prog(0.75, "Predicting standard errors")
 
-                ro.r("""p_se <- predict(fit_spatiotemporal1, newdata = newdata, nsim=200)""")
+                ro.r(
+                    f"""p_se <- predict(fit_spatiotemporal1, newdata = newdata, nsim={SDMTMB_OPTIONS["nsim"]})"""
+                )
 
                 if self.time == "None":
                     ro.r(
