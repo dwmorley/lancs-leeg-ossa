@@ -76,19 +76,13 @@ def footer_server(input, output, session, reactive_values):
                         style="display:flex; align-items:center; gap:10px; margin-bottom:15px;",
                     ),
                     ui.tags.hr(),
-                    ui.tags.h5("Lorem ipsum dolor."),
                     ui.tags.p(
-                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
-                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
-                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
-                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ",
+                        "Please see the accompanying documentation for detailed instructions on how to use the application",
                         style="text-align:justify;",
                     ),
                     ui.tags.hr(),
                     ui.tags.p(
-                        "For further guidance, see the ",
-                        ui.tags.a("GitHub repository", href=URLS["github"], target="_blank"),
-                        " or contact ",
+                        "For further guidance contact ",
                         ui.tags.a("Luigi Sedda", href=URLS["luigi_email"]),
                         ".",
                         style="font-size:0.85rem; color:#666;",
