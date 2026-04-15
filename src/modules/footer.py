@@ -75,12 +75,10 @@ def footer_server(input, output, session, reactive_values):
                         ui.tags.h3(" How to use OSSA", style="margin:0;"),
                         style="display:flex; align-items:center; gap:10px; margin-bottom:15px;",
                     ),
-                    ui.tags.hr(),
                     ui.tags.p(
                         "Please see the accompanying documentation for detailed instructions on how to use the application",
                         style="text-align:justify;",
                     ),
-                    ui.tags.hr(),
                     ui.tags.p(
                         "For further guidance contact ",
                         ui.tags.a("Luigi Sedda", href=URLS["luigi_email"]),
