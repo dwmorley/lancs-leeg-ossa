@@ -141,23 +141,8 @@ def footer_server(input, output, session, reactive_values):
                             ui.tags.li(
                                 ui.tags.strong("David Morley"), " — Python/Shiny implementation"
                             ),
-                            ui.tags.li(
-                                ui.tags.strong("And also these people..."), " — contribution"
-                            ),
-                            ui.tags.li(ui.tags.strong("and those people..."), " — funding"),
                         ),
                         style="text-align:justify;",
-                    ),
-                    ui.tags.hr(),
-                    ui.tags.p(
-                        "If you use the basemaps given by this application in your work, please cite them as follows: "
-                    ),
-                    ui.tags.p(
-                        ui.tags.strong("Open Street Map (OSM):"), " © OpenStreetMap contributors."
-                    ),
-                    ui.tags.p(
-                        ui.tags.strong("ESRI World Imagery:"),
-                        " © Esri — Source: Esri, i-cubed, USDA, USGS, AEG, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EarthWatch, © OpenStreetMap contributors, and the GIS User Community",
                     ),
                     ui.tags.hr(),
                     ui.tags.p(
