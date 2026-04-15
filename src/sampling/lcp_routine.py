@@ -1,6 +1,5 @@
 """Routines for the LCP sampling design. Translated from Luigi's original R code."""
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -254,57 +253,6 @@ def lcp(map, delta, zeta, total=30, grid=0.7, progress=None):
     return final
 
 
-def plot_lcp(map_raster: xr.DataArray, sites: pd.DataFrame, n_classes: int) -> None:
-    """Plot an ecological classification raster and overlay sampling sites.
-
-    Parameters
-    ----------
-    map_raster : xarray.DataArray
-        Raster of class IDs used as the background.
-    sites : pandas.DataFrame
-        DataFrame produced by :func:`lcp` containing columns ['x', 'y', 'class', 'type'].
-    n_classes : int
-        Number of distinct classes (used to set the colormap).
-
-    Returns
-    -------
-    None
-        Displays the plot using matplotlib and returns None.
-    """
-    cmap = plt.get_cmap("tab20", n_classes)
-    fig, ax = plt.subplots(figsize=(6, 6))
-    map_raster.plot(ax=ax, cmap=cmap, cbar_kwargs={"label": "Class ID"})
-
-    sites_G = sites[sites["type"] == "G"]
-    sites_I = sites[sites["type"] == "I"]
-    ax.scatter(
-        sites_G["x"],
-        sites_G["y"],
-        marker="o",
-        color="blue",
-        s=50,
-        label="Grid (G)",
-        zorder=5,
-        edgecolors="black",
-        linewidth=0.5,
-    )
-    ax.scatter(
-        sites_I["x"],
-        sites_I["y"],
-        marker="x",
-        color="red",
-        s=100,
-        label="Inhibitory (I)",
-        zorder=5,
-        linewidth=2,
-    )
-
-    ax.set_title("Ecological Classification with Sampling Sites", fontsize=14, fontweight="bold")
-    ax.legend(loc="upper right", fontsize=11)
-    plt.tight_layout()
-    plt.show()
-
-
 if __name__ == "__main__":
 
     x = np.linspace(0, 100, 100)
@@ -316,4 +264,3 @@ if __name__ == "__main__":
     sampling_sites = lcp(synthetic_map, delta=5, zeta=15, total=50, grid=0.6)
     counts = sampling_sites["type"].value_counts().sort_index()
     print(counts)
-    plot_lcp(synthetic_map, sampling_sites, n_classes=5)

@@ -12,9 +12,8 @@ This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorithm (OS
 ![OSSA screenshot](www/OSSA_screengrab_1.png)
 
 ## Credits and Acknowledgements
-- The sampling algorithms were developed by Luigi Sedda (University of Lancaster) (funded by XYX grant).
-- The Shiny app was developed by David Morley.
-- and some other people too ...
+- The sampling algorithms were developed by Luigi Sedda (University of Lancaster).
+- The Shiny app was developed by David Morley (University of Lancaster).
 
 ## Installation & Running
 
@@ -22,7 +21,7 @@ OSSA runs locally on your machine using Docker. To get started, follow these ste
 1. Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/). You will only need to do this once.
 2. run the launch script:
 
-   - For a Mac it is the ```launch.sh``` so in ther terminal ```sh <PATH>/launch.sh```
+   - For a Mac it is the ```launch.sh``` so in the terminal ```sh <PATH>/launch.sh```
    - For a PC it is the ```launch.bat``` so in the command prompt ```<PATH>\launch.bat```
 
 3. Open your web browser and navigate to ```http://0.0.0.0:8000```
@@ -32,7 +31,7 @@ OSSA runs locally on your machine using Docker. To get started, follow these ste
     - Any downloads will be in, ```home > appuser > Downloads```
     - Right-click on the file you want to download and select "Save". The file will be downloaded to your local machine.
 6. You will also see the container running in Docker Desktop. You can stop the container when you are done using OSSA.
-7. OSSA can also be lauched from Docker Desktop without having to run the launch script. In Docker, your 'image' is
+7. OSSA can also be launched from Docker Desktop without having to run the launch script. In Docker, your 'image' is
 essentially the software, and the 'container' is a single running instance of this. So, you can start and stop both
 images and containers in Docker Desktop. When starting a new container, you may need to specify a port - you can assign
 '0' to select a random port and click on the host URL once the container is running.
