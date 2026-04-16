@@ -19,7 +19,7 @@ This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorithm (OS
 
 OSSA runs locally on your machine using Docker. To get started, follow these steps:
 1. Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/). You will only need to do this once.
-2. run the launch script:
+2. Run the launch script:
 
    - For a Mac it is the ```launch.sh``` so in the terminal ```sh <PATH>/launch.sh```
    - For a PC it is the ```launch.bat``` so in the command prompt ```<PATH>\launch.bat```
