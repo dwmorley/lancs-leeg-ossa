@@ -39,7 +39,7 @@ def zssa_ui():
                         ),
                         ui.input_checkbox(
                             "kriging_checkbox",
-                            "Enable Kriging",
+                            "Disable Kriging",
                             value=ZSSA_OPTIONS["from_glm"],
                         ),
                         ui.output_ui("number_list_ui"),
