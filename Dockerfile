@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── Base: R 4.4 on Ubuntu 22.04 (rocker already has R compiled with --enable-R-shlib,
-#    which rpy2 requires). Python 3.13 is added on top via the deadsnakes PPA.
+#    which rpy2 requires). Python 3.11 is added on top via the deadsnakes PPA.
 FROM rocker/r-ver:4.4
 
 # ── Prevent apt interactive prompts ──────────────────────────────────────────
@@ -11,7 +11,7 @@ ENV TZ=UTC
 # ── Install system libraries ──────────────────────────────────────────────────
 # Geo stack: GDAL, PROJ, GEOS, SpatialIndex (needed by rasterio/geopandas/pyproj/shapely)
 # HDF5 + NetCDF (needed by netcdf4/xarray)
-# Build tools and Python 3.13 prerequisites
+# Build tools and Python 3.11 prerequisites
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     build-essential \
