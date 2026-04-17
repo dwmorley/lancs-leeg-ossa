@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgdal-dev libproj-dev libgeos-dev libspatialindex-dev \
     libhdf5-dev libnetcdf-dev libudunits2-dev \
     libbz2-dev liblzma-dev zlib1g-dev libdeflate-dev libpcre2-dev \
+    cmake \
+    libabsl-dev \
+    libfontconfig1-dev libfreetype6-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install R 4.1 (builder needs r-base-dev for compilation)
@@ -43,7 +46,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /tmp
 COPY requirements.txt .
 RUN pip install --no-cache-dir \
-    --compile \
     -r requirements.txt
 
 # Install R packages (must be in builder stage since sdmTMB needs compilation)
@@ -51,8 +53,14 @@ ENV LD_LIBRARY_PATH=/usr/lib/R/lib
 ENV R_HOME=/usr/lib/R
 RUN Rscript -e "\
     options(repos = c(CRAN = 'https://cran.r-project.org')); \
-    install.packages(c('remotes', 'MBA', 'AICcmodavg', 'spmodel', 'extRemes', 'fields'), dependencies = TRUE); \
-    remotes::install_github('pbs-assess/sdmTMB@v0.6.0', dependencies = TRUE, upgrade = 'never')"
+    options(Ncpus = parallel::detectCores()); \
+    cran_pkgs <- c('remotes', 'MBA', 'AICcmodavg', 'spmodel', 'extRemes', 'fields'); \
+    install.packages(cran_pkgs, dependencies = TRUE); \
+    deps <- c('assertthat', 'cli', 'clisymbols', 'generics', 'lifecycle', 'rlang', 'mvtnorm', 'fishMod', 'RcppEigen'); \
+    install.packages(deps, dependencies = TRUE); \
+    remotes::install_github('pbs-assess/sdmTMB@v0.6.0', dependencies = TRUE, upgrade = 'never', type = 'source'); \
+    library(sdmTMB); \
+    cat('✓ R packages installed successfully\n')"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # FINAL STAGE: Minimal runtime image
@@ -93,6 +101,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy pre-compiled R packages from builder
 COPY --from=builder /usr/local/lib/R /usr/local/lib/R
 COPY --from=builder /usr/lib/R/library /usr/lib/R/library
+
+# Verify sdmTMB is available
+RUN Rscript -e "library(sdmTMB); cat('✓ sdmTMB', as.character(packageVersion('sdmTMB')), 'loaded successfully\n')"
 
 # rpy2 runtime configuration
 ENV LD_LIBRARY_PATH=/usr/lib/R/lib
