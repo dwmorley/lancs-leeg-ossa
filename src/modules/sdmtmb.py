@@ -12,6 +12,7 @@ from shiny import module, reactive, render, ui
 from src.constants import SDMTMB_OPTIONS
 from src.sampling.sdmtmb_routine import sdmtmb_via_rpy2
 from src.utils.downloads import save_artifacts_zip
+from src.utils.r_base import RComputationBase
 
 
 @module.ui
@@ -129,8 +130,15 @@ def sdmtmb_server(input, output, session, reactive_values):
 
         extracted_df = reactive_values["extracted_df"]()
         prediction_df = reactive_values["prediction_df"]()
+        formula = input.sdmtmb_formula()
 
         if not validate_df(extracted_df, prediction_df):
+            return
+
+        try:
+            RComputationBase.validate_formula_syntax(formula, formula_name="Model formula")
+        except ValueError as e:
+            ui.notification_show(str(e), type="error")
             return
 
         # Capture the R callbacks

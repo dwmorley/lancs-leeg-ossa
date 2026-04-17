@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "shiny-app"
+name = "ossa"
 version = "0.0.5"
-description = "Shiny Python app"
-authors = ["David Morley <d.morley1@lancaster.ac.uk>"]
+description = "OSSA - Optimal Spatial Sampling Algorithm"
+authors = ["David Morley, <dwmorley@github>"]
 readme = "README.md"
 package-mode = false
 
@@ -24,14 +24,13 @@ pyproj = ">=3.7.0,<4.0.0"
 shapely = ">=2.0.0,<3.0.0"
 pystac-client = "^0.9.0"
 planetary-computer = "^1.0.0"
-scipy = "^1.17.0"
+scipy = "^1.13.0"
 dask = "^2026.1.2"
 geopandas = "^1.1.2"
 netcdf4 = "^1.7.4"
 pydap = "^3.5.8"
 ecmwf-datastores-client = "^0.4.2"
 soilgrids = "^0.1.5"
-pymc = "^5.28.2"
 rpy2 = "^3.6.7"
 
 [tool.poetry.group.dev.dependencies]

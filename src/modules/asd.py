@@ -14,6 +14,7 @@ from src.constants import ASD_OPTIONS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.sampling.asd_routine import asd_via_rpy2
 from src.utils.downloads import save_artifacts_zip
+from src.utils.r_base import RComputationBase
 
 DEBUG = False
 
@@ -174,6 +175,34 @@ def asd_server(input, output, session, reactive_values):
 
         if not validate_extracted_df(extracted_df):
             return
+
+        formulaf = input.asd_formulaf()
+        formular = input.asd_formular()
+
+        # Validate fixed effects formula
+        try:
+            RComputationBase.validate_formula_syntax(formulaf, formula_name="Fixed effects formula")
+        except ValueError as e:
+            ui.notification_show(str(e), type="error")
+            return
+
+        # Validate random effects formula (formular format is different: ~1|LCD)
+        if formular and formular.strip():
+            try:
+                if "~" not in formular:
+                    raise ValueError(
+                        "Random effects formula must contain a tilde (~) separator. "
+                        "Expected format: ~effect (e.g., ~1|LCD)"
+                    )
+                left_side = formular.split("~")[0].strip()
+                if left_side:
+                    raise ValueError(
+                        "Random effects formula must have nothing on the left side of the tilde (~). "
+                        "Expected format: ~effect (e.g., ~1|LCD)"
+                    )
+            except ValueError as e:
+                ui.notification_show(str(e), type="error")
+                return
 
         # Capture the R callbacks
         msg_queue: queue.SimpleQueue[tuple] = queue.SimpleQueue()

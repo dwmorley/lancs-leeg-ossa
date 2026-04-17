@@ -157,6 +157,63 @@ class RComputationBase(ABC):
                 f"  Available columns: {available_list}"
             )
 
+    @staticmethod
+    def validate_formula_syntax(formula: str, formula_name: str = "formula") -> bool:
+        """Validate R formula syntax.
+
+        Parameters
+        ----------
+        formula : str
+            R formula string
+        formula_name : str, optional
+            Name of the formula parameter for error messages
+
+        Returns
+        -------
+        bool
+            True if formula is valid, raises ValueError if not
+
+        Raises
+        ------
+        ValueError
+            If formula is empty, missing tilde, or has invalid structure
+        """
+        # Check if formula is empty or only whitespace
+        if not formula or not formula.strip():
+            raise ValueError(
+                f"{formula_name} cannot be empty. Please provide a valid R formula (e.g., Response~Var1+Var2)."
+            )
+
+        # Check if formula contains the required tilde separator
+        if "~" not in formula:
+            raise ValueError(
+                f"{formula_name} must contain a tilde (~) separator. "
+                f"Expected format: Response~Predictors (e.g., AnGam~Week+Elev)"
+            )
+
+        # Check that there are variables on both sides of the tilde
+        parts = formula.split("~")
+        if len(parts) != 2:
+            raise ValueError(
+                f"{formula_name} must have exactly one tilde (~) separator. "
+                f"Expected format: Response~Predictors"
+            )
+
+        left_side = parts[0].strip()
+        right_side = parts[1].strip()
+
+        if not left_side:
+            raise ValueError(
+                f"{formula_name} must have a response variable on the left side of the tilde (~)."
+            )
+
+        if not right_side:
+            raise ValueError(
+                f"{formula_name} must have predictor variables on the right side of the tilde (~)."
+            )
+
+        return True
+
     @abstractmethod
     def _compute(self) -> Any:
         """Perform the actual R computation. Must be implemented by subclasses."""
