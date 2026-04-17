@@ -43,7 +43,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /tmp
 COPY requirements.txt .
 RUN pip install --no-cache-dir \
-    --no-deps \
     --compile \
     -r requirements.txt
 
