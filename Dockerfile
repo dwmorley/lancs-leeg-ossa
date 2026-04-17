@@ -24,20 +24,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libdeflate-dev libpcre2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Install Python 3.13 via deadsnakes PPA ────────────────────────────────────
+# ── Install Python 3.11 via deadsnakes PPA ────────────────────────────────────
 RUN add-apt-repository ppa:deadsnakes/ppa -y \
     && apt-get update && apt-get install -y --no-install-recommends \
-    python3.13 python3.13-dev python3.13-venv \
+    python3.11 python3.11-dev python3.11-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Install pip for Python 3.13 ───────────────────────────────────────────────
+# ── Install pip for Python 3.11 ───────────────────────────────────────────────
 RUN wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py \
-    && python3.13 /tmp/get-pip.py \
+    && python3.11 /tmp/get-pip.py \
     && rm /tmp/get-pip.py
 
-# Make python3.13 the default python / python3
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.13 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1
+# Make python3.11 the default python / python3
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # ── rpy2 runtime: ensure the R shared library is on the linker path ───────────
 # R_HOME is already set by the rocker base image (/usr/local/lib/R).
