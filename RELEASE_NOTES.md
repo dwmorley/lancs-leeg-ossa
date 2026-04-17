@@ -4,13 +4,17 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v0.0.5 (17-Apr-2026)
+
+- R - rpy2 issues in Docker resolved
+---------------------------------------------------------------------
 ## v0.0.4 (17-Apr-2026)
 
-- Second demo relase
+- Second demo release
 ---------------------------------------------------------------------
 ## v0.0.3 (20-Mar-2026)
 
-- First demo relase
+- First demo release
 - ASD hardwired to test data | QDA & LCP working
 ---------------------------------------------------------------------
 ## v0.0.2 (04-Mar-2026)

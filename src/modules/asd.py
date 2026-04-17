@@ -15,7 +15,7 @@ from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.sampling.asd_routine import asd_via_rpy2
 from src.utils.downloads import save_artifacts_zip
 
-DEBUG = True
+DEBUG = False
 
 
 @module.ui
