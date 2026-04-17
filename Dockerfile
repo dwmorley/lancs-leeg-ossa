@@ -1,91 +1,122 @@
 # syntax=docker/dockerfile:1
 
-# ── Base: Ubuntu 22.04 with R and Python 3.11 ──────────────────────────────────
-FROM ubuntu:22.04
+# ──────────────────────────────────────────────────────────────────────────────
+# BUILDER STAGE: Compiles all Python packages and R packages
+# ──────────────────────────────────────────────────────────────────────────────
+FROM ubuntu:22.04 as builder
 
-# ── Prevent apt interactive prompts ──────────────────────────────────────────
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# ── Install system libraries ──────────────────────────────────────────────────────
-# R dependencies
-# Geo stack: GDAL, PROJ, GEOS, SpatialIndex (needed by rasterio/geopandas/pyproj/shapely)
-# HDF5 + NetCDF (needed by netcdf4/xarray)
-# Build tools and Python 3.11 prerequisites
+# Consolidate all system library installations in one layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common \
     build-essential \
+    software-properties-common \
     wget ca-certificates gnupg2 \
-    libcurl4-openssl-dev libssl-dev libxml2-dev \
+    python3.11 python3.11-dev python3.11-venv \
+    python3-pip python3-setuptools python3-wheel \
+    libcurl4-openssl-dev libssl-dev libxml2-dev libffi-dev \
     libgdal-dev libproj-dev libgeos-dev libspatialindex-dev \
-    libhdf5-dev libnetcdf-dev \
-    libudunits2-dev \
-    libbz2-dev liblzma-dev zlib1g-dev \
-    libdeflate-dev libpcre2-dev \
+    libhdf5-dev libnetcdf-dev libudunits2-dev \
+    libbz2-dev liblzma-dev zlib1g-dev libdeflate-dev libpcre2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Install R 4.1 ──────────────────────────────────────────────────────────────
+# Install R 4.1 (builder needs r-base-dev for compilation)
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 && \
     add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/" && \
     apt-get update && apt-get install -y --no-install-recommends \
-    r-base \
-    r-base-dev \
+    r-base r-base-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Install Python 3.11 ────────────────────────────────────────────────────────────
-# Ubuntu 22.04 has Python 3.11 in the standard repos
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.11 python3.11-dev python3.11-venv \
-    python3-pip python3-setuptools python3-wheel \
-    libffi-dev libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Make python3.11 the default python / python3
+# Set Python 3.11 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
-# Upgrade pip, setuptools, and wheel
-RUN python3.11 -m pip install --upgrade pip setuptools wheel
+# Upgrade pip and build tools
+RUN python3.11 -m pip install --upgrade --no-cache-dir pip setuptools wheel
 
-# ── rpy2 runtime: ensure the R shared library is on the linker path ───────────
-# R is installed system-wide in /usr/lib/R
+# Create a virtual environment for wheels
+RUN python3.11 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy and install Python dependencies with optimizations
+WORKDIR /tmp
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    --no-deps \
+    --compile \
+    -r requirements.txt
+
+# Install R packages (must be in builder stage since sdmTMB needs compilation)
+ENV LD_LIBRARY_PATH=/usr/lib/R/lib
+ENV R_HOME=/usr/lib/R
+RUN Rscript -e "\
+    options(repos = c(CRAN = 'https://cran.r-project.org')); \
+    install.packages(c('remotes', 'MBA', 'AICcmodavg', 'spmodel', 'extRemes', 'fields'), dependencies = TRUE); \
+    remotes::install_github('pbs-assess/sdmTMB@v0.6.0', dependencies = TRUE, upgrade = 'never')"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FINAL STAGE: Minimal runtime image
+# ──────────────────────────────────────────────────────────────────────────────
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install runtime dependencies matching builder stage
+# (Same packages but without -dev flag where possible, but include dev libs for runtime)
+# Note: Keeping full dev packages here is fine since we're removing build-essential
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    software-properties-common gnupg2 wget ca-certificates \
+    libcurl4-openssl-dev libssl-dev libxml2-dev \
+    libgdal-dev libproj-dev libgeos-dev libspatialindex-dev \
+    libhdf5-dev libnetcdf-dev libudunits2-dev \
+    libdeflate-dev libpcre2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install R runtime
+RUN apt-get update && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 && \
+    add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/" && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    r-base \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Python 3.11 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+
+# Copy the pre-built virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy pre-compiled R packages from builder
+COPY --from=builder /usr/local/lib/R /usr/local/lib/R
+COPY --from=builder /usr/lib/R/library /usr/lib/R/library
+
+# rpy2 runtime configuration
 ENV LD_LIBRARY_PATH=/usr/lib/R/lib
 ENV R_HOME=/usr/lib/R
 
-# ── Install R packages required by the app ───────────────────────────────────
-# Packages used: MBA, MASS, nlme, AICcmodavg, spmodel, sdmTMB, extRemes, fields
-# MASS and nlme are included with R base, so only extras are needed here.
-# Posit Package Manager serves pre-compiled binaries for Ubuntu 22.04 (Jammy),
-# which avoids triggering C++ compilation (e.g. RcppEigen) during docker build
-# — critical for fast cross-platform builds on CI.
-RUN Rscript -e "\
-    options(repos = c(CRAN = 'https://packagemanager.posit.co/cran/__linux__/jammy/latest')); \
-    install.packages(c('MBA', 'AICcmodavg', 'spmodel', 'sdmTMB', 'extRemes', 'fields'), dependencies = TRUE)"
-
-# ── Python dependencies ───────────────────────────────────────────────────────
+# Set up application
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-
-# ── Copy application source ───────────────────────────────────────────────────────
 COPY . .
 
-
-# ── Runtime directories ───────────────────────────────────────────────────────
-# /data  → mount point for the user's local drive (read/write)
-# output → app output directory (can also be mounted)
+# Create runtime directories
 RUN mkdir -p /data /app/output
 
-# ── Non-root user ─────────────────────────────────────────────────────────────
+# Non-root user for security
 RUN useradd -m -u 1001 appuser \
     && chown -R appuser:appuser /app /data
 USER appuser
 
-# ── Expose Shiny port ─────────────────────────────────────────────────────────
+# Expose Shiny port
 EXPOSE 8000
 
-# ── Start the app ─────────────────────────────────────────────────────────────
+# Runtime environment
 ENV HOST=0.0.0.0
 ENV PORT=8000
+
+# Start the app
 CMD ["python", "app.py"]
