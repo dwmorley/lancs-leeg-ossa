@@ -4,6 +4,7 @@ import os
 import zipfile
 
 import numpy as np
+import rasterio
 import requests
 
 from src.utils.bounding_box import BoundingBox
@@ -34,8 +35,6 @@ def get_roaddensity_points(
     np.ndarray
         Road density values (m/km²) at each point (NaN where no data).
     """
-    import rasterio
-
     type_str = "total" if road_type == 0 else f"tp{road_type}"
 
     zipfilename = f"GRIP4_density_{type_str}.zip"
