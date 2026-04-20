@@ -19,22 +19,28 @@ This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorithm (OS
 
 OSSA runs locally on your machine using Docker. To get started, follow these steps:
 1. Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/). You will only need to do this once.
-2. Run the launch script:
+2. Pull the latest OSSA image from GitHub Container Registry (ghcr), using your command line or terminal:
+```commandline
+docker pull ghcr.io/dwmorley/lancs-leeg-ossa:latest
+```
+3. A new 'image' will be available in Docker Desktop (with the name like the ghcr URL above).
+4. Run the image to create a 'container' (a running instance of the software).
+5. Once the container is running, navigate the local host (e.g. http://127.0.0.1:8000/) in your web browser.
+6. OSSA is ready to use!
+7. To stop the container, simply click the "Stop" button in Docker Desktop. You can restart the container at any time to use OSSA again.
 
-   - For a Mac it is the ```launch.sh``` so in the terminal ```sh <PATH>/launch.sh```
-   - For a PC it is the ```launch.bat``` so in the command prompt ```<PATH>\launch.bat```
+If you are having trouble getting your localhost to work, a solution can be to go to the 'Optional settings' after clicking 'Run' on an
+image in Docker Desktop - in the 'Ports' section enter a '0' to assign a random port, then click 'Run'. On launching, there should be a
+clickable link to your local host like ```dwmorley/lancs-leeg-ossa:latest 55002:8000```.
 
-3. Open your web browser and navigate to ```http://0.0.0.0:8000```
-4. OSSA will be ready to use!
-5. Downloads can be found from Docker Desktop:
-    - Click on three dots icon > show container actions > View files.
-    - Any downloads will be in, ```home > appuser > Downloads```
-    - Right-click on the file you want to download and select "Save". The file will be downloaded to your local machine.
-6. You will also see the container running in Docker Desktop. You can stop the container when you are done using OSSA.
-7. OSSA can also be launched from Docker Desktop without having to run the launch script. In Docker, your 'image' is
-essentially the software, and the 'container' is a single running instance of this. So, you can start and stop both
-images and containers in Docker Desktop. When starting a new container, you may need to specify a port - you can assign
-'0' to select a random port and click on the host URL once the container is running.
+## Downloading files from the app
+
+Downloads can be found from Docker Desktop:
+
+ - Click on three dots icon > show container actions > View files.
+ - Any downloads will be in, ```home > appuser > Downloads```
+ - Right-click on the file you want to download and select "Save". The file will be downloaded to your local machine.
+
 
 ## Report an Issue
 
@@ -67,6 +73,9 @@ To report a bug, crash, or unexpected behavior etc, please copy the log messages
     ]
 }
 ```
+
+- Test data can be found in ```lancs-leeg-ossa/test_data``` folder
+
 
 - Uses `poetry run flake8` for linting.
 - Uses `poetry run black app.py` to format the code.
