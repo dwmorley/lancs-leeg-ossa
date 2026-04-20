@@ -26,6 +26,7 @@ docker pull ghcr.io/dwmorley/lancs-leeg-ossa:latest
 3. A new 'image' will be available in Docker Desktop (with the name like the ghcr URL above).
 4. Run the image to create a 'container' (a running instance of the software).
 5. Once the container is running, navigate the local host (e.g. http://127.0.0.1:8000/) in your web browser.
+If you are having trouble getting this URL to connect, see the instructions after the last step here.
 6. OSSA is ready to use!
 7. To stop the container, simply click the "Stop" button in Docker Desktop. You can restart the container at any time to use OSSA again.
 
