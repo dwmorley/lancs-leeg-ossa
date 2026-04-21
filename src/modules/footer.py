@@ -148,7 +148,7 @@ def footer_server(input, output, session, reactive_values):
                         get_version(),
                         ui.tags.br(),
                         ui.tags.strong("Licence: "),
-                        "???",
+                        "MIT License",
                         ui.tags.br(),
                         ui.tags.strong("Contact: "),
                         ui.tags.a("Luigi Sedda", href=URLS["luigi_email"], target="_blank"),
