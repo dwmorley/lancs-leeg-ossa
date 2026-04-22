@@ -126,11 +126,7 @@ def footer_server(input, output, session, reactive_values):
                     ui.tags.p(
                         "OSSA is a set of algorithms developed for spatial sampling designs in absence of any prior "
                         "information about the process, such as species distribution or a disease prevalence (lattice "
-                        "with close pairs) and for adaptive sampling designs (when prior information is available). "
-                        "It also contains an algorithm for ecological area delineation.",
-                        "The application supports multiple sampling frameworks including: "
-                        "Clustering by Quadradic Discriminant Analysis (QDA) "
-                        "Sample site selection by Lattice Close Pairs (LCP) or Adaptive Sampling Design (ASD) ",
+                        "with close pairs) and for adaptive sampling designs (when prior information is available). ",
                         style="text-align:justify;",
                     ),
                     ui.tags.p(
