@@ -5,6 +5,9 @@ URLS = {
     "leeg": "https://luigisedda.wordpress.com/",
     "github": "https://github.com/dwmorley/lancs-leeg-ossa",
     "luigi_email": "mailto:l.sedda@lancaster.ac.uk",
+    "glmmPQL": "https://rdrr.io/cran/MASS/man/glmmPQL.html",
+    "spglm": "https://rdrr.io/cran/spmodel/man/spglm.html",
+    "sdmTMB": "https://rdrr.io/cran/sdmTMB/man/sdmTMB.html",
 }
 
 GRID_SAMPLE_SIZE = 500
@@ -189,7 +192,8 @@ ZSSA_OPTIONS = {
 }
 
 SDMTMB_OPTIONS = {
-    "family": ["Gaussian", "Binomial", "Poisson", "Gamma"],
-    "formula": "",  # OlivoP ~  soilhum + tmax + tmin + windspeed + NDVI + MIR + NIR + Red + Blu
+    "family": ["Gaussian", "Binomial", "Poisson", "Gamma", "Nbinom1", "Nbinom2"],
+    "formulaf": "",  # OlivoP ~  soilhum + tmax + tmin + windspeed + NDVI + MIR + NIR + Red + Blu
+    "formular": "",  # ~1|LCD
     "nsim": 200,
 }

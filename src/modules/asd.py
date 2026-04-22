@@ -2,6 +2,7 @@
 
 import asyncio
 import queue
+import webbrowser
 from datetime import datetime
 
 import geopandas as gpd
@@ -10,7 +11,7 @@ import xarray as xr
 from faicons import icon_svg
 from shiny import module, reactive, render, ui
 
-from src.constants import ASD_OPTIONS
+from src.constants import ASD_OPTIONS, URLS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.sampling.asd_routine import asd_via_rpy2
 from src.utils.downloads import save_artifacts_zip
@@ -28,7 +29,7 @@ def asd_ui():
                 # Left column
                 ui.tags.div(
                     [
-                        ui.h4("Adaptive Sampling Design", class_="column-header"),
+                        ui.h4("Single Criterion Adaptive Sampling Design", class_="column-header"),
                         ui.div(
                             ui.div(
                                 {"style": "padding-top: 12px;"},
@@ -108,11 +109,28 @@ def asd_ui():
             [
                 ui.tooltip(
                     ui.input_action_button(
+                        "r_info_asd",
+                        ui.tags.span(
+                            [
+                                ui.tags.i(
+                                    class_="devicon-r-original",
+                                    style="font-size: 16px; color: black;",
+                                )
+                            ],
+                            class_="icon-square-btn",
+                        ),
+                        class_="action-button",
+                    ),
+                    "Show R help pages for this model",
+                    options={"delay": {"show": 1000, "hide": 0}},
+                ),
+                ui.tooltip(
+                    ui.input_action_button(
                         "save_asd",
                         ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
                         class_="action-button",
                     ),
-                    "Export ASD results",
+                    "Export SC-ASD results",
                     options={"delay": {"show": 1000, "hide": 0}},
                 ),
                 ui.tooltip(
@@ -136,6 +154,12 @@ def asd_server(input, output, session, reactive_values):
     """Server logic for ASD controls."""
 
     @reactive.effect
+    @reactive.event(input.r_info_asd)
+    def _handle_r_info_asd():
+        url = URLS[input.asd_model()]
+        webbrowser.open(url, new=2)
+
+    @reactive.effect
     @reactive.event(input.save_asd)
     def _handle_save_asd() -> None:
         if not reactive_values["asd_results"]():
@@ -153,10 +177,11 @@ def asd_server(input, output, session, reactive_values):
         )
 
         zip_path = save_artifacts_zip(
-            zip_name=f"asd_results_{timestamp}.zip",
-            csv_artifacts={"asd_sites.csv": asd_sites},
-            gpkg_artifacts={"asd_sites.gpkg": asd_sites_gpkg},
-            raster_artifacts={"asd_raster.tif": asd_raster},
+            zip_name=f"sc-asd_results_{timestamp}.zip",
+            csv_artifacts={"sc-asd_sites.csv": asd_sites},
+            gpkg_artifacts={"sc-asd_sites.gpkg": asd_sites_gpkg},
+            kml_artifacts={"sc-asd_sites.kml": asd_sites_gpkg},
+            raster_artifacts={"sc-asd_raster.tif": asd_raster},
         )
 
         ui.notification_show(
@@ -172,6 +197,7 @@ def asd_server(input, output, session, reactive_values):
         extracted_df = reactive_values["extracted_df"]()
         prediction_df = reactive_values["prediction_df"]()
         target = input.asd_target()
+        model = input.asd_model()
 
         if not validate_extracted_df(extracted_df):
             return
@@ -179,9 +205,16 @@ def asd_server(input, output, session, reactive_values):
         formulaf = input.asd_formulaf()
         formular = input.asd_formular()
 
-        # Validate fixed effects formula
         try:
-            RComputationBase.validate_formula_syntax(formulaf, formula_name="Fixed effects formula")
+            RComputationBase.validate_fixed_formula_syntax(
+                formulaf, formula_name="Fixed effects formula"
+            )
+
+            if model == "glmmPQL" or formular.strip():
+                RComputationBase.validate_random_formula_syntax(
+                    formular, formula_name="Random effects formula"
+                )
+
         except ValueError as e:
             ui.notification_show(str(e), type="error")
             return
@@ -250,7 +283,7 @@ def asd_server(input, output, session, reactive_values):
             task = asyncio.create_task(
                 asyncio.to_thread(
                     do_asd,
-                    model=input.asd_model(),
+                    model=model,
                     training_df=extracted_df,
                     prediction_df=prediction_df,
                     formulaf=input.asd_formulaf(),

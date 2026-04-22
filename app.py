@@ -9,6 +9,10 @@ from src.modules import aoi, asd, data, footer, header, load, map, qda, sdmtmb, 
 
 page_dependencies = ui.tags.head(
     ui.tags.link(rel="stylesheet", type="text/css", href="styles.css"),
+    ui.tags.link(
+        rel="stylesheet",
+        href="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.15.1/devicon.min.css",
+    ),
 )
 
 page_header = header.header_ui("my_header")
@@ -51,12 +55,12 @@ app_ui = ui.page_fluid(
                             sdmtmb_ui,
                         ),
                         ui.nav_panel(
-                            "ZSSA",
-                            zssa_ui,
+                            "SC-ASD",
+                            asd_ui,
                         ),
                         ui.nav_panel(
-                            "ASD",
-                            asd_ui,
+                            "MC-ASD",
+                            zssa_ui,
                         ),
                         id="nav_tabs",
                     ),

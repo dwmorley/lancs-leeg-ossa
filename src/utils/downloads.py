@@ -6,6 +6,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+import geopandas as gpd
+
 
 def get_downloads_folder():
     """Get the Downloads folder path for the current platform.
@@ -36,10 +38,82 @@ def save_csv(csv_name: str, dataframe) -> Path:
     return csv_path
 
 
+def write_kml(gdf: gpd.GeoDataFrame, fn: str):
+    """Write GeoDataFrame geometries to a KML."""
+    kml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    kml_content += '<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n'
+
+    if "lcp_sites" in str(fn):
+
+        color_map = {
+            "G": "FF0000FF",  # Red
+            "I": "FF00FF00",  # Green
+        }
+        for type_name, color in color_map.items():
+            kml_content += f"""<Style id="style_{type_name}">
+                <IconStyle>
+                    <Icon>
+                        <href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href>
+                    </Icon>
+                    <color>{color}</color>
+                    <scale>1.2</scale>
+                </IconStyle>
+            </Style>\n"""
+
+        kml_content += "<Folder>\n"
+        for idx, row in gdf.iterrows():
+            coords = f"{row.geometry.x},{row.geometry.y}"
+            style_id = f"style_{row['type']}"
+            description = f"<![CDATA[<b>Class:</b> {row['class']}<br/><b>Type:</b> {row['type']}<br/><b>Coordinates:</b> {row.geometry.y}, {row.geometry.x}]]>"
+            kml_content += f"""<Placemark>
+                    <name>{row['type']}</name>
+                    <description>{description}</description>
+                    <styleUrl>#{style_id}</styleUrl>
+                    <Point><coordinates>{coords}</coordinates></Point>
+                </Placemark>\n"""
+        kml_content += "</Folder>\n</Document>\n</kml>"
+
+    elif "asd_sites" in str(fn):
+
+        kml_content += "<Folder>\n"
+        for idx, row in gdf.iterrows():
+            coords = f"{row.geometry.x},{row.geometry.y}"
+            if "Fit" in gdf.columns:
+                description = f"<![CDATA[<b>Uncertainty:</b> {row['Uncertainty']}<br/><b>Fit:</b> {row['Fit']}<br/><b>Coordinates:</b> {row.geometry.y}, {row.geometry.x}]]>"
+            else:
+                description = f"<![CDATA[<b>Uncertainty:</b> {row['Uncertainty']}<br/>{row.geometry.y}, {row.geometry.x}]]>"
+
+            kml_content += f"""<Placemark>
+                    <name>{idx}</name>
+                    <description>{description}</description>
+                    <Point><coordinates>{coords}</coordinates></Point>
+                </Placemark>\n"""
+        kml_content += "</Folder>\n</Document>\n</kml>"
+
+    elif "zssa_proposed_" in str(fn):
+
+        kml_content += "<Folder>\n"
+        name = [col for col in gdf.columns if "proposed" in col][0]
+        for idx, row in gdf.iterrows():
+            coords = f"{row.x},{row.y}"
+            description = f"""<![CDATA[<b>{name}:</b> {row[name]}<br/><b>Coordinates:</b> {row.y}, {row.x}]]>"""
+
+            kml_content += f"""<Placemark>
+                    <name>{idx}</name>
+                    <description>{description}</description>
+                    <Point><coordinates>{coords}</coordinates></Point>
+                </Placemark>\n"""
+        kml_content += "</Folder>\n</Document>\n</kml>"
+
+    with open(fn, "w") as f:
+        f.write(kml_content)
+
+
 def save_artifacts_zip(
     zip_name: str,
     csv_artifacts: dict | None = None,
     gpkg_artifacts: dict | None = None,
+    kml_artifacts: dict | None = None,
     raster_artifacts: dict | None = None,
     figure_artifacts: dict | None = None,
 ) -> Path:
@@ -59,6 +133,10 @@ def save_artifacts_zip(
             for filename, gpkg in gpkg_artifacts.items():
                 gpkg.to_file(temp_path / filename, driver="GPKG")
 
+        if kml_artifacts:
+            for filename, kml in kml_artifacts.items():
+                write_kml(kml, temp_path / filename)
+
         if figure_artifacts:
             for filename, figure in figure_artifacts.items():
                 figure.savefig(temp_path / filename, dpi=150, bbox_inches="tight")
@@ -70,6 +148,7 @@ def save_artifacts_zip(
                 *(csv_artifacts.keys() if csv_artifacts else []),
                 *(raster_artifacts.keys() if raster_artifacts else []),
                 *(gpkg_artifacts.keys() if gpkg_artifacts else []),
+                *(kml_artifacts.keys() if kml_artifacts else []),
                 *(figure_artifacts.keys() if figure_artifacts else []),
             ]:
                 zf.write(temp_path / filename, arcname=filename)

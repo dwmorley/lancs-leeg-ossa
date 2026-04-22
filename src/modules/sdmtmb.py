@@ -2,6 +2,7 @@
 
 import asyncio
 import queue
+import webbrowser
 from datetime import datetime
 
 import pandas as pd
@@ -9,7 +10,7 @@ import xarray as xr
 from faicons import icon_svg
 from shiny import module, reactive, render, ui
 
-from src.constants import SDMTMB_OPTIONS
+from src.constants import SDMTMB_OPTIONS, URLS
 from src.sampling.sdmtmb_routine import sdmtmb_via_rpy2
 from src.utils.downloads import save_artifacts_zip
 from src.utils.r_base import RComputationBase
@@ -27,10 +28,16 @@ def sdmtmb_ui():
                         ui.h4("ST Model with TMB", class_="column-header"),
                         ui.div(
                             ui.input_text(
-                                "sdmtmb_formula",
-                                "Model formula",
-                                value=SDMTMB_OPTIONS["formula"],
+                                "sdmtmb_formulaf",
+                                "Fixed effects formula",
+                                value=SDMTMB_OPTIONS["formulaf"],
                                 placeholder="e.g. AnGam~Week+Elev+Soil",
+                            ),
+                            ui.input_text(
+                                "sdmtmb_formular",
+                                "Random effects formula",
+                                value=SDMTMB_OPTIONS["formular"],
+                                placeholder="e.g. ~1|LCD",
                             ),
                             ui.output_ui("time_select_ui"),
                             ui.input_select(
@@ -72,6 +79,23 @@ def sdmtmb_ui():
             [
                 ui.tooltip(
                     ui.input_action_button(
+                        "r_info_sdmtmb",
+                        ui.tags.span(
+                            [
+                                ui.tags.i(
+                                    class_="devicon-r-original",
+                                    style="font-size: 16px; color: black;",
+                                )
+                            ],
+                            class_="icon-square-btn",
+                        ),
+                        class_="action-button",
+                    ),
+                    "Show R help pages for this model",
+                    options={"delay": {"show": 1000, "hide": 0}},
+                ),
+                ui.tooltip(
+                    ui.input_action_button(
                         "save_sdmtmb",
                         ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
                         class_="action-button",
@@ -98,6 +122,12 @@ def sdmtmb_ui():
 @module.server
 def sdmtmb_server(input, output, session, reactive_values):
     """Server logic for sdmTMB controls."""
+
+    @reactive.effect
+    @reactive.event(input.r_info_sdmtmb)
+    def _handle_r_info_sdmtmb():
+        url = URLS["sdmTMB"]
+        webbrowser.open(url, new=2)
 
     @reactive.effect
     @reactive.event(input.save_sdmtmb)
@@ -130,13 +160,20 @@ def sdmtmb_server(input, output, session, reactive_values):
 
         extracted_df = reactive_values["extracted_df"]()
         prediction_df = reactive_values["prediction_df"]()
-        formula = input.sdmtmb_formula()
+        formulaf = input.sdmtmb_formulaf()
+        formular = input.sdmtmb_formular()
 
         if not validate_df(extracted_df, prediction_df):
             return
 
         try:
-            RComputationBase.validate_formula_syntax(formula, formula_name="Model formula")
+            RComputationBase.validate_fixed_formula_syntax(
+                formulaf, formula_name="Fixed effects formula"
+            )
+            if formular != "":
+                RComputationBase.validate_random_formula_syntax(
+                    formular, formula_name="Random effects formula"
+                )
         except ValueError as e:
             ui.notification_show(str(e), type="error")
             return
@@ -150,7 +187,8 @@ def sdmtmb_server(input, output, session, reactive_values):
         def do_sdmtmb(
             training_df: pd.DataFrame,
             prediction_df: pd.DataFrame,
-            formula: str,
+            formulaf: str,
+            formular: str,
             family: str,
             time: str,
             spatial: str,
@@ -159,7 +197,8 @@ def sdmtmb_server(input, output, session, reactive_values):
         ) -> dict[str, pd.DataFrame | xr.DataArray]:
             """Perform sdmtmb analysis on the provided dataset."""
             sdmtmb_table = sdmtmb_via_rpy2(
-                formula=formula,
+                formulaf=formulaf,
+                formular=formular,
                 time=time,
                 family=family,
                 spatial=spatial,
@@ -178,7 +217,8 @@ def sdmtmb_server(input, output, session, reactive_values):
             task = asyncio.create_task(
                 asyncio.to_thread(
                     do_sdmtmb,
-                    formula=input.sdmtmb_formula(),
+                    formulaf=input.sdmtmb_formulaf(),
+                    formular=input.sdmtmb_formular(),
                     family=input.sdmtmb_family(),
                     time=input.sdmtmb_time(),
                     spatial=input.sdmtmb_spatial(),

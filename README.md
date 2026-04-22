@@ -48,6 +48,7 @@ Downloads can be found from Docker Desktop:
 To report a bug, crash, or unexpected behavior etc, please copy the log messages from Docker
 1. Click on three dots icon > show container actions > Use Docker Debug
 2. Switch to the "Logs" tab and copy the log messages.
+3. Use the "New Issue" button on the GitHub repository to create a new issue, and paste the log messages in the description.
 
 ## Development
 

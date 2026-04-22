@@ -117,12 +117,13 @@ class ASDComputation(RComputationBase):
                         ro.r(f"data${col} <- as.factor(data${col})")
 
                 self._prog(0.15, f"Fitting model ({self.model})...")
+
                 if self.model == "glmmPQL":
                     ro.r(
                         f"""
                             model <- glmmPQL(
                                 {self.formulaf},
-                                random = {self.formular},
+                                {self.formular},
                                 data = data,
                                 correlation = corExp(form = ~x + y, nugget = T),
                                 family = poisson,
@@ -131,11 +132,17 @@ class ASDComputation(RComputationBase):
                         """
                     )
                 elif self.model == "spglm":
+
+                    if self.formular != "":
+                        random = f"random = {self.formular},"
+                    else:
+                        random = "random = NULL,"
+
                     ro.r(
                         f"""
                             model <- spglm(
                                 {self.formulaf},
-                                random = {self.formular},
+                                {random}
                                 xcoord= x,
                                 ycoord= y,
                                 family = poisson,
@@ -360,9 +367,9 @@ if __name__ == "__main__":
     area = pd.read_csv("../../test_data/beningrid.csv")
 
     da, x_df = asd_via_rpy2(
-        model="spglm",
-        formulaf="AnGam~Week+Elev+Soil",
-        formular="~1|LCD",
+        model="glmmPQL",
+        formulaf="AnGam~Elev",
+        formular="~1|LCD",  # ~1|LCD
         data=data,
         area=area,
         target="H",

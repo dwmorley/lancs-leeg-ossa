@@ -22,7 +22,7 @@ def zssa_ui():
                 # Left column
                 ui.tags.div(
                     [
-                        ui.h4("ZSSA Analysis", class_="column-header"),
+                        ui.h4("Multi-Criteria Adaptive Sampling Design", class_="column-header"),
                         ui.input_numeric(
                             "zssa_iter",
                             "Iterations",
@@ -122,7 +122,7 @@ def zssa_ui():
                                     ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
                                     class_="action-button",
                                 ),
-                                "Export ZSSA results",
+                                "Export MC-ASD results",
                                 options={"delay": {"show": 1000, "hide": 0}},
                             ),
                             ui.tooltip(
@@ -211,7 +211,7 @@ def zssa_server(input, output, session, reactive_values):
             return
 
         with ui.Progress(min=0, max=len(add * ni)) as p:
-            p.set(message="Starting zssa...", value=0)
+            p.set(message="Starting MC-ASD...", value=0)
 
             result = zssa_via_rpy2(
                 data=extracted_df,
@@ -245,7 +245,7 @@ def zssa_server(input, output, session, reactive_values):
 
         if not reactive_values["zssa_results"]():
             ui.notification_show(
-                "Please run the ZSSA analysis first.",
+                "Please run the MC-ASD analysis first.",
                 type="error",
             )
             return
@@ -289,7 +289,7 @@ def zssa_server(input, output, session, reactive_values):
     def _handle_show_zssa_points() -> None:
         if not reactive_values["zssa_results"]():
             ui.notification_show(
-                "Please run the ZSSA analysis first.",
+                "Please run the MC-ASD analysis first.",
                 type="error",
             )
             return
@@ -324,28 +324,44 @@ def zssa_server(input, output, session, reactive_values):
     def _handle_save_zssa() -> None:
         if not reactive_values["zssa_results"]():
             ui.notification_show(
-                "Nothing to export. Please run the ZSSA analysis first.",
+                "Nothing to export. Please run the MC-ASD analysis first.",
                 type="error",
             )
             return
 
-        zssa_proposed = reactive_values["zssa_results"]()["proposed"]
         zssa_summary = reactive_values["zssa_results"]()["summary"]
-        combined_df = zssa_proposed[next(iter(zssa_proposed))][["y", "x"]].copy()
-        for k, v in zssa_proposed.items():
-            combined_df[f"proposed_{k}"] = v["proposed"]
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        zssa_sites_gpkg = gpd.GeoDataFrame(
+        zssa_proposed = reactive_values["zssa_results"]()["proposed"]
+        combined_df = zssa_proposed[next(iter(zssa_proposed))][["y", "x"]].copy()
+        combined_df = combined_df.drop_duplicates().reset_index(drop=True)
+
+        for k, v in zssa_proposed.items():
+            temp = (
+                v[["x", "y", "proposed"]]
+                .drop_duplicates()
+                .rename(columns={"proposed": f"proposed_{k}"})
+            )
+            combined_df = combined_df.merge(temp, on=["x", "y"], how="left")
+
+        # KMLs are just the proposed points per scenario
+        kmls = {}
+        for col in combined_df.columns:
+            if col.startswith("proposed_"):
+                kmls[f"zssa_{col}.kml"] = combined_df[combined_df[col] == 1][["x", "y", col]].copy()
+
+        # Geopackage is all the candidate points with columns (0, 1) for proposed per scenario.
+        zssa_sites_gdf = gpd.GeoDataFrame(
             combined_df,
             geometry=gpd.points_from_xy(combined_df.x, combined_df.y),
             crs="EPSG:4326",
         )
 
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         zip_path = save_artifacts_zip(
-            zip_name=f"asd_results_{timestamp}.zip",
-            csv_artifacts={"zssa_sites.csv": combined_df, "zssa_stats.csv": zssa_summary},
-            gpkg_artifacts={"asd_sites.gpkg": zssa_sites_gpkg},
+            zip_name=f"mc-asd_results_{timestamp}.zip",
+            csv_artifacts={"mc-asd_sites.csv": combined_df, "mc-asd_stats.csv": zssa_summary},
+            gpkg_artifacts={"mc-asd_sites.gpkg": zssa_sites_gdf},
+            kml_artifacts=kmls,
         )
 
         ui.notification_show(

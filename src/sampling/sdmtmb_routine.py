@@ -18,7 +18,8 @@ class SDMTMBComputation(RComputationBase):
 
     def __init__(
         self,
-        formula: str,
+        formulaf: str,
+        formular: str,
         time: str,
         family: str,
         spatial: str,
@@ -31,8 +32,10 @@ class SDMTMBComputation(RComputationBase):
 
         Parameters
         ----------
-        formula : str
-            Model formula string
+        formulaf : str
+            Model formula string fixed effects
+        formular : str
+            Model formula string random effects
         time : str
             Time column name or "None"
         family : str
@@ -49,7 +52,8 @@ class SDMTMBComputation(RComputationBase):
             Progress callback function
         """
         super().__init__(on_progress=on_progress)
-        self.formula = formula
+        self.formulaf = formulaf
+        self.formular = formular
         self.time = time
         self.family = family
         self.spatial = spatial
@@ -70,8 +74,18 @@ class SDMTMBComputation(RComputationBase):
                 data = self.rename_lonlat_to_xy(self.data)
                 area = self.rename_lonlat_to_xy(self.area)
 
+                # Construct formula like: Response ~ Fixed + (Random)
+                if self.formular == "":
+                    formula = self.formulaf
+                else:
+                    if "~" in self.formular:
+                        random = self.formular.split("~")[1]
+                        formula = f"{self.formulaf} + ({random})"
+                    else:
+                        raise ValueError("Malformed Random effects formula.")
+
                 # Validate formula variables are in data
-                self.validate_formula_variables(self.formula, data, "formula")
+                self.validate_formula_variables(formula, data, "formula")
                 if self.time != "None" and self.time not in data.columns:
                     raise ValueError(
                         f"Time column '{self.time}' not found in data. "
@@ -81,9 +95,16 @@ class SDMTMBComputation(RComputationBase):
                 ro.globalenv["data"] = data
                 ro.globalenv["area"] = area
 
+                # Convert to factors
+                cols = data.columns.tolist()
+                formula_columns = [col for col in cols if col in self.formular]
+                for col in formula_columns:
+                    ro.r(f"data${col} <- as.factor(data${col})")
+                    ro.r(f"area${col} <- as.factor(area${col})")
+
                 self._prog(0.15, "Fitting model...")
 
-                ro.r(f"""form4 <-as.formula({self.formula})""")
+                ro.r(f"""form4 <-as.formula({formula})""")
                 ro.r("""vars <- all.vars(form4)""")
                 ro.r("""lhs <- as.character(form4[[2]])""")
                 ro.r("""rhs <- vars[which(vars != lhs)]""")
@@ -94,8 +115,10 @@ class SDMTMBComputation(RComputationBase):
                 else:
                     ro.r(f"""d <- data[, c(vars, "{self.time}", "x", "y"), drop = FALSE]""")
                     ro.r(f"""newdata <- area[, c(rhs, "{self.time}", "x", "y"), drop = FALSE]""")
+
                 ro.r("""d <- na.omit(d)""")
                 ro.r("""newdata <- na.omit(newdata)""")
+                ro.r("""rhs <- rhs[!sapply(d[, rhs], is.factor)]""")
 
                 ro.r("""scaling_params <- list()""")
                 ro.r(
@@ -160,7 +183,8 @@ class SDMTMBComputation(RComputationBase):
 
 
 def sdmtmb_via_rpy2(
-    formula: str,
+    formulaf: str,
+    formular: str,
     time: str,
     family: str,
     spatial: str,
@@ -171,7 +195,8 @@ def sdmtmb_via_rpy2(
 ) -> pd.DataFrame:
     """Fit a TMB GLMM via R and produce an interpolated raster."""
     computation = SDMTMBComputation(
-        formula=formula,
+        formulaf=formulaf,
+        formular=formular,
         time=time,
         family=family,
         spatial=spatial,
@@ -192,8 +217,9 @@ if __name__ == "__main__":
     area.rename(columns={"LTD": "latitude", "LNG": "longitude"}, inplace=True)
 
     x_df = sdmtmb_via_rpy2(
-        formula="OlivoP ~  soilhum + tmax + tmin + windspeed + NDVI + MIR + NIR + Red + Blu",
-        time="YEA",
+        formulaf="OlivoP ~  soilhum + tmax + tmin + windspeed + NDVI + MIR + NIR + Red + Blu",
+        formular="~1|YEA",
+        time="None",
         family="poisson",
         data=data,
         area=area,

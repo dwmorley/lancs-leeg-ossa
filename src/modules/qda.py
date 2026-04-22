@@ -211,7 +211,7 @@ def qda_server(input, output, session, reactive_values):
 
         lcp_sites = reactive_values["lcp_results"]()["lcp_sites"]
         wilks_plot = reactive_values["qda_results"]()["wilks_plot"]
-        lcp_sites_gpkg = gpd.GeoDataFrame(
+        lcp_sites_gpd = gpd.GeoDataFrame(
             lcp_sites, geometry=gpd.points_from_xy(lcp_sites.x, lcp_sites.y), crs="EPSG:4326"
         )
 
@@ -220,7 +220,8 @@ def qda_server(input, output, session, reactive_values):
         zip_path = save_artifacts_zip(
             zip_name=f"qda_lcp_results_{timestamp}.zip",
             csv_artifacts={"lcp_sites.csv": lcp_sites},
-            gpkg_artifacts={"lcp_sites.gpkg": lcp_sites_gpkg},
+            gpkg_artifacts={"lcp_sites.gpkg": lcp_sites_gpd},
+            kml_artifacts={"lcp_sites.kml": lcp_sites_gpd},
             raster_artifacts={"qda_raster.tif": _map_raster._value},
             figure_artifacts={"wilks_plot.png": wilks_plot},
         )

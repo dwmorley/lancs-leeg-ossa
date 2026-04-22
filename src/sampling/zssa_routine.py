@@ -80,7 +80,7 @@ def zssa_via_rpy2(
             ro.globalenv["data"] = data
             ro.r("""Nbig=ncol(data)""")
 
-            if init.is_integer():
+            if init is not None:
                 ro.r(f"""a=sample(1:nrow(data),{init})""")
                 ro.r("""init=data[a,]""")
                 ro.r("""data=data[-a,]""")
@@ -245,3 +245,25 @@ if __name__ == "__main__":
     df = pd.read_csv("/Users/david/Documents/GitHub/lancs-leeg-ossa/test_data/zssa_st.csv")
 
     x = zssa_via_rpy2(df, nr_iterations=10, init=20, add=(10, 20), from_glm=False)
+
+    zssa_proposed = x[1]
+    combined_df = zssa_proposed[next(iter(zssa_proposed))][["y", "x"]].copy()
+    combined_df = combined_df.drop_duplicates().reset_index(drop=True)
+
+    for k, v in zssa_proposed.items():
+        temp = (
+            v[["x", "y", "proposed"]]
+            .drop_duplicates()
+            .rename(columns={"proposed": f"proposed_{k}"})
+        )
+        combined_df = combined_df.merge(temp, on=["x", "y"], how="left")
+
+    kmls = {}
+    for col in combined_df.columns:
+        if col.startswith("proposed_"):
+            kmls[f"zssa_{col}.kml"] = combined_df[["x", "y", col]].copy()
+
+    for idx, row in kmls[next(iter(kmls))].iterrows():
+        coords = f"{row.x},{row.y}"
+
+    b = 0
