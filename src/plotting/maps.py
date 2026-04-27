@@ -150,14 +150,14 @@ def make_point_layer(
             fill=False,
             fill_opacity=0.7,
         ),
-        "ASD Sites": lambda row: dict(
+        "SC-ASD Sites": lambda row: dict(
             location=(row.y, row.x),
             radius=8,
             color="gray",
             fill=False,
             fill_opacity=0.7,
         ),
-        "ZSSA Sites": lambda row: dict(
+        "MC-ASD Sites": lambda row: dict(
             location=(row.y, row.x),
             radius=8,
             color="blue",
@@ -295,20 +295,20 @@ def point_layer_legend(name: str) -> HTML:
             </div>
             """
         )
-    elif name == "ASD Sites":
+    elif name == "SC-ASD Sites":
         return HTML(
             value="""
             <div style='background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 13px;'>
-                <b>ASD Sites</b><br>
+                <b>SC-ASD Sites</b><br>
                 <svg width='18' height='18' style='vertical-align:middle;margin-right:4px;'><circle cx='9' cy='9' r='7' stroke='gray' stroke-width='3' fill='none'/></svg> Sample Point<br>
             </div>
             """
         )
-    elif name == "ZSSA Sites":
+    elif name == "MC-ASD Sites":
         return HTML(
             value="""
             <div style='background: white; padding: 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 13px;'>
-                <b>ZSSA Sites</b><br>
+                <b>MC-ASD Sites</b><br>
                   <svg width='18' height='18' style='vertical-align:middle;margin-right:4px;'><circle cx='9' cy='9' r='7' stroke='blue' stroke-width='3' fill='none'/></svg> Proposed<br>
             </div>
             """

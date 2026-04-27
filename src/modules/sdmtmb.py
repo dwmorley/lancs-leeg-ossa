@@ -254,7 +254,7 @@ def sdmtmb_server(input, output, session, reactive_values):
 
         ui.notification_show(
             ui.HTML(
-                "sdmTMB analysis completed successfully!<br>" "<br>Export to use as input to ZSSA"
+                "sdmTMB analysis completed successfully!<br>" "<br>Export to use as input to MC-ASD"
             ),
             type="message",
             duration=None,

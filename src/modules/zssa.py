@@ -98,7 +98,7 @@ def zssa_ui():
                                 ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
                                 class_="action-button",
                             ),
-                            "Run ZSSA analysis",
+                            "Run MC-ASD analysis",
                             options={"delay": {"show": 1000, "hide": 0}},
                         ),
                         style="margin-top: auto; align-self: flex-end;",
@@ -133,7 +133,7 @@ def zssa_ui():
                                     ),
                                     class_="action-button",
                                 ),
-                                "Show ZSSA selection",
+                                "Show MC-ASD selection",
                                 options={"delay": {"show": 1000, "hide": 0}},
                             ),
                             style="margin-top: auto; align-self: flex-end;",
@@ -228,7 +228,7 @@ def zssa_server(input, output, session, reactive_values):
 
             summary, proposed = result
 
-            reactive_values["zssa_results"].set(
+            reactive_values["mc-asd_results"].set(
                 {
                     "summary": summary,
                     "proposed": proposed,
@@ -243,14 +243,14 @@ def zssa_server(input, output, session, reactive_values):
     @reactive.event(input.show_zssa_stats)
     def _handle_show_zssa_stats() -> None:
 
-        if not reactive_values["zssa_results"]():
+        if not reactive_values["mc-asd_results"]():
             ui.notification_show(
                 "Please run the MC-ASD analysis first.",
                 type="error",
             )
             return
 
-        df = reactive_values["zssa_results"]()["summary"]
+        df = reactive_values["mc-asd_results"]()["summary"]
 
         header = ui.tags.thead(
             ui.tags.tr(
@@ -262,7 +262,7 @@ def zssa_server(input, output, session, reactive_values):
             *[
                 ui.tags.tr(
                     ui.tags.th(row, style="white-space:nowrap;"),
-                    *[ui.tags.td(f"{val:.4f}", style="text-align:right;") for val in df.loc[row]],
+                    *[ui.tags.td(f"{val:.6f}", style="text-align:right;") for val in df.loc[row]],
                 )
                 for row in df.index
             ]
@@ -275,7 +275,7 @@ def zssa_server(input, output, session, reactive_values):
 
         ui.modal_show(
             ui.modal(
-                ui.tags.h5("ZSSA Statistics", style="margin-bottom:10px;"),
+                ui.tags.h5("MC-ASD Statistics", style="margin-bottom:10px;"),
                 table,
                 title=None,
                 easy_close=True,
@@ -287,7 +287,7 @@ def zssa_server(input, output, session, reactive_values):
     @reactive.effect
     @reactive.event(input.show_zssa_points)
     def _handle_show_zssa_points() -> None:
-        if not reactive_values["zssa_results"]():
+        if not reactive_values["mc-asd_results"]():
             ui.notification_show(
                 "Please run the MC-ASD analysis first.",
                 type="error",
@@ -295,14 +295,14 @@ def zssa_server(input, output, session, reactive_values):
             return
 
         npoints = input.zssa_selected_pnts()
-        proposed = reactive_values["zssa_results"]()["proposed"][int(npoints)]
+        proposed = reactive_values["mc-asd_results"]()["proposed"][int(npoints)]
         proposed = proposed[proposed["proposed"] == 1]
 
         drawn_shapes = reactive_values["drawn_shapes"]
         my_ossa_layers = reactive_values["my_ossa_layers"]
 
         drawn_shapes.set([])
-        points = make_point_layer(proposed, "ZSSA Sites")
+        points = make_point_layer(proposed, "MC-ASD Sites")
         my_ossa_layers.set([points])
 
         lat_min = float(proposed.y.min())
@@ -322,16 +322,16 @@ def zssa_server(input, output, session, reactive_values):
     @reactive.effect
     @reactive.event(input.save_zssa)
     def _handle_save_zssa() -> None:
-        if not reactive_values["zssa_results"]():
+        if not reactive_values["mc-asd_results"]():
             ui.notification_show(
                 "Nothing to export. Please run the MC-ASD analysis first.",
                 type="error",
             )
             return
 
-        zssa_summary = reactive_values["zssa_results"]()["summary"]
+        zssa_summary = reactive_values["mc-asd_results"]()["summary"]
 
-        zssa_proposed = reactive_values["zssa_results"]()["proposed"]
+        zssa_proposed = reactive_values["mc-asd_results"]()["proposed"]
         combined_df = zssa_proposed[next(iter(zssa_proposed))][["y", "x"]].copy()
         combined_df = combined_df.drop_duplicates().reset_index(drop=True)
 
@@ -373,7 +373,7 @@ def zssa_server(input, output, session, reactive_values):
         cols = [col.lower() for col in extracted_df.columns]
         if "longitude" not in cols or "latitude" not in cols:
             ui.notification_show(
-                "Data must contain 'longitude' and 'latitude' columns for ZSSA analysis.",
+                "Data must contain 'longitude' and 'latitude' columns for MC-ASD analysis.",
                 type="error",
             )
             return False
@@ -387,7 +387,7 @@ def zssa_server(input, output, session, reactive_values):
 
         if "sd" not in cols or "mean" not in cols:
             ui.notification_show(
-                "Data must contain columns for ZSSA analysis: Mean & SD",
+                "Data must contain columns for MC-ASD analysis: Mean & SD",
                 type="error",
             )
             return False

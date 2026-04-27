@@ -229,12 +229,12 @@ def zssa_via_rpy2(
             proposed[p] = pandas2ri.rpy2py(ro.globalenv[f"p{p}"])
 
         if notify_fn:
-            notify_fn("ZSSA Finished!", type="message", duration=None)
+            notify_fn("MC-ASD Finished!", type="message", duration=None)
 
         return summary_table, proposed
 
     except Exception as e:
-        error_msg = f"Error during ZSSA analysis: {str(e)}"
+        error_msg = f"Error during MC-ASD analysis: {str(e)}"
         if notify_fn:
             notify_fn(error_msg, type="error", duration=None)
             return None

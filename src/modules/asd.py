@@ -275,7 +275,7 @@ def asd_server(input, output, session, reactive_values):
 
             return {
                 "map_raster": map_raster,
-                "asd_sites": sites,
+                "sc-asd_sites": sites,
             }
 
         # Launch R computation in a thread so the event loop stays unblocked.
@@ -310,27 +310,27 @@ def asd_server(input, output, session, reactive_values):
 
             results = task.result()
 
-            if results["asd_sites"].isnull().values.any():
+            if results["sc-asd_sites"].isnull().values.any():
                 ui.notification_show(
-                    "ASD analysis model created, but required sites number of sites could not be identified, please check model parameters and your input data.",
+                    "ASC-ASD analysis model created, but required sites number of sites could not be identified, please check model parameters and your input data.",
                     type="error",
                     duration=None,
                 )
                 return
 
         except Exception as e:
-            ui.notification_show(f"ASD analysis failed: {str(e)}", type="error", duration=None)
+            ui.notification_show(f"SC-ASD analysis failed: {str(e)}", type="error", duration=None)
             return
 
         if target == "H":
-            plot_title = "ASD Hotspot"
+            plot_title = "SC-ASD Hotspot"
         else:
-            plot_title = "ASD Uncertainty"
+            plot_title = "SC-ASD Uncertainty"
 
         map_raster = results["map_raster"]
         overlay = dataarray_to_image_overlay(map_raster, categorical=False, name=plot_title)
-        lcp_df = results["asd_sites"]
-        points = make_point_layer(lcp_df, layer_name="ASD Sites")
+        lcp_df = results["sc-asd_sites"]
+        points = make_point_layer(lcp_df, layer_name="SC-ASD Sites")
         my_ossa_layers.set([overlay, points])
 
         # Zoom to raster extents
@@ -358,7 +358,7 @@ def asd_server(input, output, session, reactive_values):
                     except Exception:
                         pass
 
-        reactive_values["asd_results"].set(results)
+        reactive_values["sc-asd_results"].set(results)
 
     @render.ui
     def response_columns():

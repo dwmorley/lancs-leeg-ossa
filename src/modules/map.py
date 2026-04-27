@@ -146,10 +146,10 @@ def map_server(input, output, session, reactive_values):
                     site in getattr(c.widget, "value", "")
                     for site in [
                         "LCP Sites",
-                        "ZSSA Sites",
-                        "ASD Sites",
-                        "ASD Hotspot",
-                        "ASD Uncertainty",
+                        "MC-ASD Sites",
+                        "SC-ASD Sites",
+                        "SC-ASD Hotspot",
+                        "SC-ASD Uncertainty",
                     ]
                 )
             )

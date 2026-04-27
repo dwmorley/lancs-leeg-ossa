@@ -92,8 +92,8 @@ def server(input, output, session):
         "updating_from_map": reactive.Value(False),
         "qda_results": reactive.Value([]),
         "lcp_results": reactive.Value([]),
-        "asd_results": reactive.Value([]),
-        "zssa_results": reactive.Value([]),
+        "sc-asd_results": reactive.Value([]),
+        "mc-asd_results": reactive.Value([]),
         "sdmtmb_results": reactive.Value([]),
         "ecmwf_api_key": reactive.Value(""),
     }

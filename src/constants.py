@@ -188,7 +188,7 @@ ZSSA_OPTIONS = {
     "iterations": 100,
     "init": 20,
     "add": [10, 20, 30, 50],
-    "from_glm": True,
+    "from_glm": False,
 }
 
 SDMTMB_OPTIONS = {

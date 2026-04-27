@@ -73,7 +73,7 @@ def write_kml(gdf: gpd.GeoDataFrame, fn: str):
                 </Placemark>\n"""
         kml_content += "</Folder>\n</Document>\n</kml>"
 
-    elif "asd_sites" in str(fn):
+    elif "sc-asd_sites" in str(fn):
 
         kml_content += "<Folder>\n"
         for idx, row in gdf.iterrows():
