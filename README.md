@@ -10,6 +10,8 @@ OSSA is a set of algorithms developed for spatial sampling designs in absence of
 This is a User Friendly Shiny App for the Optimal Spatial Sampling Algorithm (OSSA). The app allows users to easily implement OSSA for spatial sampling designs and ecological area delineation without needing interact directly with R code.
 
 ![OSSA screenshot](www/OSSA_screengrab_1.png)
+![OSSA screenshot](www/OSSA_screengrab_2.png)
+![OSSA screenshot](www/OSSA_screengrab_3.png)
 
 ## Credits
 - The sampling algorithms were developed by Luigi Sedda (University of Lancaster).
