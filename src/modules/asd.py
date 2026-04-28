@@ -162,15 +162,15 @@ def asd_server(input, output, session, reactive_values):
     @reactive.effect
     @reactive.event(input.save_asd)
     def _handle_save_asd() -> None:
-        if not reactive_values["asd_results"]():
+        if not reactive_values["sc-asd_results"]():
             ui.notification_show(
-                "Nothing to export. Please run the ASD analysis first.",
+                "Nothing to export. Please run the SC-ASD analysis first.",
                 type="error",
             )
             return
 
-        asd_sites = reactive_values["asd_results"]()["asd_sites"]
-        asd_raster = reactive_values["asd_results"]()["map_raster"]
+        asd_sites = reactive_values["sc-asd_results"]()["sc-asd_sites"]
+        asd_raster = reactive_values["sc-asd_results"]()["map_raster"]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         asd_sites_gpkg = gpd.GeoDataFrame(
             asd_sites, geometry=gpd.points_from_xy(asd_sites.x, asd_sites.y), crs="EPSG:4326"

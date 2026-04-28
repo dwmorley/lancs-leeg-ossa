@@ -25,7 +25,7 @@ def sdmtmb_ui():
                 # Left column
                 ui.tags.div(
                     [
-                        ui.h4("ST Model with TMB", class_="column-header"),
+                        ui.h4("Spatio-Temporal Model with TMB", class_="column-header"),
                         ui.div(
                             ui.input_text(
                                 "sdmtmb_formulaf",

@@ -47,7 +47,7 @@ app_ui = ui.page_fluid(
                             load_csv,
                         ),
                         ui.nav_panel(
-                            "QDA & LCP",
+                            "Stratification",
                             qda_ui,
                         ),
                         ui.nav_panel(
@@ -55,11 +55,11 @@ app_ui = ui.page_fluid(
                             sdmtmb_ui,
                         ),
                         ui.nav_panel(
-                            "SC-ASD",
+                            "Adaptive-Single",
                             asd_ui,
                         ),
                         ui.nav_panel(
-                            "MC-ASD",
+                            "Adaptive-Multi",
                             zssa_ui,
                         ),
                         id="nav_tabs",
