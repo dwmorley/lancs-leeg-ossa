@@ -98,7 +98,7 @@ def zssa_ui():
                                 ui.tags.span([icon_svg("play")], class_="icon-square-btn"),
                                 class_="action-button",
                             ),
-                            "Run MC-ASD analysis",
+                            "Run Multi-Criteria ASD analysis",
                             options={"delay": {"show": 1000, "hide": 0}},
                         ),
                         style="margin-top: auto; align-self: flex-end;",
@@ -122,7 +122,7 @@ def zssa_ui():
                                     ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
                                     class_="action-button",
                                 ),
-                                "Export MC-ASD results",
+                                "Export Multi-Criteria ASD results",
                                 options={"delay": {"show": 1000, "hide": 0}},
                             ),
                             ui.tooltip(
@@ -133,7 +133,7 @@ def zssa_ui():
                                     ),
                                     class_="action-button",
                                 ),
-                                "Show MC-ASD selection",
+                                "Show Multi-Criteria ASD selection",
                                 options={"delay": {"show": 1000, "hide": 0}},
                             ),
                             style="margin-top: auto; align-self: flex-end;",
@@ -211,7 +211,7 @@ def zssa_server(input, output, session, reactive_values):
             return
 
         with ui.Progress(min=0, max=len(add * ni)) as p:
-            p.set(message="Starting MC-ASD...", value=0)
+            p.set(message="Starting Multi-Criteria ASD...", value=0)
 
             result = zssa_via_rpy2(
                 data=extracted_df,
@@ -245,7 +245,7 @@ def zssa_server(input, output, session, reactive_values):
 
         if not reactive_values["mc-asd_results"]():
             ui.notification_show(
-                "Please run the MC-ASD analysis first.",
+                "Please run the Multi-Criteria ASD analysis first.",
                 type="error",
             )
             return
@@ -275,7 +275,7 @@ def zssa_server(input, output, session, reactive_values):
 
         ui.modal_show(
             ui.modal(
-                ui.tags.h5("MC-ASD Statistics", style="margin-bottom:10px;"),
+                ui.tags.h5("Multi-Criteria ASD Statistics", style="margin-bottom:10px;"),
                 table,
                 title=None,
                 easy_close=True,
@@ -289,7 +289,7 @@ def zssa_server(input, output, session, reactive_values):
     def _handle_show_zssa_points() -> None:
         if not reactive_values["mc-asd_results"]():
             ui.notification_show(
-                "Please run the MC-ASD analysis first.",
+                "Please run the Multi-Criteria ASD analysis first.",
                 type="error",
             )
             return
@@ -324,7 +324,7 @@ def zssa_server(input, output, session, reactive_values):
     def _handle_save_zssa() -> None:
         if not reactive_values["mc-asd_results"]():
             ui.notification_show(
-                "Nothing to export. Please run the MC-ASD analysis first.",
+                "Nothing to export. Please run the Multi-Criteria ASD analysis first.",
                 type="error",
             )
             return
@@ -373,7 +373,7 @@ def zssa_server(input, output, session, reactive_values):
         cols = [col.lower() for col in extracted_df.columns]
         if "longitude" not in cols or "latitude" not in cols:
             ui.notification_show(
-                "Data must contain 'longitude' and 'latitude' columns for MC-ASD analysis.",
+                "Data must contain 'longitude' and 'latitude' columns for Multi-Criteria ASD analysis.",
                 type="error",
             )
             return False
@@ -387,7 +387,7 @@ def zssa_server(input, output, session, reactive_values):
 
         if "sd" not in cols or "mean" not in cols:
             ui.notification_show(
-                "Data must contain columns for MC-ASD analysis: Mean & SD",
+                "Data must contain columns for Multi-Criteria ASD analysis: Mean & SD",
                 type="error",
             )
             return False

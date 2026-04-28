@@ -130,7 +130,7 @@ def asd_ui():
                         ui.tags.span([icon_svg("download")], class_="icon-square-btn"),
                         class_="action-button",
                     ),
-                    "Export SC-ASD results",
+                    "Export Single-Criterion ASD results",
                     options={"delay": {"show": 1000, "hide": 0}},
                 ),
                 ui.tooltip(
@@ -164,7 +164,7 @@ def asd_server(input, output, session, reactive_values):
     def _handle_save_asd() -> None:
         if not reactive_values["sc-asd_results"]():
             ui.notification_show(
-                "Nothing to export. Please run the SC-ASD analysis first.",
+                "Nothing to export. Please run the Single-Criterion ASD analysis first.",
                 type="error",
             )
             return
@@ -312,14 +312,16 @@ def asd_server(input, output, session, reactive_values):
 
             if results["sc-asd_sites"].isnull().values.any():
                 ui.notification_show(
-                    "ASC-ASD analysis model created, but required sites number of sites could not be identified, please check model parameters and your input data.",
+                    "Single-Criterion ASD analysis model created, but required sites number of sites could not be identified, please check model parameters and your input data.",
                     type="error",
                     duration=None,
                 )
                 return
 
         except Exception as e:
-            ui.notification_show(f"SC-ASD analysis failed: {str(e)}", type="error", duration=None)
+            ui.notification_show(
+                f"Single-Criterion ASD analysis failed: {str(e)}", type="error", duration=None
+            )
             return
 
         if target == "H":
