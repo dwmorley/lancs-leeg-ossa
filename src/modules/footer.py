@@ -106,6 +106,9 @@ def footer_server(input, output, session, reactive_values):
                             src="AnoSTEP logo.jpg", height="50px", style="margin-right: 20px;"
                         ),
                         ui.tags.img(src="ucsfn.jpg", height="50px"),
+                        ui.tags.img(
+                            src="Liverpool_School_of_Tropical_Medicine_Logo.png", height="50px"
+                        ),
                         style="display:flex; align-items:center; justify-content:center; margin-bottom:20px;",
                     ),
                     ui.tags.h3(
