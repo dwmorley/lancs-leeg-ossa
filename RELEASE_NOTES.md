@@ -4,6 +4,10 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.0.0 (30-Apr-2026)
+
+- First full release
+---------------------------------------------------------------------
 ## v0.0.5 (17-Apr-2026)
 
 - R - rpy2 issues in Docker resolved
