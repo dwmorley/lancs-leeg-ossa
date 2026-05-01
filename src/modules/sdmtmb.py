@@ -2,7 +2,6 @@
 
 import asyncio
 import queue
-import webbrowser
 from datetime import datetime
 
 import pandas as pd
@@ -125,9 +124,9 @@ def sdmtmb_server(input, output, session, reactive_values):
 
     @reactive.effect
     @reactive.event(input.r_info_sdmtmb)
-    def _handle_r_info_sdmtmb():
+    async def _handle_r_info_sdmtmb():
         url = URLS["sdmTMB"]
-        webbrowser.open(url, new=2)
+        await session.send_custom_message("open_url", {"url": url})
 
     @reactive.effect
     @reactive.event(input.save_sdmtmb)

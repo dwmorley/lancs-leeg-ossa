@@ -2,7 +2,6 @@
 
 import asyncio
 import queue
-import webbrowser
 from datetime import datetime
 
 import geopandas as gpd
@@ -155,9 +154,9 @@ def asd_server(input, output, session, reactive_values):
 
     @reactive.effect
     @reactive.event(input.r_info_asd)
-    def _handle_r_info_asd():
+    async def _handle_r_info_asd():
         url = URLS[input.asd_model()]
-        webbrowser.open(url, new=2)
+        await session.send_custom_message("open_url", {"url": url})
 
     @reactive.effect
     @reactive.event(input.save_asd)

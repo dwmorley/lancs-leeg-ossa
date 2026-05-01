@@ -13,6 +13,7 @@ page_dependencies = ui.tags.head(
         rel="stylesheet",
         href="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.15.1/devicon.min.css",
     ),
+    ui.tags.script(src="handlers.js"),
 )
 
 page_header = header.header_ui("my_header")
