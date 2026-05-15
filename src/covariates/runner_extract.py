@@ -235,7 +235,8 @@ def run_extraction(
         print("Starting extraction...")
 
         # Use a single executor for both regular and ECMWF variables
-        max_workers = os.cpu_count() - 2
+        cpu_count = os.cpu_count() or 1
+        max_workers = max(1, cpu_count - 2)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
 
             # Dictionary to track all futures
