@@ -3,6 +3,10 @@
 #   docker compose up --build          # first run (builds the image locally)
 #   docker compose up                  # subsequent runs (re-uses cached image)
 #   docker compose down                # stop and remove container
+#
+# Output Files:
+#   All downloaded files are saved to: ./output (in your current directory)
+#   This is mounted inside the container as /app/output
 
 services:
   app:

@@ -13,6 +13,14 @@ def get_downloads_folder():
     """Get the Downloads folder path for the current platform.
 
     Respects the DOWNLOAD_DIR environment variable when set (e.g. in Docker).
+
+    When running in Docker:
+    - The DOWNLOAD_DIR should be set to /app/output
+    - Files will be saved to the volume mounted on the host (e.g., ./output)
+    - This provides a clean, simple path instead of complex WSL overlay paths
+
+    Returns:
+        Path: The directory where files should be downloaded/saved to.
     """
     env_dir = os.environ.get("DOWNLOAD_DIR")
     if env_dir:
