@@ -124,8 +124,9 @@ def save_artifacts_zip(
     kml_artifacts: dict | None = None,
     raster_artifacts: dict | None = None,
     figure_artifacts: dict | None = None,
+    rds_artifacts: dict | None = None,
 ) -> Path:
-    """Save dataframe/raster/figure artifacts to a single zip in Downloads."""
+    """Save dataframe/raster/figure/RDS artifacts to a single zip in Downloads."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
 
@@ -149,6 +150,11 @@ def save_artifacts_zip(
             for filename, figure in figure_artifacts.items():
                 figure.savefig(temp_path / filename, dpi=150, bbox_inches="tight")
 
+        if rds_artifacts:
+            for filename, rds_bytes in rds_artifacts.items():
+                with open(temp_path / filename, "wb") as f:
+                    f.write(rds_bytes)
+
         zip_path = get_downloads_folder() / zip_name
         zip_path.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -158,6 +164,7 @@ def save_artifacts_zip(
                 *(gpkg_artifacts.keys() if gpkg_artifacts else []),
                 *(kml_artifacts.keys() if kml_artifacts else []),
                 *(figure_artifacts.keys() if figure_artifacts else []),
+                *(rds_artifacts.keys() if rds_artifacts else []),
             ]:
                 zf.write(temp_path / filename, arcname=filename)
 

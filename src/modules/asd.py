@@ -256,7 +256,7 @@ def asd_server(input, output, session, reactive_values):
             formulaf: str,
             formular: str,
             target: str,
-            family: str = "Poisson",
+            family: str,
             total: int = 15,
             delta: float = 0.01,
             resolution: int = 10,

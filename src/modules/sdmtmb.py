@@ -140,13 +140,20 @@ def sdmtmb_server(input, output, session, reactive_values):
             )
             return
 
-        st_stats = reactive_values["sdmtmb_results"]()["sdmtmb_table"]
+        results = reactive_values["sdmtmb_results"]()
+        st_stats = results["sdmtmb_table"]
+        rds_bytes = results.get("sdmtmb_rds")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        rds_artifacts = {}
+        if rds_bytes:
+            rds_artifacts["fit_spatiotemporal1.rds"] = rds_bytes
 
         zip_path = save_artifacts_zip(
             zip_name=f"stmodel_results_{timestamp}.zip",
             csv_artifacts={"stmodel_stats.csv": st_stats},
+            rds_artifacts=rds_artifacts if rds_artifacts else None,
         )
 
         ui.notification_show(
@@ -194,9 +201,9 @@ def sdmtmb_server(input, output, session, reactive_values):
             spatial: str,
             spatiotemporal: str,
             on_progress=None,
-        ) -> dict[str, pd.DataFrame | xr.DataArray]:
+        ) -> dict[str, pd.DataFrame | xr.DataArray | bytes]:
             """Perform sdmtmb analysis on the provided dataset."""
-            sdmtmb_table = sdmtmb_via_rpy2(
+            sdmtmb_table, rds_bytes = sdmtmb_via_rpy2(
                 formulaf=formulaf,
                 formular=formular,
                 time=time,
@@ -210,6 +217,7 @@ def sdmtmb_server(input, output, session, reactive_values):
 
             return {
                 "sdmtmb_table": sdmtmb_table,
+                "sdmtmb_rds": rds_bytes,
             }
 
         # Launch R computation in a thread so the event loop stays unblocked.

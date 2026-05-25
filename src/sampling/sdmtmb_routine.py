@@ -61,7 +61,7 @@ class SDMTMBComputation(RComputationBase):
         self.data = data
         self.area = area
 
-    def _compute(self) -> pd.DataFrame | None:
+    def _compute(self) -> tuple[pd.DataFrame, bytes] | None:
         """Perform SDMTMB computation."""
         self._prog(0.05, "Loading R packages")
 
@@ -174,7 +174,15 @@ class SDMTMBComputation(RComputationBase):
             with localconverter(pandas2ri.converter):
                 result_df = ro.r("dpred")
 
-            return result_df
+            # Save R object as RDS file
+            self._prog(0.98, "Saving model object")
+            ro.r("""saveRDS(fit_spatiotemporal1, "/tmp/sdmtmb_model.rds")""")
+
+            # Read the RDS file as bytes
+            with open("/tmp/sdmtmb_model.rds", "rb") as f:
+                rds_bytes = f.read()
+
+            return result_df, rds_bytes
 
         except RRuntimeError as r_err:
             self._handle_r_error(r_err)
@@ -192,8 +200,15 @@ def sdmtmb_via_rpy2(
     data: pd.DataFrame,
     area: pd.DataFrame,
     on_progress: Callable[[float, str, str], None] | None = None,
-) -> pd.DataFrame:
-    """Fit a TMB GLMM via R and produce an interpolated raster."""
+) -> tuple[pd.DataFrame, bytes]:
+    """Fit a TMB GLMM via R and produce an interpolated raster and model object.
+
+    Returns
+    -------
+    tuple
+        A tuple (result_df, rds_bytes) where result_df is the prediction DataFrame
+        and rds_bytes is the serialized R model object (fit_spatiotemporal1).
+    """
     computation = SDMTMBComputation(
         formulaf=formulaf,
         formular=formular,
