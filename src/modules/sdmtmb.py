@@ -12,6 +12,7 @@ from shiny import module, reactive, render, ui
 from src.constants import SDMTMB_OPTIONS, URLS
 from src.sampling.sdmtmb_routine import sdmtmb_via_rpy2
 from src.utils.downloads import save_artifacts_zip
+from src.utils.progress import non_closeable_progress
 from src.utils.r_base import RComputationBase
 
 
@@ -228,7 +229,7 @@ def sdmtmb_server(input, output, session, reactive_values):
                 )
             )
 
-            with ui.Progress(min=0, max=1) as p:
+            with non_closeable_progress(min=0, max=1) as p:
                 p.set(0, message="Starting ST Model...")
                 print("Started sdmtmb task, waiting for completion...")
                 while not task.done():

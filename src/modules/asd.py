@@ -14,6 +14,7 @@ from src.constants import ASD_OPTIONS, URLS
 from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.sampling.asd_routine import asd_via_rpy2
 from src.utils.downloads import save_artifacts_zip
+from src.utils.progress import non_closeable_progress
 from src.utils.r_base import RComputationBase
 
 DEBUG = False
@@ -293,7 +294,7 @@ def asd_server(input, output, session, reactive_values):
                 )
             )
 
-            with ui.Progress(min=0, max=1) as p:
+            with non_closeable_progress(min=0, max=1) as p:
                 p.set(0, message="Starting Adaptive Sampling...")
                 while not task.done():
                     await asyncio.sleep(0.1)

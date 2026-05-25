@@ -26,6 +26,7 @@ from src.covariates.get_soilgrids import get_soilgrids_points
 from src.covariates.get_terraclimate import get_terraclimate_points
 from src.covariates.get_worldpop import get_worldpop_points
 from src.utils.bounding_box import BoundingBox
+from src.utils.progress import non_closeable_progress
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 USE_THREADING_FOR_IO = True
@@ -230,7 +231,7 @@ def run_extraction(
     completed = 0
 
     # Create unified progress bar for all variables
-    with ui.Progress(min=0, max=total_vars) as progress:
+    with non_closeable_progress(min=0, max=total_vars) as progress:
         progress.set(message="Extracting variables...")
         print("Starting extraction...")
 

@@ -11,6 +11,7 @@ from src.constants import ZSSA_OPTIONS
 from src.plotting.maps import make_point_layer
 from src.sampling.zssa_routine import zssa_via_rpy2
 from src.utils.downloads import save_artifacts_zip
+from src.utils.progress import non_closeable_progress
 
 
 @module.ui
@@ -210,7 +211,7 @@ def zssa_server(input, output, session, reactive_values):
             )
             return
 
-        with ui.Progress(min=0, max=len(add * ni)) as p:
+        with non_closeable_progress(min=0, max=len(add * ni)) as p:
             p.set(message="Starting Multi-Criteria ASD...", value=0)
 
             result = zssa_via_rpy2(

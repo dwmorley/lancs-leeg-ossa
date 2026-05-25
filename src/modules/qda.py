@@ -16,6 +16,7 @@ from src.plotting.maps import dataarray_to_image_overlay, make_point_layer
 from src.sampling.lcp_routine import lcp
 from src.sampling.luqdaloop_routine import luqdaloop, make_qda_raster, plot_wilks_lambda
 from src.utils.downloads import save_artifacts_zip
+from src.utils.progress import non_closeable_progress
 
 
 @module.ui
@@ -283,7 +284,7 @@ def qda_server(input, output, session, reactive_values):
             return
 
         # ~20 matrix chunks + ng prior steps + 1 initial LDA + up to (nx*2) split/merge iterations
-        with ui.Progress(min=0, max=20 + len(np.unique(y)) + 1 + (nx * 2)) as p:
+        with non_closeable_progress(min=0, max=20 + len(np.unique(y)) + 1 + (nx * 2)) as p:
             class_analysis = luqdaloop(
                 X=X, y=y, grid=spatial_grid, nn=nn, nx=nx, test=test, progress=p
             )
@@ -485,7 +486,7 @@ def qda_server(input, output, session, reactive_values):
         my_ossa_layers = reactive_values["my_ossa_layers"]
         map_raster = _map_raster()
 
-        with ui.Progress(min=0, max=4) as p:
+        with non_closeable_progress(min=0, max=4) as p:
             sites = lcp(
                 map_raster,
                 delta=input.lcp_delta(),
