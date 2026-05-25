@@ -17,10 +17,8 @@ services:
     ports:
       - "${PORT:-8000}:8000"
     volumes:
-      # App writes outputs here — maps to ./output on your machine
       - ./output:/app/output
     environment:
       - HOST=0.0.0.0
       - PORT=8000
       - DOWNLOAD_DIR=/app/output
-    restart: unless-stopped

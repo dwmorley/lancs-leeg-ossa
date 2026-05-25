@@ -109,6 +109,11 @@ def server(input, output, session):
     sdmtmb.sdmtmb_server("my_sdmtmb", reactive_values)
     footer.footer_server("my_footer", reactive_values)
 
+    def on_session_ended():
+        os._exit(0)
+
+    session.on_ended(on_session_ended)
+
 
 www_dir = Path(__file__).parent / "www"
 app = App(app_ui, server, static_assets=www_dir)
