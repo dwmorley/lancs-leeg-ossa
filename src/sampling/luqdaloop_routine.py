@@ -531,8 +531,10 @@ def Wilks_test(X, y):
         W += (X_group - group_mean).T @ (X_group - group_mean)
 
     # Wilks' Lambda = |W| / |T|
+    # Use absolute values to ensure Lambda is always non-negative
+    # (determinants can be negative due to numerical precision or matrix structure)
     try:
-        lambda_stat = det(W) / det(T)
+        lambda_stat = np.abs(det(W)) / np.abs(det(T))
     except (LinAlgError, ZeroDivisionError, ValueError):
         lambda_stat = np.nan
 

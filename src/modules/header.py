@@ -9,20 +9,18 @@ from src.constants import URLS
 def header_ui():
     """Return the header UI components for the app."""
     return ui.tags.div(
-        ui.tags.div(
-            ui.tags.img(src="ossa_logo2.png", class_="logo-img", alt="OSSA logo"),
-            class_="logo-container",
+        ui.tags.a(
+            ui.img(src="ossa_logo2.png", class_="logo-img", alt="OSSA logo"),
+            href=URLS["lms"],
+            target="_blank",
+            class_="header-left-logo",
         ),
-        ui.tags.div(
-            ui.tags.h1(" Optimal Spatial Sampling Algorithm", class_="header-title"),
-        ),
-        ui.tags.div(
-            ui.tags.a(
-                ui.img(src="lulogo.png", class_="logo-img", alt="LU logo"),
-                href=URLS["lms"],
-                target="_blank",
-            ),
-            class_="logo-container",
+        ui.tags.h1("Optimal Spatial Sampling Algorithm", class_="header-title"),
+        ui.tags.a(
+            ui.img(src="lulogo.png", class_="logo-img", alt="LU logo"),
+            href=URLS["lms"],
+            target="_blank",
+            class_="header-right-logo",
         ),
         class_="app-header",
     )

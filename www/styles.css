@@ -107,11 +107,11 @@ html, body {
 /* Header, Footer styles */
 .logo-container {
     display: flex;
-    gap: 0px;
+    gap: 5px;
     align-items: center;
 }
 .logo-img {
-    height: 35px;
+    height: 30px;
 }
 .app-header {
     display: flex;
@@ -125,8 +125,16 @@ html, body {
 .header-title {
     font-size: 26px;
     font-weight: bold;
-    color: #696969 !important;
+    color: #696969;
     margin: 0;
+    flex: 1;
+    text-align: center;
+}
+.header-left-logo,
+.header-right-logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
 }
 .app-footer {
     flex-shrink: 0;
