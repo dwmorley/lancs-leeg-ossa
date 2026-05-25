@@ -84,7 +84,6 @@ def non_closeable_progress(
                 <div style="width: 100%; height: 20px; background-color: #e0e0e0; border-radius: 4px; overflow: hidden;">
                     <div style="height: 100%; background-color: #1f77b4; width: {percent}%; transition: width 0.3s ease;"></div>
                 </div>
-                <div style="font-size: 0.85em; margin-top: 5px; color: #666;">{self.value}/{self.max}</div>
             </div>
             """
 
