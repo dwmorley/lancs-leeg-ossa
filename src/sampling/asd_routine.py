@@ -29,6 +29,7 @@ class ASDComputation(RComputationBase):
         data: pd.DataFrame,
         area: pd.DataFrame,
         target: str,
+        family: str = "Poisson",
         total: float = 15,
         delta: float = 0.01,
         resolution: int = 10,
@@ -51,6 +52,8 @@ class ASDComputation(RComputationBase):
         target : {'H','U'}
             If 'H' request raster of fitted values and uncertainties; if 'U'
             request raster of uncertainties only.
+        family : str
+            Family for the model (e.g., 'Poisson', 'Binomial', 'Gaussian').
         total : float
             Maximum number of sample locations to return after thinning.
         delta : float
@@ -67,9 +70,22 @@ class ASDComputation(RComputationBase):
         self.data = data
         self.area = area
         self.target = target
+        self.family = family
         self.total = total
         self.delta = delta
         self.resolution = resolution
+
+    def _get_r_family(self) -> str:
+        """Convert family name to R family function syntax."""
+        family_map = {
+            "Gaussian": "gaussian",
+            "Binomial": "binomial",
+            "Poisson": "poisson",
+            "Gamma": "Gamma(link='log')",
+            "Nbinom1": "negative.binomial(1)",
+            "Nbinom2": "negative.binomial(2)",
+        }
+        return family_map.get(self.family, "poisson")
 
     def _compute(self) -> tuple[xr.DataArray, pd.DataFrame] | None:
         """Perform ASD computation."""
@@ -126,7 +142,7 @@ class ASDComputation(RComputationBase):
                                 {self.formular},
                                 data = data,
                                 correlation = corExp(form = ~x + y, nugget = T),
-                                family = poisson,
+                                family = {self._get_r_family()},
                                 verbose = TRUE
                             )
                         """
@@ -145,7 +161,7 @@ class ASDComputation(RComputationBase):
                                 {random}
                                 xcoord= x,
                                 ycoord= y,
-                                family = poisson,
+                                family = {self._get_r_family()},
                                 data = data,
                                 spcov_type = "matern",
                                 estmethod="ml",
@@ -310,6 +326,7 @@ def asd_via_rpy2(
     data: pd.DataFrame,
     area: pd.DataFrame,
     target: str,
+    family: str = "Poisson",
     total: float = 15,
     delta: float = 0.01,
     resolution: int = 10,
@@ -333,6 +350,8 @@ def asd_via_rpy2(
     target : {'H','U'}
         If 'H' request raster of fitted values and uncertainties; if 'U'
         request raster of uncertainties only. Defaults to 'H'.
+    family : str
+        Family for the model (e.g., 'Poisson', 'Binomial', 'Gaussian').
     total : float
         Maximum number of sample locations to return after thinning.
     delta : float
@@ -362,6 +381,7 @@ def asd_via_rpy2(
         data=data,
         area=area,
         target=target,
+        family=family,
         total=total,
         delta=delta,
         resolution=resolution,

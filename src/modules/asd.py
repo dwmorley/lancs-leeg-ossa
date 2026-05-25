@@ -55,6 +55,12 @@ def asd_ui():
                                 value=ASD_OPTIONS["formular"],
                                 placeholder="e.g. ~1|LCD",
                             ),
+                            ui.input_select(
+                                "asd_family",
+                                "Model family",
+                                choices=ASD_OPTIONS["family"],
+                                selected="Poisson",
+                            ),
                             ui.input_numeric(
                                 "asd_total",
                                 "Adaptive sampling locations to allocate",
@@ -250,6 +256,7 @@ def asd_server(input, output, session, reactive_values):
             formulaf: str,
             formular: str,
             target: str,
+            family: str = "Poisson",
             total: int = 15,
             delta: float = 0.01,
             resolution: int = 10,
@@ -267,6 +274,7 @@ def asd_server(input, output, session, reactive_values):
                 data=training_df,
                 area=prediction_df,
                 target=target,
+                family=family,
                 total=total,
                 delta=delta,
                 resolution=resolution,
@@ -289,6 +297,7 @@ def asd_server(input, output, session, reactive_values):
                     formulaf=input.asd_formulaf(),
                     formular=input.asd_formular(),
                     target=target,
+                    family=input.asd_family(),
                     resolution=input.asd_resolution(),
                     on_progress=_on_progress,
                 )

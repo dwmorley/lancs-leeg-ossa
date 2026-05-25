@@ -182,6 +182,7 @@ ASD_OPTIONS = {
     "total": 15,
     "delta": 0.01,
     "resolution": 10,
+    "family": ["Gaussian", "Binomial", "Poisson", "Gamma", "Nbinom1", "Nbinom2"],
 }
 
 ZSSA_OPTIONS = {
