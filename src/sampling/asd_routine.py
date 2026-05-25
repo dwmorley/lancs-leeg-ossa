@@ -11,6 +11,7 @@ from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
+from scipy.spatial import cKDTree
 
 from src.covariates.get_iolulc import get_iolulc
 from src.utils.bounding_box import BoundingBox
@@ -282,26 +283,10 @@ class ASDComputation(RComputationBase):
             x = x.drop(columns=["lulc"])
 
             self._prog(0.85, "Thinning point cloud")
-            selected_indices = []
-            coords_xy = x.iloc[:, 0:2].values
-
-            for idx in x.index:
-                point = coords_xy[idx].reshape(1, -1)
-
-                # Check distance to already selected points
-                if selected_indices:
-                    selected_coords = coords_xy[selected_indices]
-                    distances = np.linalg.norm(selected_coords - point, axis=1)
-                    if float(np.min(distances)) >= self.delta:
-                        selected_indices.append(idx)
-                else:
-                    selected_indices.append(idx)
-
-                # Stop once we have enough points
-                if len(selected_indices) >= self.total:
-                    break
-
-            x = x.iloc[selected_indices].reset_index(drop=True)
+            coords = x.iloc[:, 0:2].values
+            tree = cKDTree(coords)
+            to_remove = {j for i, j in tree.query_pairs(self.delta)}
+            x = x.drop(index=list(to_remove)).reset_index(drop=True).iloc[: self.total]
 
             self._prog(0.95, "Finalising")
 
