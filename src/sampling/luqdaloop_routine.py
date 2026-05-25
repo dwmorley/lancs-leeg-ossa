@@ -532,7 +532,6 @@ def Wilks_test(X, y):
 
     # Wilks' Lambda = |W| / |T|
     # Use absolute values to ensure Lambda is always non-negative
-    # (determinants can be negative due to numerical precision or matrix structure)
     try:
         lambda_stat = np.abs(det(W)) / np.abs(det(T))
     except (LinAlgError, ZeroDivisionError, ValueError):
