@@ -10,7 +10,11 @@ def header_ui():
     """Return the header UI components for the app."""
     return ui.tags.div(
         ui.tags.div(
-            ui.tags.h1("OSSA - Optimal Spatial Sampling Algorithm", class_="header-title"),
+            ui.tags.img(src="ossa_logo2.png", class_="logo-img", alt="OSSA logo"),
+            class_="logo-container",
+        ),
+        ui.tags.div(
+            ui.tags.h1(" Optimal Spatial Sampling Algorithm", class_="header-title"),
         ),
         ui.tags.div(
             ui.tags.a(
