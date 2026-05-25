@@ -282,6 +282,11 @@ class ASDComputation(RComputationBase):
             x = x[~np.isnan(x["lulc"])].reset_index(drop=True)
             x = x.drop(columns=["lulc"])
 
+            self._prog(0.82, "Selecting candidate points for thinning")
+            # Only keep top candidates by uncertainty/fit to avoid memory explosion
+            candidate_count = max(int(self.total * 500), 5000)
+            x = x.iloc[:candidate_count].copy()
+
             self._prog(0.85, "Thinning point cloud")
             coords = x.iloc[:, 0:2].values
             tree = cKDTree(coords)
