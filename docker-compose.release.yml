@@ -8,12 +8,9 @@
 # Usage (every time):
 #   docker compose -f docker-compose.release.yml up
 #
-# Output Files:
-#   All downloaded files are saved to the OUTPUT_DIR directory on your machine.
-#   By default, this is ./output (create in the same folder as this file).
-#   Or set OUTPUT_DIR in a .env file, e.g.:
-#     OUTPUT_DIR=C:\Users\you\my-data        (Windows)
-#     OUTPUT_DIR=/Users/you/my-data          (Mac)
+# Set DATA_DIR in a .env file next to this file, e.g.:
+#   DATA_DIR=C:\Users\you\my-data        (Windows)
+#   DATA_DIR=/Users/you/my-data          (Mac)
 
 services:
   app:
@@ -26,5 +23,4 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8000
-      - DOWNLOAD_DIR=/app/output
     restart: unless-stopped
