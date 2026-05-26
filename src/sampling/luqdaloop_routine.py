@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scipy.linalg import LinAlgError, det, qr, solve_triangular
+from scipy.linalg import LinAlgError, qr, solve_triangular
 
 
 def luqdaloop(
@@ -494,29 +494,10 @@ def ls_da(
 
 
 def Wilks_test(X, y):
-    """Compute Wilks' Lambda statistic for multivariate group differences.
+    """Improved version with proper numerical stability and singular handling."""
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y)
 
-    Wilks' Lambda is defined as the determinant of the within-group
-    scatter matrix divided by the determinant of the total scatter matrix:
-
-        Lambda = |W| / |T|
-
-    where T = total scatter and W = within-group scatter. Smaller values
-    indicate greater separation among group means.
-
-    Parameters
-    ----------
-    X : array-like
-        Feature matrix of shape (n_samples, n_features).
-    y : array-like
-        Group labels corresponding to rows of `X`.
-
-    Returns
-    -------
-    float
-        Wilks' Lambda statistic (or NaN if computation fails due to a
-        singular matrix or other numerical issues).
-    """
     groups = np.unique(y)
     grand_mean = X.mean(axis=0)
 
@@ -530,14 +511,24 @@ def Wilks_test(X, y):
         group_mean = X_group.mean(axis=0)
         W += (X_group - group_mean).T @ (X_group - group_mean)
 
-    # Wilks' Lambda = |W| / |T|
-    # Use absolute values to ensure Lambda is always non-negative
     try:
-        lambda_stat = np.abs(det(W)) / np.abs(det(T))
-    except (LinAlgError, ZeroDivisionError, ValueError):
-        lambda_stat = np.nan
+        # Use slogdet for numerical stability with non-singular matrices
+        sign_w, logdet_w = np.linalg.slogdet(W)
+        sign_t, logdet_t = np.linalg.slogdet(T)
 
-    return lambda_stat
+        # If either matrix is singular (sign = 0), fall back to direct computation
+        if sign_w == 0 or sign_t == 0:
+            det_w = np.linalg.det(W)
+            det_t = np.linalg.det(T)
+            if det_t == 0:
+                return np.nan
+            return abs(det_w / det_t)
+
+        # Both matrices are non-singular: use log-determinants for stability
+        lambda_stat = np.exp(logdet_w - logdet_t)
+        return np.clip(lambda_stat, 0, 1)
+    except Exception:
+        return np.nan
 
 
 def plot_wilks_lambda(wilks: pd.Series, opt_classes: int, deficient_classes: int = 0):
