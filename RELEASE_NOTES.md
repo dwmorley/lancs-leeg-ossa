@@ -4,6 +4,15 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.1.0 (26-May-2026)
+
+- Various bug fixes and improvements after LS testing and feedback.
+- Non closing progress bars
+- Model family for ASD
+- More robust Wilks Lambda test
+- Save sdmTMB object
+- Speed up of ASD pairwise distances
+---------------------------------------------------------------------
 ## v1.0.1 (15-May-2026)
 
 - Fix for CPU count error
