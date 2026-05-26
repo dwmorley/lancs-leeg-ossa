@@ -263,7 +263,12 @@ def zssa_server(input, output, session, reactive_values):
             *[
                 ui.tags.tr(
                     ui.tags.th(row, style="white-space:nowrap;"),
-                    *[ui.tags.td(f"{val:.6f}", style="text-align:right;") for val in df.loc[row]],
+                    *[
+                        ui.tags.td(
+                            "--" if pd.isna(val) else f"{val:.6f}", style="text-align:right;"
+                        )
+                        for val in df.loc[row]
+                    ],
                 )
                 for row in df.index
             ]
