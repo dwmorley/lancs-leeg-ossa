@@ -4,6 +4,10 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.1.1 (27-May-2026)
+
+- Define a better docker download location
+---------------------------------------------------------------------
 ## v1.1.0 (26-May-2026)
 
 - Various bug fixes and improvements after LS testing and feedback.

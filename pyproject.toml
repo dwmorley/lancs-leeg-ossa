@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ossa"
-version = "1.1.0"
+version = "1.1.1"
 description = "OSSA - Optimal Spatial Sampling Algorithm"
 authors = ["David Morley, <dwmorley@github>"]
 readme = "README.md"
