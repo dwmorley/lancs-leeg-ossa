@@ -8,6 +8,7 @@ URLS = {
     "glmmPQL": "https://rdrr.io/cran/MASS/man/glmmPQL.html",
     "spglm": "https://rdrr.io/cran/spmodel/man/spglm.html",
     "sdmTMB": "https://rdrr.io/cran/sdmTMB/man/sdmTMB.html",
+    "ossa": "https://luigisedda.wordpress.com/",
 }
 
 GRID_SAMPLE_SIZE = 500

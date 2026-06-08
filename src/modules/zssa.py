@@ -40,7 +40,7 @@ def zssa_ui():
                         ),
                         ui.input_checkbox(
                             "kriging_checkbox",
-                            "Disable Kriging",
+                            "Disable cross validation",
                             value=ZSSA_OPTIONS["from_glm"],
                         ),
                         ui.output_ui("number_list_ui"),

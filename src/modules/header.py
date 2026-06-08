@@ -11,7 +11,7 @@ def header_ui():
     return ui.tags.div(
         ui.tags.a(
             ui.img(src="ossa_logo2.png", class_="logo-img", alt="OSSA logo"),
-            href=URLS["lms"],
+            href=URLS["ossa"],
             target="_blank",
             class_="header-left-logo",
         ),
