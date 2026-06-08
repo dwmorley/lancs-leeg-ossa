@@ -38,6 +38,65 @@ def load_server(input, output, session, reactive_values):
     """
     _reset_counter = reactive.Value(0)
 
+    def check_for_nan_values(df):
+        """Check for NaN-like values (both actual NaN and string patterns) in the dataframe.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe to check.
+
+        Returns
+        -------
+        tuple
+            (has_nan_values, error_message) where has_nan_values is a bool
+            and error_message is a string describing found NaN-like values.
+        """
+        nan_patterns = {
+            "NA",
+            "N/A",
+            "N/a",
+            "na",
+            "n/a",
+            "NaN",
+            "NAN",
+            "nan",
+            "null",
+            "NULL",
+            "Null",
+            "none",
+            "None",
+            "NONE",
+            "#N/A",
+        }
+
+        nan_locations = []
+        for col in df.columns:
+            for idx, val in enumerate(df[col]):
+                # Check for actual NaN/NaT values
+                if pd.isna(val):
+                    nan_locations.append({"row": idx, "column": col, "value": "NaN"})
+                    continue
+
+                # Check string representation of values for NaN-like patterns
+                str_val = str(val).strip()
+                if str_val in nan_patterns:
+                    nan_locations.append({"row": idx, "column": col, "value": str_val})
+
+        if nan_locations:
+            # Format error message with details
+            error_lines = ["Found NaN-like values in the data:"]
+            for i, loc in enumerate(nan_locations[:10]):  # Show first 10 occurrences
+                error_lines.append(
+                    f"  Row {loc['row']}, Column '{loc['column']}': '{loc['value']}'"
+                )
+            if len(nan_locations) > 10:
+                error_lines.append(f"  ... and {len(nan_locations) - 10} more occurrences")
+
+            return True, "\n".join(error_lines)
+
+        return False, ""
+
     def normalize_lat_lon_columns(df):
         # Candidates for latitude and longitude (case-insensitive)
         lat_candidates = {"y", "lat", "ltd", "latitude"}
@@ -94,6 +153,13 @@ def load_server(input, output, session, reactive_values):
         try:
             # Read the uploaded CSV file
             extracted_df = pd.read_csv(file_info[0]["datapath"])
+
+            # Check for NaN-like values
+            has_nan, nan_error = check_for_nan_values(extracted_df)
+            if has_nan:
+                _fail(f"Cannot load data: {nan_error}")
+                return
+
             extracted_df = normalize_lat_lon_columns(extracted_df)
 
             # Get bounds from latitude and longitude columns
@@ -170,6 +236,13 @@ def load_server(input, output, session, reactive_values):
         try:
             # Read the uploaded CSV file
             prediction_df = pd.read_csv(file_info[0]["datapath"])
+
+            # Check for NaN-like values
+            has_nan, nan_error = check_for_nan_values(prediction_df)
+            if has_nan:
+                _fail(f"Cannot load data: {nan_error}")
+                return
+
             prediction_df = normalize_lat_lon_columns(prediction_df)
 
             reactive_values["prediction_df"].set(prediction_df)

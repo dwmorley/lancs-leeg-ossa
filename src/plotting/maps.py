@@ -13,6 +13,81 @@ from ipywidgets import HTML
 from matplotlib.colors import BoundaryNorm
 
 
+def dataarray_to_image_buffer(
+    da: xr.DataArray, categorical: bool = True, fmt: str = "png"
+) -> BytesIO:
+    """Render a DataArray as an image and return the buffer.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        2-D DataArray with coordinates containing latitude-like ('y') and
+        longitude-like ('x') values.
+    categorical : bool, optional
+        If True, use a categorical colormap (tab20) for discrete values;
+        otherwise render as a continuous heatmap. Default: True.
+    fmt : str, optional
+        Image format ('png' or 'jpeg'). Default: 'png'.
+
+    Returns
+    -------
+    BytesIO
+        Buffer containing the rendered image.
+    """
+    data = da.values.astype(float)
+    lats = np.array(da.coords.get("y", da.coords.get("lat", da.coords.get("latitude"))))
+    lons = np.array(da.coords.get("x", da.coords.get("lon", da.coords.get("longitude"))))
+    lat_res = np.abs(np.diff(lats)).mean() if len(lats) > 1 else 0.01
+    lon_res = np.abs(np.diff(lons)).mean() if len(lons) > 1 else 0.01
+    bounds = [
+        [float(lats.min()) - 0.5 * lat_res, float(lons.min()) - 0.5 * lon_res],
+        [float(lats.max()) + 0.5 * lat_res, float(lons.max()) + 0.5 * lon_res],
+    ]
+
+    origin: Literal["lower", "upper"] = "lower" if lats[0] < lats[-1] else "upper"
+    extent = (
+        (
+            bounds[0][1],
+            bounds[1][1],  # lon_min_edge, lon_max_edge
+            bounds[0][0],
+            bounds[1][0],  # lat_min_edge, lat_max_edge
+        )
+        if origin == "lower"
+        else (
+            bounds[0][1],
+            bounds[1][1],  # lon_min_edge, lon_max_edge
+            bounds[1][0],
+            bounds[0][0],  # lat_max_edge, lat_min_edge
+        )
+    )
+
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
+    ax.axis("off")
+
+    if categorical:
+        cmap = plt.get_cmap("tab20") if np.unique(data).size <= 20 else plt.get_cmap("viridis")
+        ax.imshow(data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest")
+    else:
+        vmin, vmax = np.nanmin(data), np.nanmax(data)
+        cuts = np.linspace(vmin, vmax, 12)
+        cmap = plt.get_cmap("hot")
+        norm = BoundaryNorm(cuts, cmap.N)
+
+        ax.imshow(
+            data,
+            extent=extent,
+            origin="lower",
+            cmap="hot",
+            norm=norm,
+        )
+
+    buf = BytesIO()
+    plt.savefig(buf, format=fmt, bbox_inches="tight", pad_inches=0, transparent=(fmt == "png"))
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
 def dataarray_to_image_overlay(
     da: xr.DataArray, categorical: bool = True, name: str = "Raster"
 ) -> L.ImageOverlay:
@@ -52,25 +127,8 @@ def dataarray_to_image_overlay(
         [float(lats.max()) + 0.5 * lat_res, float(lons.max()) + 0.5 * lon_res],
     ]
 
-    origin: Literal["lower", "upper"] = "lower" if lats[0] < lats[-1] else "upper"
-    extent = (
-        (
-            bounds[0][1],
-            bounds[1][1],  # lon_min_edge, lon_max_edge
-            bounds[0][0],
-            bounds[1][0],  # lat_min_edge, lat_max_edge
-        )
-        if origin == "lower"
-        else (
-            bounds[0][1],
-            bounds[1][1],  # lon_min_edge, lon_max_edge
-            bounds[1][0],
-            bounds[0][0],  # lat_max_edge, lat_min_edge
-        )
-    )
-
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
-    ax.axis("off")
+    # Get the rendered image buffer
+    buf = dataarray_to_image_buffer(da, categorical=categorical, fmt="png")
 
     # Store legend metadata
     legend_info = {
@@ -82,32 +140,15 @@ def dataarray_to_image_overlay(
     }
 
     if categorical:
-        cmap = plt.get_cmap("tab20") if np.unique(data).size <= 20 else plt.get_cmap("viridis")
         legend_info["cmap_name"] = "tab20" if np.unique(data).size <= 20 else "viridis"  # type: ignore
-
-        ax.imshow(data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest")
     else:
         vmin, vmax = np.nanmin(data), np.nanmax(data)
         cuts = np.linspace(vmin, vmax, 12)
-        cmap = plt.get_cmap("hot")
-        norm = BoundaryNorm(cuts, cmap.N)
-
         legend_info["cmap_name"] = "hot"  # type: ignore
         legend_info["vmin"] = float(vmin)  # type: ignore
         legend_info["vmax"] = float(vmax)  # type: ignore
         legend_info["cuts"] = [float(c) for c in cuts]  # type: ignore
 
-        ax.imshow(
-            data,
-            extent=extent,
-            origin="lower",
-            cmap="hot",
-            norm=norm,
-        )
-
-    buf = BytesIO()
-    plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0, transparent=True)
-    plt.close(fig)
     url = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
     overlay = L.ImageOverlay(url=url, bounds=bounds, opacity=0.7, name=name)
     # Attach legend metadata to the overlay for later use

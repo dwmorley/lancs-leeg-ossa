@@ -216,6 +216,38 @@ def qda_server(input, output, session, reactive_values):
             lcp_sites, geometry=gpd.points_from_xy(lcp_sites.x, lcp_sites.y), crs="EPSG:4326"
         )
 
+        # Generate overlay as a matplotlib figure from the same raster used in the map
+        map_raster = _map_raster()
+        data = map_raster.values.astype(float)
+        lats = np.array(
+            map_raster.coords.get(
+                "y", map_raster.coords.get("lat", map_raster.coords.get("latitude"))
+            )
+        )
+        lons = np.array(
+            map_raster.coords.get(
+                "x", map_raster.coords.get("lon", map_raster.coords.get("longitude"))
+            )
+        )
+        lat_res = np.abs(np.diff(lats)).mean() if len(lats) > 1 else 0.01
+        lon_res = np.abs(np.diff(lons)).mean() if len(lons) > 1 else 0.01
+        bounds = [
+            [float(lats.min()) - 0.5 * lat_res, float(lons.min()) - 0.5 * lon_res],
+            [float(lats.max()) + 0.5 * lat_res, float(lons.max()) + 0.5 * lon_res],
+        ]
+
+        origin = "lower" if lats[0] < lats[-1] else "upper"
+        extent = (
+            (bounds[0][1], bounds[1][1], bounds[0][0], bounds[1][0])
+            if origin == "lower"
+            else (bounds[0][1], bounds[1][1], bounds[1][0], bounds[0][0])
+        )
+
+        overlay_fig, overlay_ax = plt.subplots(figsize=(6, 6), dpi=100)
+        overlay_ax.axis("off")
+        cmap = plt.get_cmap("tab20") if np.unique(data).size <= 20 else plt.get_cmap("viridis")
+        overlay_ax.imshow(data, cmap=cmap, origin=origin, extent=extent, interpolation="nearest")
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         zip_path = save_artifacts_zip(
@@ -224,9 +256,10 @@ def qda_server(input, output, session, reactive_values):
             gpkg_artifacts={"lcp_sites.gpkg": lcp_sites_gpd},
             kml_artifacts={"lcp_sites.kml": lcp_sites_gpd},
             raster_artifacts={"qda_raster.tif": _map_raster._value},
-            figure_artifacts={"wilks_plot.png": wilks_plot},
+            figure_artifacts={"wilks_plot.png": wilks_plot, "qda_raster.jpeg": overlay_fig},
         )
         plt.close(wilks_plot)
+        plt.close(overlay_fig)
 
         ui.notification_show(
             f"Results saved to {zip_path}",
