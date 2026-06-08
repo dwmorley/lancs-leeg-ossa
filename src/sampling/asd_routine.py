@@ -13,7 +13,7 @@ from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
 from scipy.spatial import cKDTree
 
-from src.covariates.get_iolulc import get_iolulc
+from src.covariates.get_iolulc import get_iolulc_points
 from src.utils.bounding_box import BoundingBox
 from src.utils.r_base import RComputationBase
 
@@ -104,23 +104,13 @@ class ASDComputation(RComputationBase):
 
         try:
             with localconverter(pandas2ri.converter):
-                self._prog(0.10, "Transferring data to R")
+                self._prog(0.10, "Transferring data to R...")
 
                 data = self.rename_lonlat_to_xy(self.data)
                 area = self.rename_lonlat_to_xy(self.area)
 
                 x_res = len(area["x"].unique()) * self.resolution
                 y_res = len(area["y"].unique()) * self.resolution
-
-                ymax = area["y"].max()
-                ymin = area["y"].min()
-                xmax = area["x"].max()
-                xmin = area["x"].min()
-                lclu = get_iolulc(
-                    bbox=BoundingBox([xmin, ymin, xmax, ymax]),
-                    year=2023,
-                )
-
                 ro.globalenv["data"] = data
                 ro.globalenv["area"] = area
 
@@ -170,6 +160,14 @@ class ASDComputation(RComputationBase):
                             """
                     )
 
+                """
+                Third option, starting from modelgrid which bypasses GLMs
+                'Adaptive Only'
+                            modelgrid <- mba.surf(
+                            cbind(area[, c("x", "y")], "USER OPTION"),
+
+                """
+
                 self._prog(0.75, "Predicting standard errors")
                 if self.model == "glmmPQL":
                     ro.r(
@@ -198,6 +196,8 @@ class ASDComputation(RComputationBase):
                             extend=TRUE
                         )$xyz.est"""
                     )
+
+                # ### Run this part here as well
 
                 if self.target == "H":
                     self._prog(0.88, "Interpolating fitted values grid")
@@ -288,12 +288,16 @@ class ASDComputation(RComputationBase):
             x = x.iloc[indices].reset_index(drop=True)
 
             self._prog(0.80, "Applying land-sea mask")
-            # Mask out points in the sea (where lulc raster is NaN)
-            lulc_values = lclu.sel(
-                x=xr.DataArray(x["x"].values, dims="points"),
-                y=xr.DataArray(x["y"].values, dims="points"),
-                method="nearest",
-            ).values
+
+            # Get bounding box from x/y coordinates
+            xmin = x["x"].min()
+            xmax = x["x"].max()
+            ymin = x["y"].min()
+            ymax = x["y"].max()
+            bbox = BoundingBox([xmin, ymin, xmax, ymax])
+
+            # Mask out points in the sea (where lulc is NaN)
+            lulc_values = get_iolulc_points(bbox=bbox, xs=x["x"].values, ys=x["y"].values)
             x["lulc"] = lulc_values
             x = x[~np.isnan(x["lulc"])].reset_index(drop=True)
             x = x.drop(columns=["lulc"])
@@ -393,11 +397,11 @@ def asd_via_rpy2(
 if __name__ == "__main__":
 
     data = pd.read_csv("/Users/david/Desktop/dffit.csv")
-    area = pd.read_csv("/Users/david/Desktop/dffit.csv")
+    area = pd.read_csv("/Users/david/Desktop/dfpre_clean.csv")
 
     da, x_df = asd_via_rpy2(
         model="glmmPQL",
-        formulaf="count ~ Time + nbpers + Gpp_5 + PsnNe + EVI_2 + MIR_r + NIR_r + red_r + blue_ + LST_N + Lai_5 + Fpar_ + grip4_total_dens_m_km2",
+        formulaf="count ~ nbpers + Gpp_5 + PsnNe + EVI_2 + MIR_r + NIR_r + red_r + blue_ + LST_N + Lai_5 + Fpar_ + grip4_total_dens_m_km2",
         formular="~1|Cow",  # ~1|LCD
         data=data,
         area=area,
