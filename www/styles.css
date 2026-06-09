@@ -73,6 +73,10 @@
     line-height: 1.5 !important;
 }
 
+.datepicker {
+    z-index: 2000 !important;
+}
+
 * {
     margin: 0;
     padding: 0;
