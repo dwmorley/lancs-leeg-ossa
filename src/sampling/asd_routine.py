@@ -29,6 +29,7 @@ class ASDComputation(RComputationBase):
         data: pd.DataFrame,
         area: pd.DataFrame,
         target: str,
+        existing_target: str | None = None,
         family: str = "Poisson",
         total: float = 15,
         delta: float = 0.01,
@@ -52,6 +53,8 @@ class ASDComputation(RComputationBase):
         target : {'H','U'}
             If 'H' request raster of fitted values and uncertainties; if 'U'
             request raster of uncertainties only.
+        existing_target : str, optional
+            Pre-caluclated value from user
         family : str
             Family for the model (e.g., 'Poisson', 'Binomial', 'Gaussian').
         total : float
@@ -70,6 +73,7 @@ class ASDComputation(RComputationBase):
         self.data = data
         self.area = area
         self.target = target
+        self.existing_target = existing_target
         self.family = family
         self.total = total
         self.delta = delta
@@ -111,16 +115,17 @@ class ASDComputation(RComputationBase):
 
                 x_res = len(area["x"].unique()) * self.resolution
                 y_res = len(area["y"].unique()) * self.resolution
-                ro.globalenv["data"] = data
                 ro.globalenv["area"] = area
 
-                if self.formulaf != "":
-                    # Validate formula variables are in data
-                    self.validate_formula_variables(self.formulaf, data, "formulaf")
-                    cols = data.columns.tolist()
-                    formula_columns = [col for col in cols if col in self.formular]
-                    for col in formula_columns:
-                        ro.r(f"data${col} <- as.factor(data${col})")
+                if self.model != "spatial_design":
+                    ro.globalenv["data"] = data
+                    if self.formulaf != "":
+                        # Validate formula variables are in data
+                        self.validate_formula_variables(self.formulaf, data, "formulaf")
+                        cols = data.columns.tolist()
+                        formula_columns = [col for col in cols if col in self.formular]
+                        for col in formula_columns:
+                            ro.r(f"data${col} <- as.factor(data${col})")
 
                 self._prog(0.15, f"Fitting model ({self.model})...")
 
@@ -160,14 +165,6 @@ class ASDComputation(RComputationBase):
                             """
                     )
 
-                """
-                Third option, starting from modelgrid which bypasses GLMs
-                'Adaptive Only'
-                            modelgrid <- mba.surf(
-                            cbind(area[, c("x", "y")], "USER OPTION"),
-
-                """
-
                 self._prog(0.75, "Predicting standard errors")
                 if self.model == "glmmPQL":
                     ro.r(
@@ -196,8 +193,18 @@ class ASDComputation(RComputationBase):
                             extend=TRUE
                         )$xyz.est"""
                     )
-
-                # ### Run this part here as well
+                elif self.model == "spatial_design":
+                    self.target = "U"
+                    ro.r(
+                        f"""
+                        modelgrid <- mba.surf(
+                            cbind(area[, c("x", "y")], area${self.existing_target}),
+                            no.X = {x_res},
+                            no.Y = {y_res},
+                            extend = TRUE
+                        )$xyz.est
+                        """
+                    )
 
                 if self.target == "H":
                     self._prog(0.88, "Interpolating fitted values grid")
@@ -297,7 +304,12 @@ class ASDComputation(RComputationBase):
             bbox = BoundingBox([xmin, ymin, xmax, ymax])
 
             # Mask out points in the sea (where lulc is NaN)
-            lulc_values = get_iolulc_points(bbox=bbox, xs=x["x"].values, ys=x["y"].values)
+            try:
+                lulc_values = get_iolulc_points(bbox=bbox, xs=x["x"].values, ys=x["y"].values)
+            except Exception as e:
+                print(f"Error fetching land-sea mask: {e}")
+                lulc_values = 1
+
             x["lulc"] = lulc_values
             x = x[~np.isnan(x["lulc"])].reset_index(drop=True)
             x = x.drop(columns=["lulc"])
@@ -330,6 +342,7 @@ def asd_via_rpy2(
     data: pd.DataFrame,
     area: pd.DataFrame,
     target: str,
+    existing_target: str | None = None,
     family: str = "Poisson",
     total: float = 15,
     delta: float = 0.01,
@@ -354,6 +367,8 @@ def asd_via_rpy2(
     target : {'H','U'}
         If 'H' request raster of fitted values and uncertainties; if 'U'
         request raster of uncertainties only. Defaults to 'H'.
+    existing_target : str
+        The name of the column in `data` that contains the target variable to be fitted from user.
     family : str
         Family for the model (e.g., 'Poisson', 'Binomial', 'Gaussian').
     total : float
@@ -385,6 +400,7 @@ def asd_via_rpy2(
         data=data,
         area=area,
         target=target,
+        existing_target=existing_target,
         family=family,
         total=total,
         delta=delta,
@@ -397,15 +413,30 @@ def asd_via_rpy2(
 if __name__ == "__main__":
 
     data = pd.read_csv("/Users/david/Desktop/dffit.csv")
-    area = pd.read_csv("/Users/david/Desktop/dfpre_clean.csv")
+    # area = pd.read_csv("/Users/david/Desktop/dfpre_clean.csv")
+
+    # da, x_df = asd_via_rpy2(
+    #     model="glmmPQL",
+    #     formulaf="count ~ nbpers + Gpp_5 + PsnNe + EVI_2 + MIR_r + NIR_r + red_r + blue_ + LST_N + Lai_5 + Fpar_ + grip4_total_dens_m_km2",
+    #     formular="~1|Cow",  # ~1|LCD
+    #     data=data,
+    #     area=area,
+    #     target="H",
+    #     existing_target=None,
+    #     total=15,
+    #     delta=0.01,
+    # )
+
+    area = pd.read_csv("/Users/david/Documents/GitHub/lancs-leeg-ossa/test_data/beningrid.csv")
 
     da, x_df = asd_via_rpy2(
-        model="glmmPQL",
-        formulaf="count ~ nbpers + Gpp_5 + PsnNe + EVI_2 + MIR_r + NIR_r + red_r + blue_ + LST_N + Lai_5 + Fpar_ + grip4_total_dens_m_km2",
-        formular="~1|Cow",  # ~1|LCD
-        data=data,
+        model="spatial_design",
+        formulaf="",
+        formular="",  # ~1|LCD
+        data=None,
         area=area,
         target="H",
+        existing_target="Soil",
         total=15,
         delta=0.01,
     )

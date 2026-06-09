@@ -78,7 +78,7 @@ class RComputationBase(ABC):
             self.on_progress(value, message, detail)
 
     @staticmethod
-    def rename_lonlat_to_xy(df: pd.DataFrame) -> pd.DataFrame:
+    def rename_lonlat_to_xy(df: pd.DataFrame) -> pd.DataFrame | None:
         """Rename longitude/latitude to x/y (case-insensitive) for R compatibility.
 
         Parameters
@@ -91,13 +91,15 @@ class RComputationBase(ABC):
         pd.DataFrame
             Renamed dataframe
         """
-        col_map = {}
-        for col in df.columns:
-            if col.lower() in ["longitude", "lng", "long"]:
-                col_map[col] = "x"
-            elif col.lower() in ["latitude", "lat", "ltd"]:
-                col_map[col] = "y"
-        return df.rename(columns=col_map)
+        if df is not None:
+            col_map = {}
+            for col in df.columns:
+                if col.lower() in ["longitude", "lng", "long"]:
+                    col_map[col] = "x"
+                elif col.lower() in ["latitude", "lat", "ltd"]:
+                    col_map[col] = "y"
+            return df.rename(columns=col_map)
+        return df
 
     @staticmethod
     def extract_formula_variables(formula: str) -> list[str]:

@@ -39,28 +39,12 @@ def asd_ui():
                                     choices={
                                         "glmmPQL": "Penalized Quasi-Likelihood GLMM",
                                         "spglm": "Spatial GLM",
+                                        "spatial_design": "Spatial Design",
                                     },
                                     selected="glmmPQL",
                                 ),
                             ),
-                            ui.input_text(
-                                "asd_formulaf",
-                                "Fixed effects formula",
-                                value=ASD_OPTIONS["formulaf"],
-                                placeholder="e.g. AnGam~Week+Elev+Soil",
-                            ),
-                            ui.input_text(
-                                "asd_formular",
-                                "Random effects formula",
-                                value=ASD_OPTIONS["formular"],
-                                placeholder="e.g. ~1|LCD",
-                            ),
-                            ui.input_select(
-                                "asd_family",
-                                "Model family",
-                                choices=ASD_OPTIONS["family"],
-                                selected="Poisson",
-                            ),
+                            ui.output_ui("model_dependent_inputs"),
                             ui.input_numeric(
                                 "asd_total",
                                 "Adaptive sampling locations to allocate",
@@ -74,18 +58,6 @@ def asd_ui():
                                 value=ASD_OPTIONS["delta"],
                                 min=0.001,
                                 step=0.001,
-                            ),
-                            ui.div(
-                                {"style": "padding-top: 12px;"},
-                                ui.input_radio_buttons(
-                                    "asd_target",
-                                    None,
-                                    choices={
-                                        "H": "Targeting Hotspots",
-                                        "U": "Targeting Uncertainty",
-                                    },
-                                    selected=ASD_OPTIONS["target"],
-                                ),
                             ),
                             ui.input_numeric(
                                 "asd_resolution",
@@ -162,8 +134,9 @@ def asd_server(input, output, session, reactive_values):
     @reactive.effect
     @reactive.event(input.r_info_asd)
     async def _handle_r_info_asd():
-        url = URLS[input.asd_model()]
-        await session.send_custom_message("open_url", {"url": url})
+        url = URLS.get(input.asd_model())
+        if url is not None:
+            await session.send_custom_message("open_url", {"url": url})
 
     @reactive.effect
     @reactive.event(input.save_asd)
@@ -205,43 +178,57 @@ def asd_server(input, output, session, reactive_values):
         target = input.asd_target()
         model = input.asd_model()
 
-        if not validate_extracted_df(extracted_df):
-            return
-
         formulaf = input.asd_formulaf()
         formular = input.asd_formular()
+        existing_target = input.asd_existing_target()
+
+        if model == "spatial_design":
+            if not validate_extracted_df(prediction_df):
+                return
+
+            extracted_df = None
+        else:
+            if not validate_extracted_df(extracted_df):
+                return
 
         try:
-            RComputationBase.validate_fixed_formula_syntax(
-                formulaf, formula_name="Fixed effects formula"
-            )
 
-            if model == "glmmPQL" or formular.strip():
-                RComputationBase.validate_random_formula_syntax(
-                    formular, formula_name="Random effects formula"
+            if model == "spatial_design":
+                if existing_target is None:
+                    raise ValueError("No existing target variable provided")
+
+            else:
+                RComputationBase.validate_fixed_formula_syntax(
+                    formulaf, formula_name="Fixed effects formula"
                 )
+
+                if model == "glmmPQL" or formular.strip():
+                    RComputationBase.validate_random_formula_syntax(
+                        formular, formula_name="Random effects formula"
+                    )
 
         except ValueError as e:
             ui.notification_show(str(e), type="error")
             return
 
         # Validate random effects formula (formular format is different: ~1|LCD)
-        if formular and formular.strip():
-            try:
-                if "~" not in formular:
-                    raise ValueError(
-                        "Random effects formula must contain a tilde (~) separator. "
-                        "Expected format: ~effect (e.g., ~1|LCD)"
-                    )
-                left_side = formular.split("~")[0].strip()
-                if left_side:
-                    raise ValueError(
-                        "Random effects formula must have nothing on the left side of the tilde (~). "
-                        "Expected format: ~effect (e.g., ~1|LCD)"
-                    )
-            except ValueError as e:
-                ui.notification_show(str(e), type="error")
-                return
+        if model != "spatial_design":
+            if formular and formular.strip():
+                try:
+                    if "~" not in formular:
+                        raise ValueError(
+                            "Random effects formula must contain a tilde (~) separator. "
+                            "Expected format: ~effect (e.g., ~1|LCD)"
+                        )
+                    left_side = formular.split("~")[0].strip()
+                    if left_side:
+                        raise ValueError(
+                            "Random effects formula must have nothing on the left side of the tilde (~). "
+                            "Expected format: ~effect (e.g., ~1|LCD)"
+                        )
+                except ValueError as e:
+                    ui.notification_show(str(e), type="error")
+                    return
 
         # Capture the R callbacks
         msg_queue: queue.SimpleQueue[tuple] = queue.SimpleQueue()
@@ -255,6 +242,7 @@ def asd_server(input, output, session, reactive_values):
             prediction_df: pd.DataFrame,
             formulaf: str,
             formular: str,
+            existing_target: str,
             target: str,
             family: str,
             total: int = 15,
@@ -274,6 +262,7 @@ def asd_server(input, output, session, reactive_values):
                 data=training_df,
                 area=prediction_df,
                 target=target,
+                existing_target=existing_target,
                 family=family,
                 total=total,
                 delta=delta,
@@ -296,6 +285,7 @@ def asd_server(input, output, session, reactive_values):
                     prediction_df=prediction_df,
                     formulaf=input.asd_formulaf(),
                     formular=input.asd_formular(),
+                    existing_target=input.asd_existing_target(),
                     target=target,
                     family=input.asd_family(),
                     resolution=input.asd_resolution(),
@@ -372,6 +362,49 @@ def asd_server(input, output, session, reactive_values):
         reactive_values["sc-asd_results"].set(results)
 
     @render.ui
+    def model_dependent_inputs():
+        if input.asd_model() == "spatial_design":
+            return ui.div(
+                ui.input_select(
+                    "asd_existing_target",
+                    "Target",
+                    choices=get_target(),
+                ),
+            )
+        return ui.div(
+            ui.input_text(
+                "asd_formulaf",
+                "Fixed effects formula",
+                value=ASD_OPTIONS["formulaf"],
+                placeholder="e.g. AnGam~Week+Elev+Soil",
+            ),
+            ui.input_text(
+                "asd_formular",
+                "Random effects formula",
+                value=ASD_OPTIONS["formular"],
+                placeholder="e.g. ~1|LCD",
+            ),
+            ui.input_select(
+                "asd_family",
+                "Model family",
+                choices=ASD_OPTIONS["family"],
+                selected="Poisson",
+            ),
+            ui.div(
+                {"style": "padding-top: 12px;"},
+                ui.input_radio_buttons(
+                    "asd_target",
+                    None,
+                    choices={
+                        "H": "Targeting Hotspots",
+                        "U": "Targeting Uncertainty",
+                    },
+                    selected=ASD_OPTIONS["target"],
+                ),
+            ),
+        )
+
+    @render.ui
     def response_columns():
         prediction_df = reactive_values["prediction_df"]()
         training_df = reactive_values["extracted_df"]()
@@ -395,23 +428,39 @@ def asd_server(input, output, session, reactive_values):
     def prediction_columns():
         prediction_df = reactive_values["prediction_df"]()
         training_df = reactive_values["extracted_df"]()
-        if prediction_df is not None and training_df is not None:
-            common_cols = set(prediction_df.columns) & set(training_df.columns)
-            common_cols -= {"longitude", "latitude"}
-            if common_cols:
-                return ui.tags.div(
-                    ui.tags.ul(
-                        [ui.tags.li(col) for col in sorted(common_cols)],
-                        style="list-style-type: disc; margin-left: 2px; margin-bottom: 0;",
-                    ),
-                    style="border: 1px solid #ccc; border-radius: 6px; padding: 12px; background: #f9f9f9; margin-top: 8px; margin-bottom: 8px;",
-                )
+        if input.asd_model() != "spatial_design":
+            if prediction_df is not None and training_df is not None:
+                common_cols = set(prediction_df.columns) & set(training_df.columns)
+                common_cols -= {"longitude", "latitude"}
+                if common_cols:
+                    return ui.tags.div(
+                        ui.tags.ul(
+                            [ui.tags.li(col) for col in sorted(common_cols)],
+                            style="list-style-type: disc; margin-left: 2px; margin-bottom: 0;",
+                        ),
+                        style="border: 1px solid #ccc; border-radius: 6px; padding: 12px; background: #f9f9f9; margin-top: 8px; margin-bottom: 8px;",
+                    )
+                else:
+                    return ui.div(
+                        "Loaded Training and Prediction data have no common columns other than coordinates."
+                    )
             else:
-                return ui.div(
-                    "Loaded Training and Prediction data have no common columns other than coordinates."
-                )
+                return ui.div("")
         else:
-            return ui.div("")
+            if prediction_df is not None:
+                cols = set(prediction_df.columns)
+                cols -= {"longitude", "latitude"}
+                if cols:
+                    return ui.tags.div(
+                        ui.tags.ul(
+                            [ui.tags.li(col) for col in sorted(cols)],
+                            style="list-style-type: disc; margin-left: 2px; margin-bottom: 0;",
+                        ),
+                        style="border: 1px solid #ccc; border-radius: 6px; padding: 12px; background: #f9f9f9; margin-top: 8px; margin-bottom: 8px;",
+                    )
+                else:
+                    return ui.div("No candidate target variables found")
+            return ui.div("Prediction data not loaded.")
 
     def validate_extracted_df(extracted_df: pd.DataFrame | None) -> bool:
         """Validate extracted DataFrame before running analysis."""
@@ -420,3 +469,12 @@ def asd_server(input, output, session, reactive_values):
             return False
 
         return True
+
+    def get_target():
+        prediction_df = reactive_values["prediction_df"]()
+        if prediction_df is not None:
+            cols = set(prediction_df.columns)
+            cols -= {"longitude", "latitude"}
+            if cols:
+                return [c for c in cols]
+        return []
