@@ -230,10 +230,10 @@ if __name__ == "__main__":
     start = datetime.strptime("2019-01-01", "%Y-%m-%d")
     end = datetime.strptime("2019-03-01", "%Y-%m-%d")
 
-    var = "ET_500m"
+    var = "LST_Day_1KM"
 
     bbox = BoundingBox([38.6, 6.17, 41, 7.36])
-    xy = bbox.sampling_grid(5000)
+    xy = bbox.sampling_grid(500)
     x = xy[:, 0]
     y = xy[:, 1]
     points = get_modis_points(

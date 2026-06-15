@@ -39,7 +39,7 @@ def asd_ui():
                                     choices={
                                         "glmmPQL": "Penalized Quasi-Likelihood GLMM",
                                         "spglm": "Spatial GLM",
-                                        "spatial_design": "Spatial Design",
+                                        "spatial_design": "Spatial Design Only",
                                     },
                                     selected="glmmPQL",
                                 ),
@@ -65,6 +65,18 @@ def asd_ui():
                                 value=ASD_OPTIONS["resolution"],
                                 min=10,
                                 step=10,
+                            ),
+                        ),
+                        ui.div(
+                            {"style": "padding-top: 12px;"},
+                            ui.input_radio_buttons(
+                                "asd_target",
+                                None,
+                                choices={
+                                    "H": "Targeting Hotspots",
+                                    "U": "Targeting Uncertainty",
+                                },
+                                selected=ASD_OPTIONS["target"],
                             ),
                         ),
                     ],
@@ -180,7 +192,7 @@ def asd_server(input, output, session, reactive_values):
 
         formulaf = input.asd_formulaf()
         formular = input.asd_formular()
-        existing_target = input.asd_existing_target()
+        existing_target = (input.asd_existing_target1(), input.asd_existing_target2())
 
         if model == "spatial_design":
             if not validate_extracted_df(prediction_df):
@@ -242,7 +254,7 @@ def asd_server(input, output, session, reactive_values):
             prediction_df: pd.DataFrame,
             formulaf: str,
             formular: str,
-            existing_target: str,
+            existing_target: tuple[str, str],
             target: str,
             family: str,
             total: int = 15,
@@ -285,7 +297,7 @@ def asd_server(input, output, session, reactive_values):
                     prediction_df=prediction_df,
                     formulaf=input.asd_formulaf(),
                     formular=input.asd_formular(),
-                    existing_target=input.asd_existing_target(),
+                    existing_target=(input.asd_existing_target1(), input.asd_existing_target2()),
                     target=target,
                     family=input.asd_family(),
                     resolution=input.asd_resolution(),
@@ -366,8 +378,13 @@ def asd_server(input, output, session, reactive_values):
         if input.asd_model() == "spatial_design":
             return ui.div(
                 ui.input_select(
-                    "asd_existing_target",
-                    "Target",
+                    "asd_existing_target1",
+                    "Target variable",
+                    choices=get_target(),
+                ),
+                ui.input_select(
+                    "asd_existing_target2",
+                    "Target variable uncertainty",
                     choices=get_target(),
                 ),
             )
@@ -389,18 +406,6 @@ def asd_server(input, output, session, reactive_values):
                 "Model family",
                 choices=ASD_OPTIONS["family"],
                 selected="Poisson",
-            ),
-            ui.div(
-                {"style": "padding-top: 12px;"},
-                ui.input_radio_buttons(
-                    "asd_target",
-                    None,
-                    choices={
-                        "H": "Targeting Hotspots",
-                        "U": "Targeting Uncertainty",
-                    },
-                    selected=ASD_OPTIONS["target"],
-                ),
             ),
         )
 

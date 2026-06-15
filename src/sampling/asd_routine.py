@@ -194,11 +194,10 @@ class ASDComputation(RComputationBase):
                         )$xyz.est"""
                     )
                 elif self.model == "spatial_design":
-                    self.target = "U"
                     ro.r(
                         f"""
                         modelgrid <- mba.surf(
-                            cbind(area[, c("x", "y")], area${self.existing_target}),
+                            cbind(area[, c("x", "y")], area${self.existing_target[1]}),
                             no.X = {x_res},
                             no.Y = {y_res},
                             extend = TRUE
@@ -224,6 +223,17 @@ class ASDComputation(RComputationBase):
                             f"""
                             modelgridX <- mba.surf(
                                 cbind(area[, c("x", "y")], modelse[,1]),
+                                no.X={x_res},
+                                no.Y={y_res},
+                                extend=TRUE
+                            )$xyz.est
+                            """
+                        )
+                    elif self.model == "spatial_design":
+                        ro.r(
+                            f"""
+                            modelgridX <- mba.surf(
+                                cbind(area[, c("x", "y")], area${self.existing_target[0]}),
                                 no.X={x_res},
                                 no.Y={y_res},
                                 extend=TRUE
@@ -342,7 +352,7 @@ def asd_via_rpy2(
     data: pd.DataFrame,
     area: pd.DataFrame,
     target: str,
-    existing_target: str | None = None,
+    existing_target: tuple[str, str] | None = None,
     family: str = "Poisson",
     total: float = 15,
     delta: float = 0.01,
@@ -436,7 +446,7 @@ if __name__ == "__main__":
         data=None,
         area=area,
         target="H",
-        existing_target="Soil",
+        existing_target=("Soil", "Elev"),
         total=15,
         delta=0.01,
     )
