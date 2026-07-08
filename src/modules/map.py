@@ -33,7 +33,7 @@ def map_server(input, output, session, reactive_values):
 
     draw_control = DrawControl(
         polyline={},
-        polygon={},
+        polygon={"shapeOptions": {"color": "blue", "fillColor": "blue", "fillOpacity": 0.2}},
         circle={},
         circlemarker={},
         marker={},
@@ -55,25 +55,47 @@ def map_server(input, output, session, reactive_values):
     def on_draw_change(change) -> None:
         if change["new"] and change["new"].get("geometry"):
             geo_json = change["new"]
-            if geo_json.get("geometry", {}).get("type") == "Polygon":
+            geom_type = geo_json.get("geometry", {}).get("type")
+
+            if geom_type == "Polygon":
                 coords = geo_json["geometry"]["coordinates"][0]
                 lons = [c[0] for c in coords]
                 lats = [c[1] for c in coords]
 
-                rectangle_data = {
-                    "type": "rectangle",
-                    "geometry": geo_json["geometry"],
-                    "bounds": {
-                        "north": max(lats),
-                        "south": min(lats),
-                        "east": max(lons),
-                        "west": min(lons),
-                    },
-                }
+                # Determine if this is a user-drawn polygon or rectangle
+                shape_type = "polygon"
+                # Simple heuristic: if it has 5 coordinates and forms a rectangle, treat as rectangle
+                if len(coords) == 5:
+                    # Check if it's approximately a rectangle
+                    unique_lons = len(set(round(lon, 6) for lon in lons))
+                    unique_lats = len(set(round(lat, 6) for lat in lats))
+                    if unique_lons == 2 and unique_lats == 2:
+                        shape_type = "rectangle"
 
-                # Keep only the latest rectangle
+                # For rectangles: store bounds for backward compatibility
+                if shape_type == "rectangle":
+                    shape_data = {
+                        "type": "rectangle",
+                        "geometry": geo_json["geometry"],
+                        "bounds": {
+                            "north": max(lats),
+                            "south": min(lats),
+                            "east": max(lons),
+                            "west": min(lons),
+                        },
+                    }
+                else:
+                    # For polygons: store geometry and polygon coordinates, NO bounds
+                    polygon_coords = [(c[0], c[1]) for c in coords[:-1]]  # Remove closing point
+                    shape_data = {
+                        "type": "polygon",
+                        "geometry": geo_json["geometry"],
+                        "polygon_coords": polygon_coords,
+                    }
+
+                # Keep only the latest shape
                 draw_control.data = [geo_json]
-                drawn_shapes.set([rectangle_data])
+                drawn_shapes.set([shape_data])
 
     # Observe changes to last_draw trait
     draw_control.observe(on_draw_change, "last_draw")
@@ -93,10 +115,11 @@ def map_server(input, output, session, reactive_values):
                 updating_from_map.set(False)
             return
 
-        rectangle_data = next(iter(shapes))
+        # Get the current shape (polygon or rectangle)
+        shape_data = next(iter(shapes))
         geo = {
             "type": "Feature",
-            "geometry": rectangle_data["geometry"],
+            "geometry": shape_data["geometry"],  # Preserves polygon or rectangle
             "properties": {},
         }
 

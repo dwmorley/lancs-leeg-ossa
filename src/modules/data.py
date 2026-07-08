@@ -187,10 +187,41 @@ def data_server(input, output, session, reactive_values):
             return
         selected_vars.append(input.response_vars()[0])
 
-        # Get current bounds
-        bounds = drawn_shapes.get()
-        if not bounds:
-            ui.notification_show("Please define a rectangle on the map first.", type="warning")
+        # Get current bounds or polygon
+        shapes = drawn_shapes.get()
+        if not shapes:
+            ui.notification_show("Please draw a shape on the map first.", type="warning")
+            return
+
+        shape_data = shapes[0]
+        shape_type = shape_data.get("type")
+
+        # Extract bounds or polygon coordinates
+        if shape_type == "polygon":
+            polygon_coords = shape_data.get("polygon_coords")
+            if not polygon_coords or len(polygon_coords) < 3:
+                ui.notification_show("Invalid polygon. Please redraw it.", type="warning")
+                return
+
+            # Calculate bounding box from polygon coordinates
+            lons = [coord[0] for coord in polygon_coords]
+            lats = [coord[1] for coord in polygon_coords]
+            north = max(lats)
+            south = min(lats)
+            east = max(lons)
+            west = min(lons)
+        elif shape_type == "rectangle":
+            bounds = shape_data.get("bounds")
+            if not bounds:
+                ui.notification_show("Invalid rectangle. Please redraw it.", type="warning")
+                return
+            north = bounds["north"]
+            south = bounds["south"]
+            east = bounds["east"]
+            west = bounds["west"]
+            polygon_coords = None
+        else:
+            ui.notification_show("Please draw a valid shape on the map.", type="warning")
             return
 
         # Check API keys for selected variables
@@ -216,12 +247,6 @@ def data_server(input, output, session, reactive_values):
                     duration=None,
                 )
 
-        extents = bounds[0]["bounds"]
-        north = extents["north"]
-        south = extents["south"]
-        east = extents["east"]
-        west = extents["west"]
-
         width_deg = abs(east - west)
         height_deg = abs(north - south)
         if width_deg * height_deg > 700:
@@ -244,6 +269,7 @@ def data_server(input, output, session, reactive_values):
             date_range=_date_range,
             sample_size=_sample_size,
             api_keys=api_keys,
+            polygon_coords=polygon_coords,
         )
 
         reactive_values["extracted_df"].set(extracted_df)

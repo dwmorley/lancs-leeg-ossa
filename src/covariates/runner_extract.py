@@ -25,7 +25,7 @@ from src.covariates.get_roaddensity import get_roaddensity_points
 from src.covariates.get_soilgrids import get_soilgrids_points
 from src.covariates.get_terraclimate import get_terraclimate_points
 from src.covariates.get_worldpop import get_worldpop_points
-from src.utils.bounding_box import BoundingBox
+from src.utils.bounding_box import BoundingBox, points_in_polygon
 from src.utils.progress import non_closeable_progress
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -184,6 +184,7 @@ def run_extraction(
     date_range: tuple[datetime, datetime],
     sample_size: int,
     api_keys: dict[str, str],
+    polygon_coords: Optional[list[tuple[float, float]]] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Extract selected covariates at grid points - SEQUENTIAL point-based extraction.
 
@@ -199,6 +200,9 @@ def run_extraction(
         Target number of sample points.
     api_keys : dict[str, str]
         API keys for data sources, e.g. {"ecmwf": "my_key"}.
+    polygon_coords : Optional[list[tuple[float, float]]], optional
+        List of (longitude, latitude) tuples defining a polygon boundary.
+        If provided, extracted points will be filtered to only include those within the polygon.
 
     Returns
     -------
@@ -241,6 +245,25 @@ def run_extraction(
 
     # The points to sample
     grid = bbox.sampling_grid(sample_size)
+
+    # Filter points to polygon if provided (before extraction for efficiency)
+    if polygon_coords and len(polygon_coords) >= 3:
+        initial_count = len(grid)
+        mask = points_in_polygon(grid, polygon_coords)
+        grid = grid[mask]
+        print(
+            f"Polygon specified: filtering {initial_count} grid points to polygon → {len(grid)} points for extraction"
+        )
+        if len(grid) == 0:
+            ui.notification_show(
+                "Warning: No grid points fall within the drawn polygon. Check your polygon and try again.",
+                type="warning",
+                duration=None,
+            )
+            return pd.DataFrame({"longitude": [], "latitude": []}), pd.DataFrame(
+                {"longitude": [], "latitude": []}
+            )
+
     xs = grid[:, 0]
     ys = grid[:, 1]
     df = pd.DataFrame({"longitude": xs, "latitude": ys})

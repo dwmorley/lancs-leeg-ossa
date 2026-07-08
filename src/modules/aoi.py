@@ -43,6 +43,19 @@ def aoi_server(input, output, session, reactive_values):
             return
 
         shapes = drawn_shapes.get()
+
+        # If polygon, don't show bounds
+        if shapes and shapes[0].get("type") == "polygon":
+            updating_from_map.set(True)
+            try:
+                ui.update_text("bounds_north", value="")
+                ui.update_text("bounds_south", value="")
+                ui.update_text("bounds_east", value="")
+                ui.update_text("bounds_west", value="")
+            finally:
+                updating_from_map.set(False)
+            return
+
         if not shapes:
             # Clear fields when there are no shapes
             updating_from_map.set(True)
@@ -55,15 +68,17 @@ def aoi_server(input, output, session, reactive_values):
                 updating_from_map.set(False)
             return
 
-        # Use the most-recent rectangle
-        rectangle_data = shapes[0]
+        # Use the most-recent rectangle shape
+        shape_data = shapes[0]
+        if shape_data.get("type") != "rectangle":
+            return
 
         updating_from_map.set(True)
         try:
-            ui.update_text("bounds_north", value=f"{rectangle_data['bounds']['north']:.4f}")
-            ui.update_text("bounds_south", value=f"{rectangle_data['bounds']['south']:.4f}")
-            ui.update_text("bounds_east", value=f"{rectangle_data['bounds']['east']:.4f}")
-            ui.update_text("bounds_west", value=f"{rectangle_data['bounds']['west']:.4f}")
+            ui.update_text("bounds_north", value=f"{shape_data['bounds']['north']:.4f}")
+            ui.update_text("bounds_south", value=f"{shape_data['bounds']['south']:.4f}")
+            ui.update_text("bounds_east", value=f"{shape_data['bounds']['east']:.4f}")
+            ui.update_text("bounds_west", value=f"{shape_data['bounds']['west']:.4f}")
         finally:
             updating_from_map.set(False)
 

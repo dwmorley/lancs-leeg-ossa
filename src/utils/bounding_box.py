@@ -5,6 +5,7 @@ import ast
 import numpy as np
 import pandas as pd
 from pyproj import Transformer
+from shapely.geometry import Point, Polygon
 
 
 class BoundingBox:
@@ -172,6 +173,29 @@ class BoundingBox:
 
         # Round to the nearest whole metre and return as int
         return int(round((dx + dy) / 2))
+
+
+def points_in_polygon(points: np.ndarray, polygon_coords: list[tuple[float, float]]) -> np.ndarray:
+    """Filter points that fall within a polygon.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Array of points with shape (n, 2), where each row is [longitude, latitude].
+    polygon_coords : list[tuple[float, float]]
+        List of (longitude, latitude) tuples defining the polygon vertices.
+
+    Returns
+    -------
+    np.ndarray
+        Boolean array indicating which points are inside the polygon.
+    """
+    if not polygon_coords or len(polygon_coords) < 3:
+        return np.ones(len(points), dtype=bool)
+
+    polygon = Polygon(polygon_coords)
+    mask = np.array([polygon.contains(Point(lon, lat)) for lon, lat in points])
+    return mask
 
 
 if __name__ == "__main__":
