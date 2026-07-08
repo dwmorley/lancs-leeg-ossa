@@ -3,6 +3,11 @@
 <!--
 Update this file before creating a new release tag.
 -->
+
+---------------------------------------------------------------------
+## v1.2.0 (08-Jul-2026)
+
+- Allow CSV export for unaggregated timeseries data
 ---------------------------------------------------------------------
 ## v1.1.1 (27-May-2026)
 
