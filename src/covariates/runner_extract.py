@@ -6,7 +6,7 @@ import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -54,7 +54,7 @@ def _fetch_single_variable_points(
     year: int,
     date_range: Tuple[datetime, datetime],
     variable_lut: dict,
-) -> Tuple[str, Optional[dict], Optional[str]]:
+) -> Tuple[str, Optional[Union[dict, Tuple]], Optional[str]]:
     """Fetch a single variable as point values (worker function for parallel processing).
 
     Parameters
@@ -79,7 +79,7 @@ def _fetch_single_variable_points(
     tuple
         (variable_name, result_dict_or_array, error_message_or_None)
         - result: either a dict of np.ndarray (for multi-output variables like MODIS)
-                  or a single np.ndarray.
+                   or a single np.ndarray, or a tuple (agg, timeseries_info).
         - error_message: None if success, error string if failed.
     """
     try:
@@ -108,6 +108,7 @@ def _fetch_single_variable_points(
                     ys=ys,
                     variable=var.split("terraclimate_")[1],
                     date_range=date_range,
+                    return_timeseries=True,
                 )
             elif var.startswith("grip_"):
                 road_type = int(var.split("_")[1])
@@ -123,6 +124,7 @@ def _fetch_single_variable_points(
                     ys=ys,
                     variable=var.split("modis_")[1],
                     date_range=date_range,
+                    return_timeseries=True,
                 )
             elif var.startswith("cop_"):
                 func = lambda: get_dem_points(bbox=bbox, xs=xs, ys=ys, res=int(var.split("_")[2]))
@@ -131,15 +133,30 @@ def _fetch_single_variable_points(
             else:
                 return var, None, f"Unknown variable: {var}"
 
-            result = _call_with_retries(func, var)
+            try:
+                result = _call_with_retries(func, var)
+            except Exception as retry_error:
+                raise retry_error
 
             if result is None:
                 return var, None, f"API timeout/failure for {variable_lut.get(var, var)}"
 
+            # Handle timeseries-aware results (tuples)
+            if (
+                isinstance(result, tuple)
+                and len(result) == 2
+                and isinstance(result[1], dict)
+                and "data" in result[1]
+            ):
+                # This is a (agg, timeseries_info) tuple from MODIS or TerraClimate
+                return var, result, None
+
             return var, result, None
 
     except Exception as e:
-        return var, None, f"Error: {str(e)}"
+        error_type = type(e).__name__
+        error_msg = str(e)
+        return var, None, f"Error ({error_type}): {error_msg}"
 
 
 def _call_with_retries(fn: Callable, var_name: str, retries: int = 3, base_delay: float = 1.0):
@@ -167,7 +184,7 @@ def run_extraction(
     date_range: tuple[datetime, datetime],
     sample_size: int,
     api_keys: dict[str, str],
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Extract selected covariates at grid points - SEQUENTIAL point-based extraction.
 
     Parameters
@@ -185,7 +202,9 @@ def run_extraction(
 
     Returns
     -------
-        Sampled covariate values at the requested grid points
+        Tuple of (aggregated_df, timeseries_df)
+        - aggregated_df: Sampled covariate values (aggregated for timeseries)
+        - timeseries_df: Unaggregated timeseries values with timestamp columns
     """
     regular_vars = [v for v in variables if not v.startswith("ecmwf_")]
     ecmwf_vars = [v for v in variables if v.startswith("ecmwf_")]
@@ -225,6 +244,7 @@ def run_extraction(
     xs = grid[:, 0]
     ys = grid[:, 1]
     df = pd.DataFrame({"longitude": xs, "latitude": ys})
+    df_timeseries = pd.DataFrame({"longitude": xs, "latitude": ys})
 
     # Calculate total variables for unified progress bar
     total_vars = len(regular_vars) + len(ecmwf_vars)
@@ -312,11 +332,35 @@ def run_extraction(
                             )
                         elif result is not None:
                             print(f"  SUCCESS: Added column {var_name}")
-                            if isinstance(result, dict):
+
+                            # Check if result is a tuple with timeseries info
+                            if (
+                                isinstance(result, tuple)
+                                and len(result) == 2
+                                and isinstance(result[1], dict)
+                                and "data" in result[1]
+                            ):
+                                agg_result, ts_info = result
+                                # Add aggregated data to main df
+                                if isinstance(agg_result, dict):
+                                    for k, v in agg_result.items():
+                                        df[k] = np.asarray(v, dtype=float)
+                                else:
+                                    df[var_name] = np.asarray(agg_result, dtype=float)
+                                # Add ONLY timeseries data to timeseries df
+                                for ts_col, ts_val in ts_info.get("data", {}).items():
+                                    df_timeseries[ts_col] = np.asarray(ts_val, dtype=float)
+                            elif isinstance(result, dict):
+                                # Regular aggregated dict or multi-output dict (no timeseries)
                                 for k, v in result.items():
                                     df[k] = np.asarray(v, dtype=float)
+                                    # For non-timeseries vars, add same columns to both dataframes
+                                    df_timeseries[k] = np.asarray(v, dtype=float)
                             else:
+                                # Single value result (no timeseries)
                                 df[var_name] = np.asarray(result, dtype=float)
+                                # For non-timeseries vars, add same to both dataframes
+                                df_timeseries[var_name] = np.asarray(result, dtype=float)
 
                     except Exception as e:
                         error_str = str(e)
@@ -343,6 +387,7 @@ def run_extraction(
                         elif results is not None:
                             for var, values in results.items():
                                 df[var] = np.asarray(values, dtype=float)
+                                df_timeseries[var] = np.asarray(values, dtype=float)
                             print(f"  SUCCESS: Added {len(results)} ECMWF variable(s)")
 
                     except Exception as e:
@@ -365,4 +410,4 @@ def run_extraction(
 
     print("Complete!")
 
-    return df
+    return df, df_timeseries

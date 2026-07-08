@@ -1,7 +1,7 @@
 """Get and transform MODIS rasters."""
 
 from datetime import datetime
-from typing import Dict, Union
+from typing import Dict, Tuple, Union
 
 import numpy as np
 import planetary_computer
@@ -146,7 +146,8 @@ def get_modis_points(
     ys: np.ndarray,
     variable: str,
     date_range: tuple[datetime, datetime],
-) -> Dict[str, np.ndarray] | None:
+    return_timeseries: bool = False,
+) -> Union[Dict[str, np.ndarray], Tuple[Dict[str, np.ndarray], Dict], None]:
     """Sample MODIS values at specific lon/lat coordinates.
 
     Builds the same spatially-mosaicked stack as :func:`get_modis`, applies
@@ -166,11 +167,17 @@ def get_modis_points(
         MODIS variable to fetch (e.g. 'ET_500m').
     date_range : tuple[datetime, datetime]
         Date range.
+    return_timeseries : bool, optional
+        If True, also return the raw timeseries data with dates (default: False).
 
     Returns
     -------
-    dict[str, np.ndarray] or None
-        Dictionary of {aggregation_key: values_array}, or None if no data found.
+    dict[str, np.ndarray] or tuple or None
+        If return_timeseries is False:
+            Dictionary of {aggregation_key: values_array}, or None if no data found.
+        If return_timeseries is True:
+            Tuple of (aggregated_dict, timeseries_dict) where timeseries_dict contains
+            {'dates': list of date strings, 'data': dict of {col_name: values_array}}.
         Each array has the same length as *xs* / *ys*.
     """
     catalog = pystac_client.Client.open(
@@ -190,6 +197,17 @@ def get_modis_points(
             type="warning",
         )
         return None
+
+    # Extract item dates for fallback when xarray time dimension is NaT
+    item_dates = []
+    for item in items:
+        try:
+            # Try to get the start_datetime from properties
+            start_dt = item.properties.get("start_datetime") or item.properties.get("datetime")
+            if start_dt:
+                item_dates.append(start_dt[:10])  # Get YYYY-MM-DD part
+        except Exception:
+            pass
 
     stack = stackstac.stack(
         items,
@@ -222,7 +240,75 @@ def get_modis_points(
         sampled = agg.sel(x=x_pts, y=y_pts, method="nearest").values.astype(float)
         results[f"{variable}_{method}"] = sampled
 
-    return results if results else None
+    if not return_timeseries:
+        return results if results else None
+
+    # Build timeseries data with date columns
+    timeseries_data = {}
+    dates = []
+    try:
+        if "time" in da_raster.dims:
+            # Handle numpy datetime64 arrays safely
+            time_values = da_raster.time.values
+            valid_times_found = False
+
+            for i, t_val in enumerate(time_values):
+                try:
+                    # Check if time value is NaT (Not a Time)
+                    if np.isnat(t_val):
+                        continue
+
+                    # Convert numpy datetime64 to string
+                    date_str = str(t_val)[:10]  # YYYY-MM-DD
+                    date_formatted = datetime.strptime(date_str, "%Y-%m-%d").strftime("%d%m%y")
+                    sampled = (
+                        da_raster.isel(time=i)
+                        .sel(x=x_pts, y=y_pts, method="nearest")
+                        .values.astype(float)
+                    )
+                    timeseries_data[f"{variable}_{date_formatted}"] = sampled
+                    dates.append(date_str)
+                    valid_times_found = True
+                except Exception:
+                    # Skip this time step but continue with others
+                    continue
+
+            # If no valid xarray times found, fall back to item dates
+            if not valid_times_found and item_dates:
+                for i, date_str in enumerate(item_dates):
+                    try:
+                        if i >= len(da_raster.time):
+                            break
+                        date_formatted = datetime.strptime(date_str, "%Y-%m-%d").strftime("%d%m%y")
+                        sampled = (
+                            da_raster.isel(time=i)
+                            .sel(x=x_pts, y=y_pts, method="nearest")
+                            .values.astype(float)
+                        )
+                        timeseries_data[f"{variable}_{date_formatted}"] = sampled
+                        dates.append(date_str)
+                    except Exception:
+                        continue
+
+            if not valid_times_found and not item_dates:
+                # Return aggregated results without timeseries
+                return results if results else None
+        else:
+            # Single time step, treat as single entry
+            date_formatted = datetime.now().strftime("%d%m%y")
+            sampled = da_raster.sel(x=x_pts, y=y_pts, method="nearest").values.astype(float)
+            timeseries_data[f"{variable}_{date_formatted}"] = sampled
+            dates.append(datetime.now().strftime("%Y-%m-%d"))
+    except Exception:
+        # Fall back to returning just aggregated results
+        return results if results else None
+
+    if not timeseries_data:
+        return results if results else None
+
+    agg_result = results if results else None
+    ts_info = {"dates": dates, "data": timeseries_data}
+    return (agg_result, ts_info)
 
 
 if __name__ == "__main__":

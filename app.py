@@ -87,6 +87,7 @@ def server(input, output, session):
     """Shiny Server."""
     reactive_values = {
         "extracted_df": reactive.Value(None),
+        "timeseries_df": reactive.Value(None),
         "prediction_df": reactive.Value(None),
         "my_ossa_layers": reactive.Value([]),
         "drawn_shapes": reactive.Value([]),

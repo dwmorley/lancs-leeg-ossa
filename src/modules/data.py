@@ -238,7 +238,7 @@ def data_server(input, output, session, reactive_values):
         _date_range = input.covariate_dates()
         _sample_size = input.sample_size()
 
-        extracted_df = run_extraction(
+        extracted_df, timeseries_df = run_extraction(
             bbox=bbox,
             variables=selected_vars,
             date_range=_date_range,
@@ -247,6 +247,7 @@ def data_server(input, output, session, reactive_values):
         )
 
         reactive_values["extracted_df"].set(extracted_df)
+        reactive_values["timeseries_df"].set(timeseries_df)
 
         try:
             map_ref = reactive_values.get("map_ref")
@@ -261,12 +262,28 @@ def data_server(input, output, session, reactive_values):
     @reactive.event(input.export_csv)
     def _handle_export_csv() -> None:
         df = reactive_values["extracted_df"]()
+        df_timeseries = reactive_values.get("timeseries_df", reactive.Value(None))()
+
         if df is None:
             ui.notification_show("No data to export. Run the extraction first.", type="warning")
             return
-        csv_name = f"ossa_extracted_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Save aggregated CSV
+        csv_name = f"ossa_extracted_{timestamp}.csv"
         csv_path = save_csv(csv_name=csv_name, dataframe=df)
-        ui.notification_show(f"Data saved to {csv_path}", type="message")
+
+        # Save timeseries CSV if available
+        if df_timeseries is not None:
+            csv_name_ts = f"ossa_extracted_timeseries_{timestamp}.csv"
+            csv_path_ts = save_csv(csv_name=csv_name_ts, dataframe=df_timeseries)
+            ui.notification_show(
+                f"Data saved:\n  Aggregated: {csv_path}\n  Timeseries: {csv_path_ts}",
+                type="message",
+            )
+        else:
+            ui.notification_show(f"Data saved to {csv_path}", type="message")
 
 
 def get_boundingbox(bounds: List[Dict[str, Any]]) -> BoundingBox:
