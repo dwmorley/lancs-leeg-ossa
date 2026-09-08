@@ -1,7 +1,9 @@
 """Fetch and prepare land use / land cover (LULC) covariates for an AOI."""
 
 import gc
+import signal
 import threading
+from contextlib import contextmanager
 
 import numpy as np
 import planetary_computer
@@ -13,6 +15,26 @@ from src.utils.bounding_box import BoundingBox
 
 # Semaphore to limit concurrent remote file operations (prevent file descriptor exhaustion)
 _remote_file_semaphore = threading.Semaphore(3)
+
+
+@contextmanager
+def timeout(seconds: int = 60):
+    """LULC API timeout check."""
+    if hasattr(signal, "SIGALRM"):
+
+        def handler(signum, frame):
+            raise TimeoutError(f"Operation timed out after {seconds} seconds")
+
+        old_handler = signal.signal(signal.SIGALRM, handler)
+        signal.alarm(seconds)
+        try:
+            yield
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+    else:
+        # Windows doesn't support SIGALRM; just yield without timeout
+        yield
 
 
 def get_iolulc_points(
@@ -44,17 +66,18 @@ def get_iolulc_points(
     if not (2017 <= year <= 2023):
         raise ValueError("Year must be between 2017 and 2023.")
 
-    catalog = pystac_client.Client.open(
-        "https://planetarycomputer.microsoft.com/api/stac/v1",
-        modifier=planetary_computer.sign_inplace,
-    )
+    with timeout(seconds=120):
+        catalog = pystac_client.Client.open(
+            "https://planetarycomputer.microsoft.com/api/stac/v1",
+            modifier=planetary_computer.sign_inplace,
+        )
 
-    search = catalog.search(
-        collections=["io-lulc-annual-v02"],
-        bbox=bbox.to_list(),
-        datetime=str(year),
-    )
-    items = [item for item in search.items() if int(item.id.split("-")[1]) == year]
+        search = catalog.search(
+            collections=["io-lulc-annual-v02"],
+            bbox=bbox.to_list(),
+            datetime=str(year),
+        )
+        items = [item for item in search.items() if int(item.id.split("-")[1]) == year]
 
     values = np.full(len(xs), np.nan)
 

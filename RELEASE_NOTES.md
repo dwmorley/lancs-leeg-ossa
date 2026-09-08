@@ -4,6 +4,10 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.3.2 (08-Sept-2026)
+
+- Speed up land-sea mask, and safeguard against mem issues
+---------------------------------------------------------------------
 ## v1.3.1 (08-Sept-2026)
 
 - Minor bugfix in ASD routine (run button not responsive)
