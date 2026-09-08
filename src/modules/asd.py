@@ -192,7 +192,6 @@ def asd_server(input, output, session, reactive_values):
 
         formulaf = input.asd_formulaf()
         formular = input.asd_formular()
-        existing_target = (input.asd_existing_target1(), input.asd_existing_target2())
 
         if model == "spatial_design":
             if not validate_extracted_df(prediction_df):
@@ -206,6 +205,7 @@ def asd_server(input, output, session, reactive_values):
         try:
 
             if model == "spatial_design":
+                existing_target = (input.asd_existing_target1(), input.asd_existing_target2())
                 if existing_target is None:
                     raise ValueError("No existing target variable provided")
 
@@ -254,7 +254,7 @@ def asd_server(input, output, session, reactive_values):
             prediction_df: pd.DataFrame,
             formulaf: str,
             formular: str,
-            existing_target: tuple[str, str],
+            existing_target: tuple[str, str] | None,
             target: str,
             family: str,
             total: int = 15,
@@ -289,6 +289,11 @@ def asd_server(input, output, session, reactive_values):
 
         # Launch R computation in a thread so the event loop stays unblocked.
         try:
+            if model == "spatial_design":
+                existing_target = (input.asd_existing_target1(), input.asd_existing_target2())
+            else:
+                existing_target = None
+
             task = asyncio.create_task(
                 asyncio.to_thread(
                     do_asd,
@@ -297,7 +302,7 @@ def asd_server(input, output, session, reactive_values):
                     prediction_df=prediction_df,
                     formulaf=input.asd_formulaf(),
                     formular=input.asd_formular(),
-                    existing_target=(input.asd_existing_target1(), input.asd_existing_target2()),
+                    existing_target=existing_target,
                     target=target,
                     family=input.asd_family(),
                     resolution=input.asd_resolution(),

@@ -4,6 +4,10 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.3.1 (08-Sept-2026)
+
+- Minor bugfix in ASD routine (run button not responsive)
+---------------------------------------------------------------------
 ## v1.3.0 (09-Jul-2026)
 
 - Polygon drawing support
