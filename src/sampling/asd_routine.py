@@ -304,37 +304,18 @@ class ASDComputation(RComputationBase):
             indices = np.lexsort(sort_arrays)[::-1]  # Reverse for descending order
             x = x.iloc[indices].reset_index(drop=True)
 
+            # Mask out points in the sea (where lulc is NaN)
+            # Use tiling approach to handle large areas efficiently
             self._prog(0.80, "Applying land-sea mask")
 
-            # Get bounding box from x/y coordinates
             xmin = x["x"].min()
             xmax = x["x"].max()
             ymin = x["y"].min()
             ymax = x["y"].max()
             bbox = BoundingBox([xmin, ymin, xmax, ymax])
 
-            # Mask out points in the sea (where lulc is NaN)
-            # Limit the number of points to avoid timeouts on remote API
-            max_points_for_lulc = 5000
-            if len(x) > max_points_for_lulc:
-                self._prog(
-                    0.80, f"Subsampling points for land-sea mask ({len(x)} → {max_points_for_lulc})"
-                )
-                x_subset = x.iloc[:max_points_for_lulc].copy()
-            else:
-                x_subset = x
-
             try:
-                lulc_values = get_iolulc_points(
-                    bbox=bbox, xs=x_subset["x"].values, ys=x_subset["y"].values
-                )
-                # If we subsampled, fill remaining points with the mode value
-                if len(x) > max_points_for_lulc:
-                    full_lulc = np.full(len(x), np.nan)
-                    full_lulc[: len(x_subset)] = lulc_values
-                    mode_val = float(np.nanmode(full_lulc[~np.isnan(full_lulc)]).mode)
-                    full_lulc[np.isnan(full_lulc)] = mode_val
-                    lulc_values = full_lulc
+                lulc_values = get_iolulc_points(bbox=bbox, xs=x["x"].values, ys=x["y"].values)
             except Exception as e:
                 print(f"Error fetching land-sea mask: {e}")
                 lulc_values = 1
@@ -441,31 +422,32 @@ def asd_via_rpy2(
 
 if __name__ == "__main__":
 
-    data = pd.read_csv("/Users/david/Desktop/dffit.csv")
-    # area = pd.read_csv("/Users/david/Desktop/dfpre_clean.csv")
+    data = pd.read_csv("/Users/david/Desktop/toy_data_togoStrain.csv")
+    area = pd.read_csv("/Users/david/Desktop/toy_data_togoSgrid.csv")
 
+    da, x_df = asd_via_rpy2(
+        model="spglm",
+        formulaf="cases ~ humidity + temperature",
+        formular="~1|group",
+        family="Poisson",
+        data=data,
+        area=area,
+        target="H",
+        existing_target=None,
+        total=30,
+        delta=0.1,
+    )
+
+    # area = pd.read_csv("/Users/david/Documents/GitHub/lancs-leeg-ossa/test_data/beningrid.csv")
+    #
     # da, x_df = asd_via_rpy2(
-    #     model="glmmPQL",
-    #     formulaf="count ~ nbpers + Gpp_5 + PsnNe + EVI_2 + MIR_r + NIR_r + red_r + blue_ + LST_N + Lai_5 + Fpar_ + grip4_total_dens_m_km2",
-    #     formular="~1|Cow",  # ~1|LCD
-    #     data=data,
+    #     model="spatial_design",
+    #     formulaf="",
+    #     formular="",  # ~1|LCD
+    #     data=None,
     #     area=area,
     #     target="H",
-    #     existing_target=None,
+    #     existing_target=("Soil", "Elev"),
     #     total=15,
     #     delta=0.01,
     # )
-
-    area = pd.read_csv("/Users/david/Documents/GitHub/lancs-leeg-ossa/test_data/beningrid.csv")
-
-    da, x_df = asd_via_rpy2(
-        model="spatial_design",
-        formulaf="",
-        formular="",  # ~1|LCD
-        data=None,
-        area=area,
-        target="H",
-        existing_target=("Soil", "Elev"),
-        total=15,
-        delta=0.01,
-    )

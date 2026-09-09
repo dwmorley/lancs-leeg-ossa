@@ -4,6 +4,11 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.3.3 (09-Sept-2026)
+
+- Tiled land-sea mask for ASD
+- Fix total and delta constant error for ASD
+---------------------------------------------------------------------
 ## v1.3.2 (08-Sept-2026)
 
 - Speed up land-sea mask, and safeguard against mem issues

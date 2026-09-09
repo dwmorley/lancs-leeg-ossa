@@ -189,7 +189,10 @@ def asd_server(input, output, session, reactive_values):
         prediction_df = reactive_values["prediction_df"]()
         target = input.asd_target()
         model = input.asd_model()
-
+        total = input.asd_total()
+        delta = input.asd_delta()
+        family = input.asd_family()
+        resolution = input.asd_resolution()
         formulaf = input.asd_formulaf()
         formular = input.asd_formular()
 
@@ -300,12 +303,14 @@ def asd_server(input, output, session, reactive_values):
                     model=model,
                     training_df=extracted_df,
                     prediction_df=prediction_df,
-                    formulaf=input.asd_formulaf(),
-                    formular=input.asd_formular(),
+                    formulaf=formulaf,
+                    formular=formular,
                     existing_target=existing_target,
                     target=target,
-                    family=input.asd_family(),
-                    resolution=input.asd_resolution(),
+                    total=total,
+                    delta=delta,
+                    family=family,
+                    resolution=resolution,
                     on_progress=_on_progress,
                 )
             )
@@ -325,6 +330,16 @@ def asd_server(input, output, session, reactive_values):
                 p.set(1, message="Done")
 
             results = task.result()
+
+            # Check if fewer sites were returned than requested
+            returned_sites = len(results["sc-asd_sites"])
+            if returned_sites < total:
+                ui.notification_show(
+                    f"Your choice of {total} total points with delta {delta} resulted in only {returned_sites} points after thinning. "
+                    f"Consider reducing the total number of points or decreasing the delta inhibition distance.",
+                    type="message",
+                    duration=None,
+                )
 
             if results["sc-asd_sites"].isnull().values.any():
                 ui.notification_show(
