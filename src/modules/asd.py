@@ -44,7 +44,40 @@ def asd_ui():
                                     selected="glmmPQL",
                                 ),
                             ),
-                            ui.output_ui("model_dependent_inputs"),
+                            ui.panel_conditional(
+                                "input.asd_model === 'spatial_design'",
+                                ui.input_select(
+                                    "asd_existing_target1",
+                                    "Target variable",
+                                    choices=[],
+                                ),
+                                ui.input_select(
+                                    "asd_existing_target2",
+                                    "Target variable uncertainty",
+                                    choices=[],
+                                ),
+                            ),
+                            ui.panel_conditional(
+                                "input.asd_model !== 'spatial_design'",
+                                ui.input_text(
+                                    "asd_formulaf",
+                                    "Fixed effects formula",
+                                    value=ASD_OPTIONS["formulaf"],
+                                    placeholder="e.g. AnGam~Week+Elev+Soil",
+                                ),
+                                ui.input_text(
+                                    "asd_formular",
+                                    "Random effects formula",
+                                    value=ASD_OPTIONS["formular"],
+                                    placeholder="e.g. ~1|LCD",
+                                ),
+                                ui.input_select(
+                                    "asd_family",
+                                    "Model family",
+                                    choices=ASD_OPTIONS["family"],
+                                    selected="Poisson",
+                                ),
+                            ),
                             ui.input_numeric(
                                 "asd_total",
                                 "Adaptive sampling locations to allocate",
@@ -393,41 +426,13 @@ def asd_server(input, output, session, reactive_values):
 
         reactive_values["sc-asd_results"].set(results)
 
-    @render.ui
-    def model_dependent_inputs():
-        if input.asd_model() == "spatial_design":
-            return ui.div(
-                ui.input_select(
-                    "asd_existing_target1",
-                    "Target variable",
-                    choices=get_target(),
-                ),
-                ui.input_select(
-                    "asd_existing_target2",
-                    "Target variable uncertainty",
-                    choices=get_target(),
-                ),
-            )
-        return ui.div(
-            ui.input_text(
-                "asd_formulaf",
-                "Fixed effects formula",
-                value=ASD_OPTIONS["formulaf"],
-                placeholder="e.g. AnGam~Week+Elev+Soil",
-            ),
-            ui.input_text(
-                "asd_formular",
-                "Random effects formula",
-                value=ASD_OPTIONS["formular"],
-                placeholder="e.g. ~1|LCD",
-            ),
-            ui.input_select(
-                "asd_family",
-                "Model family",
-                choices=ASD_OPTIONS["family"],
-                selected="Poisson",
-            ),
-        )
+    @reactive.effect
+    def _update_target_choices():
+        # Refresh the target-variable dropdown choices without recreating the
+        # inputs, so switching models/spinners never wipes user-entered text.
+        choices = get_target()
+        ui.update_select("asd_existing_target1", choices=choices)
+        ui.update_select("asd_existing_target2", choices=choices)
 
     @render.ui
     def response_columns():
