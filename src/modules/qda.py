@@ -332,8 +332,26 @@ def qda_server(input, output, session, reactive_values):
             return
 
         # Find QDA-Wilks defined best class
+        newdata_cols = set(class_analysis["NewData"].columns)
         wilks_values = class_analysis["WilksSummary"].loc["Wilks"].values
         wilks_diff = wilks_values[1 : nx - 1] - wilks_values[2:nx]
+
+        # Some cluster counts can be impossible to reach (e.g. a group too
+        # small to split further, or excluded for rank deficiency), in which
+        # case they never get a column in NewData. Mask those candidates out
+        # so argmax can never pick a "best" count with no actual classification.
+        valid = np.array([f"{i + 3}cluster" in newdata_cols for i in range(len(wilks_diff))])
+        if not np.any(valid):
+            ui.notification_show(
+                "QDA analysis could not determine a best number of classes: none of "
+                "the requested cluster counts produced a valid classification. Try "
+                "reducing the maximum number of classes (nx) or check your input data.",
+                type="error",
+                duration=None,
+            )
+            return
+        wilks_diff = np.where(valid, wilks_diff, -np.inf)
+
         best_idx = int(np.argmax(wilks_diff))
         best = best_idx + 3
         best_key = f"{best}cluster"
