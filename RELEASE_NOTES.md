@@ -4,6 +4,10 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.3.4 (11-Sept-2026)
+
+- Fix LCP routine, G vs I sample sizes
+---------------------------------------------------------------------
 ## v1.3.3 (09-Sept-2026)
 
 - Tiled land-sea mask for ASD
