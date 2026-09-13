@@ -4,6 +4,10 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.3.5 (13-Sept-2026)
+
+- Added finalised test files
+---------------------------------------------------------------------
 ## v1.3.4 (11-Sept-2026)
 
 - Fix LCP routine, G vs I sample sizes
