@@ -1,3 +1,5 @@
 *
-!st_newdata.csv
-!st_train.csv
+!toy_data_togoSgrid.csv
+!toy_data_togoSTgrid.csv
+!toy_data_togoStrain.csv
+!toy_data_togoSTtrain.csv
