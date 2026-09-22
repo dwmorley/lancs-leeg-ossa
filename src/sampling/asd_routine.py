@@ -7,14 +7,13 @@ import pandas as pd
 import rioxarray  # noqa: F401
 import rpy2.robjects as ro
 import xarray as xr
+from global_land_mask import globe
 from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
 from scipy.spatial import cKDTree
 
-from src.covariates.get_iolulc import get_iolulc_points
-from src.utils.bounding_box import BoundingBox
 from src.utils.r_base import RComputationBase
 
 
@@ -304,25 +303,16 @@ class ASDComputation(RComputationBase):
             indices = np.lexsort(sort_arrays)[::-1]  # Reverse for descending order
             x = x.iloc[indices].reset_index(drop=True)
 
-            # Mask out points in the sea (where lulc is NaN)
-            # Use tiling approach to handle large areas efficiently
+            # Mask out points in the sea
             self._prog(0.80, "Applying land-sea mask")
 
-            xmin = x["x"].min()
-            xmax = x["x"].max()
-            ymin = x["y"].min()
-            ymax = x["y"].max()
-            bbox = BoundingBox([xmin, ymin, xmax, ymax])
-
             try:
-                lulc_values = get_iolulc_points(bbox=bbox, xs=x["x"].values, ys=x["y"].values)
+                is_land = globe.is_land(x["y"].values, x["x"].values)
             except Exception as e:
-                print(f"Error fetching land-sea mask: {e}")
-                lulc_values = 1
+                print(f"Error applying land-sea mask: {e}")
+                is_land = np.ones(len(x), dtype=bool)
 
-            x["lulc"] = lulc_values
-            x = x[~np.isnan(x["lulc"])].reset_index(drop=True)
-            x = x.drop(columns=["lulc"])
+            x = x[is_land].reset_index(drop=True)
 
             self._prog(0.82, "Selecting candidate points for thinning")
             # Only keep top candidates by uncertainty/fit to avoid memory explosion

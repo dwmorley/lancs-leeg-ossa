@@ -23,3 +23,4 @@ netcdf4>=1.7.4,<2.0.0
 pydap>=3.5.8,<4.0.0
 ecmwf-datastores-client>=0.4.2,<1.0.0
 soilgrids>=0.1.5,<1.0.0
+global-land-mask>=1.0.0,<2.0.0
