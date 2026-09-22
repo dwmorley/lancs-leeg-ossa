@@ -268,6 +268,11 @@ def asd_server(input, output, session, reactive_values):
                             "Random effects formula must contain a tilde (~) separator. "
                             "Expected format: ~effect (e.g., ~1|LCD)"
                         )
+                    if "|" not in formular:
+                        raise ValueError(
+                            "Random effects formula must contain a pipe (|) separator. "
+                            "Expected format: ~effect (e.g., ~1|LCD)"
+                        )
                     left_side = formular.split("~")[0].strip()
                     if left_side:
                         raise ValueError(
