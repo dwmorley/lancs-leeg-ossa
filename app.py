@@ -1,6 +1,7 @@
 """Application entry point for the OSSA sampling UI and data pipeline."""
 
 import os
+import threading
 from pathlib import Path
 
 from shiny import App, reactive, run_app, ui
@@ -83,8 +84,29 @@ app_ui = ui.page_fluid(
 )
 
 
+# Tracks how many browser sessions are currently connected so the app can
+# shut itself down once the *last* one goes away, without exiting the whole
+# process just because a single tab had a transient disconnect (e.g. a brief
+# network drop, laptop sleep, or the browser suspending a backgrounded tab
+# under memory pressure). A grace period allows a reconnect to cancel exit.
+_active_sessions_lock = threading.Lock()
+_active_sessions = 0
+_SHUTDOWN_GRACE_SECONDS = 30
+
+
+def _maybe_shutdown():
+    """Exit the process only if no sessions have reconnected during the grace period."""
+    with _active_sessions_lock:
+        if _active_sessions == 0:
+            os._exit(0)
+
+
 def server(input, output, session):
     """Shiny Server."""
+    global _active_sessions
+    with _active_sessions_lock:
+        _active_sessions += 1
+
     reactive_values = {
         "extracted_df": reactive.Value(None),
         "timeseries_df": reactive.Value(None),
@@ -111,7 +133,14 @@ def server(input, output, session):
     footer.footer_server("my_footer", reactive_values)
 
     def on_session_ended():
-        os._exit(0)
+        global _active_sessions
+        with _active_sessions_lock:
+            _active_sessions -= 1
+        # Don't kill the whole process immediately: give a grace period in
+        # case this was a transient disconnect (network blip, tab suspended
+        # in the background, refresh) rather than the user actually closing
+        # the app. Only exit if the session count is still zero afterwards.
+        threading.Timer(_SHUTDOWN_GRACE_SECONDS, _maybe_shutdown).start()
 
     session.on_ended(on_session_ended)
 

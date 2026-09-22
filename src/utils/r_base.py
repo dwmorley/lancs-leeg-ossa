@@ -289,10 +289,50 @@ class RComputationBase(ABC):
             If R computation fails
         """
         self._setup_r_callbacks()
+        snapshot = self._r_globalenv_snapshot()
         try:
             return self._compute()
         finally:
+            self._cleanup_r_globalenv(snapshot)
             self._restore_r_callbacks()
+
+    @staticmethod
+    def _r_globalenv_snapshot() -> set[str]:
+        """Return the names currently defined in R's global environment.
+
+        rpy2 embeds a single, long-lived R interpreter inside the Python
+        process. Anything a computation assigns to R's global environment
+        (model fits, meshes, prediction grids, etc. via ``ro.globalenv[...]``)
+        is never freed automatically by Python's garbage collector - it just
+        sits in R's heap for the lifetime of the whole app, across every user
+        session. Snapshotting the environment before a run lets us clean up
+        exactly what that run added afterwards.
+        """
+        import rpy2.robjects as ro
+
+        return set(ro.r("ls(envir=.GlobalEnv)"))
+
+    @staticmethod
+    def _cleanup_r_globalenv(snapshot: set[str]) -> None:
+        """Remove any R globals created since ``snapshot`` and force R's GC.
+
+        Parameters
+        ----------
+        snapshot : set[str]
+            Names returned by ``_r_globalenv_snapshot`` before the computation
+            started.
+        """
+        import rpy2.robjects as ro
+
+        current = set(ro.r("ls(envir=.GlobalEnv)"))
+        new_vars = current - snapshot
+        if new_vars:
+            names_r = ", ".join(f'"{name}"' for name in new_vars)
+            ro.r(f"rm(list=c({names_r}), envir=.GlobalEnv)")
+        # R's own GC doesn't run eagerly; the large TMB/Krig/mesh objects we
+        # just removed won't actually release native (C++/Eigen) memory back
+        # to the OS until gc() runs.
+        ro.r("invisible(gc(verbose=FALSE, full=TRUE))")
 
     def _handle_r_error(self, r_err: RRuntimeError) -> None:
         """Handle R runtime errors.

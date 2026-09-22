@@ -71,6 +71,12 @@ def zssa_via_rpy2(
     if list(data.columns) != expected_cols:
         data = data[expected_cols]
 
+    # rpy2 shares one long-lived R interpreter across the whole process/all
+    # sessions. Everything this routine assigns into R's global environment
+    # (data, results, retable, per-add p{n} frames, etc.) would otherwise sit
+    # in R's heap forever. Snapshot now so we can clean up exactly what this
+    # run adds, however it exits.
+    r_env_snapshot = set(ro.r("ls(envir=.GlobalEnv)"))
     try:
         importr("extRemes")
         importr("fields")
@@ -239,6 +245,17 @@ def zssa_via_rpy2(
             notify_fn(error_msg, type="error", duration=None)
             return None
         raise
+    finally:
+        # Remove everything this run added to R's global environment (data,
+        # results, retable, the per-add p{n} frames, the fevd/Krig fits used
+        # internally, etc.) and force R's own GC so native memory is actually
+        # released rather than accumulating with every subsequent run.
+        current_vars = set(ro.r("ls(envir=.GlobalEnv)"))
+        new_vars = current_vars - r_env_snapshot
+        if new_vars:
+            names_r = ", ".join(f'"{name}"' for name in new_vars)
+            ro.r(f"rm(list=c({names_r}), envir=.GlobalEnv)")
+        ro.r("invisible(gc(verbose=FALSE, full=TRUE))")
 
 
 if __name__ == "__main__":

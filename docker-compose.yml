@@ -22,3 +22,6 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - DOWNLOAD_DIR=/app/output
+    # Auto-recover if the app process ever exits unexpectedly (e.g. OOM kill)
+    # instead of leaving the browser stuck on a grey "disconnected" screen.
+    restart: unless-stopped

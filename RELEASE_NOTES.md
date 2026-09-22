@@ -4,6 +4,12 @@
 Update this file before creating a new release tag.
 -->
 ---------------------------------------------------------------------
+## v1.4.0 (22-Sept-2026)
+
+- Parse check for missing pipe char in random effects formula
+- Land-sea mask using global_land_mask (faster vs resolution trade-off)
+- Some Claude suggested changes to handle OOM on low-power machines
+---------------------------------------------------------------------
 ## v1.3.5 (13-Sept-2026)
 
 - Added finalised test files
